@@ -1,0 +1,12 @@
+{
+  "env": {
+    "node": true,
+    "es6": true
+  },
+  "rules": {
+    "comma-dangle": [0, "never"],
+    "quotes": [1, "single"],
+    "no-multi-spaces": [2, { "exceptions": { "VariableDeclarator": true }}],
+    "semi": [2, "always"]
+  }
+}

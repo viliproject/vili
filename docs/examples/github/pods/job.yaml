@@ -1,0 +1,17 @@
+kind: "Pod"
+apiVersion: "v1"
+metadata:
+  name: myjob
+spec:
+  restartPolicy: Never
+  imagePullPolicy: Always
+  containers:
+    - name: "myjob"
+      image: "quay.io/myteam/myjob:master"
+      args:
+        - {MYJOB_COMMAND}
+      env:
+        - name: "KEY1"
+          value: "VALUE"
+        - name: "KEY2"
+          value: "{VARIABLE}"

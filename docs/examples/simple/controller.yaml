@@ -1,0 +1,81 @@
+kind: "ReplicationController"
+apiVersion: "v1"
+metadata:
+  name: "vili"
+  labels:
+    app: "vili"
+spec:
+  replicas: 3
+  selector:
+    app: "vili"
+  template:
+    metadata:
+      labels:
+        app: "vili"
+    spec:
+      volumes:
+        - name: "vili-secrets-volume"
+          secret:
+            secretName: "vili-secrets"
+      containers:
+        - name: "vili"
+          image: "quay.io/airware/vili:master"
+          volumeMounts:
+            - name: "vili-secrets-volume"
+              readOnly: true
+              mountPath: "/env/secret"
+          readinessProbe:
+            httpGet:
+              path: "/admin/health"
+              port: 80
+            initialDelaySeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: "/admin/health"
+              port: 80
+            initialDelaySeconds: 10
+            timeoutSeconds: 5
+          ports:
+            - name: "http-server"
+              containerPort: 80
+          env:
+            # vili
+            - name: "LOG_JSON"
+              value: "1"
+            - name: "VILI_URI"
+              value: "https://vili.mydomain.com"
+            - name: "ENVIRONMENTS"
+              value: "prod staging"
+            - name: "PROD_ENVS"
+              value: "prod"
+            - name: "APPROVAL_ENVS"
+              value: "staging"
+            # redis
+            - name: "REDIS_PORT"
+              value: "tcp://redis-host:6379"
+            - name: "REDIS_DB"
+              value: "1"
+            # firebase
+            - name: "FIREBASE_URL"
+              value: "https://myapp.firebaseio.com/"
+            # okta
+            - name: "OKTA_DOMAIN"
+              value: "mydomain.com"
+            - name: "OKTA_ENTRYPOINT"
+              value: "https://myteam.okta.com/entrypoint"
+            # github
+            - name: "GITHUB_OWNER"
+              value: "myteam"
+            - name: "GITHUB_REPO"
+              value: "viliconfiguration"
+            - name: "GITHUB_CONTENTS_PATH"
+              value: "contents"
+            # quay
+            - name: "QUAY_NAMESPACE"
+              value: "myteam"
+            # slack
+            - name: "SLACK_CHANNEL"
+              value: "#vili"
+            - name: "SLACK_EMOJI"
+              value: ":vili:"

@@ -1,0 +1,26 @@
+kind: "ReplicationController"
+apiVersion: "v1"
+metadata:
+  name: "myapp"
+  labels:
+    app: "myapp"
+spec:
+  replicas: 3
+  selector:
+    app: "myapp"
+  template:
+    metadata:
+      labels:
+        app: "myapp"
+    spec:
+      containers:
+        - name: "myapp"
+          image: "quay.io/myteam/myapp:master"
+          ports:
+            - name: "http-server"
+              containerPort: 80
+          env:
+            - name: "KEY1"
+              value: "VALUE"
+            - name: "KEY2"
+              value: "{VARIABLE}"
