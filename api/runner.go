@@ -202,6 +202,7 @@ func (r *runnerSpec) start() error {
 			case runnerTimeout:
 				r.addMessage("Run timed out", "error")
 			default:
+				r.addMessage(fmt.Sprintf("Unexpected error %s", e), "error")
 				log.Error(e)
 			}
 		}
