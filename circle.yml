@@ -14,7 +14,6 @@ dependencies:
   cache_directories:
     - "~/docker"
   override:
-    - docker login -e="$QUAY_EMAIL" -u="$QUAY_USER" -p="$QUAY_PASS" quay.io
     - mkdir -p ~/docker
     - cd ~/docker && rm -f `ls | grep -v base-$BASEVERSION.tar`
     # try to use the cache for the base image
@@ -38,6 +37,7 @@ deployment:
   apps:
     branch: [develop, master]
     commands:
+      - docker login -e="$QUAY_EMAIL" -u="$QUAY_USER" -p="$QUAY_PASS" quay.io
       - docker tag -f vili:$SHA quay.io/airware/vili:$SHA
       - docker tag -f vili:$SHA quay.io/airware/vili:$BRANCH
       - docker push quay.io/airware/vili:$SHA
