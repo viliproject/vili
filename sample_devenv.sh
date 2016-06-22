@@ -1,34 +1,45 @@
+export LISTEN_ADDR=":4001"
 export VILI_URI=http://localhost:4001
-export VILI_ENVS=tools,staging,preprod,prodtools,prod
+export BUILD_DIR=$HOME/go/src/github.com/airware/vili/public/build
 
-export VILI_SESSION_SECRET=looselipssinkships
+export STATIC_LIVE_RELOAD=1
 
-export VILI_ROBOTS_TEAMCITY=test
+export ENVIRONMENTS=tools staging preprod prodtools prod
+export PROD_ENVS=prod prodtools
+export APPROVAL_ENVS=preprod tools
 
-export VILI_REDIS_DB=8
+export LOG_DEBUG=1
 
-export VILI_OKTA_ENTRYPOINT=https://airware.okta.com/app/entrypoint
-export VILI_OKTA_ISSUER=http://www.okta.com/issuer
-export VILI_OKTA_CERT="cert"
-export VILI_OKTA_DOMAIN=airware.com
+export REDIS_PORT=redis://localhost:6379
+export REDIS_DB=8
 
-export VILI_GITHUB_TOKEN=token
-export VILI_GITHUB_CONTENTSURL="https://api.github.com/repos/airware/loki/contents/k8s/<%= path %>"
-export VILI_GITHUB_ENVS_TOOLS_CONTENTSURL="https://api.github.com/repos/airware/loki/contents/k8s-tools/<%= path %>"
-export VILI_GITHUB_ENVS_PRODTOOLS_CONTENTSURL="https://api.github.com/repos/airware/loki/contents/k8s-tools/<%= path %>"
+export OKTA_ENTRYPOINT=https://airware.okta.com/app/entrypoint
+export OKTA_ISSUER=http://www.okta.com/issuer
+export OKTA_CERT="cert"
+export OKTA_DOMAIN=airware.com
 
-export VILI_QUAY_TOKEN=token
-export VILI_QUAY_NAMESPACE=airware
+export GITHUB_TOKEN=token
+export GITHUB_OWNER=airware
+export GITHUB_REPO=loki
+export GITHUB_CONTENTS_PATH="vili/conf/%s"
+export GITHUB_ENVS_TOOLS_CONTENTSURL="https://api.github.com/repos/airware/loki/contents/k8s-tools/<%= path %>"
+export GITHUB_ENVS_PRODTOOLS_CONTENTSURL="https://api.github.com/repos/airware/loki/contents/k8s-tools/<%= path %>"
 
-export VILI_KUBE_TOOLS_URL=https://kubemasters-staging.airware.io
-export VILI_KUBE_STAGING_URL=https://kubemasters-staging.airware.io
-export VILI_KUBE_PREPROD_URL=https://kubemasters-staging.airware.io
-export VILI_KUBE_PRODTOOLS_URL=https://kubemasters-prod.airware.io
-export VILI_KUBE_PRODTOOLS_NAMESPACE=tools
-export VILI_KUBE_PROD_URL=https://kubemasters-prod.airware.io
+export QUAY_TOKEN=token
+export QUAY_NAMESPACE=airware
 
-export VILI_FIREBASE_URL=https://test.firebaseio.com/
-export VILI_FIREBASE_SECRET=secret
+export FIREBASE_URL=https://test.firebaseio.com/
+export FIREBASE_SECRET=secret
 
-export VILI_SLACK_URI=https://hooks.slack.com/services/myservice
-export VILI_SLACK_CHANNEL="#slacktest"
+export SLACK_TOKEN=token
+export SLACK_EMOJI=":party_parrot:"
+export SLACK_CHANNEL="#slacktest"
+export SLACK_USERNAME=vilibot
+export SLACK_DEPLOY_USERNAMES=user1 user2
+
+export KUBE_TOOLS_URL=https://kubemasters-staging.airware.io
+export KUBE_STAGING_URL=https://kubemasters-staging.airware.io
+export KUBE_PREPROD_URL=https://kubemasters-staging.airware.io
+export KUBE_PRODTOOLS_URL=https://kubemasters-prod.airware.io
+export KUBE_PRODTOOLS_NAMESPACE=tools
+export KUBE_PROD_URL=https://kubemasters-prod.airware.io
