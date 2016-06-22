@@ -172,9 +172,14 @@ func ListenForMentions(mentions chan<- *Mention) {
 			case *slack.RTMError:
 				log.Error(ev.Error())
 
+			case *slack.ConnectedEvent:
+				log.Infof("RTM Connected, Connection count: %d", ev.ConnectionCount)
+
 			case *slack.DisconnectedEvent:
-				log.Info("RTM disconnected")
-				break IncomingEvents
+				log.Infof("RTM disconnected, Intentional: %v", ev.Intentional)
+				if ev.Intentional {
+					break IncomingEvents
+				}
 
 			default:
 				// ignore other events
