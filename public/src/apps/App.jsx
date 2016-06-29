@@ -201,7 +201,6 @@ export class App extends React.Component {
 
     componentDidMount() {
         this.props.activateTab('home');
-        this.loadData();
     }
 
     componentDidUpdate(prevProps) {
