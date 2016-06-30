@@ -123,10 +123,26 @@ func New() *App {
 		// set up the docker service
 		func() {
 			defer wg.Done()
-			docker.InitQuay(&docker.QuayConfig{
-				Token:     config.GetString(config.QuayToken),
-				Namespace: config.GetString(config.QuayNamespace),
-			})
+			switch config.GetString(config.DockerMode) {
+			case "registry":
+				docker.InitRegistry(&docker.RegistryConfig{
+					BaseURL:         config.GetString(config.RegistryURL),
+					Username:        config.GetString(config.RegistryUsername),
+					Password:        config.GetString(config.RegistryPassword),
+					Namespace:       config.GetString(config.RegistryNamespace),
+					BranchDelimiter: config.GetString(config.RegistryBranchDelimiter),
+				})
+			case "ecr":
+				docker.InitECR(&docker.ECRConfig{
+					Region:          config.GetString(config.AWSRegion),
+					AccessKeyID:     config.GetString(config.AWSAccessKeyID),
+					SecretAccessKey: config.GetString(config.AWSSecretAccessKey),
+					Namespace:       config.GetString(config.RegistryNamespace),
+					BranchDelimiter: config.GetString(config.RegistryBranchDelimiter),
+				})
+			default:
+				log.Panic("invalid docker mode provided")
+			}
 		},
 
 		// set up the session service

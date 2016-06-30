@@ -81,6 +81,7 @@ class Row extends React.Component { // eslint-disable-line no-unused-vars
         var self = this;
         viliApi.runs.create(this.props.env, this.props.job, {
             tag: this.props.data.tag,
+            branch: this.props.data.branch,
             trigger: false
         }).then(function(run) {
             router.transitionTo(`/${self.props.env}/jobs/${self.props.job}/runs/${run.id}`);

@@ -20,6 +20,7 @@ import (
 // Run represents a single run of an image for any job
 type Run struct {
 	ID       string    `json:"id"`
+	Branch   string    `json:"branch"`
 	Tag      string    `json:"tag"`
 	Time     time.Time `json:"time"`
 	Username string    `json:"username"`
@@ -118,11 +119,11 @@ func (r *Run) Init(env, job, username string, trigger bool) error {
 	r.Username = username
 	r.State = runStateNew
 
-	imageIDs, err := docker.GetTagImageIDs(job, r.Tag)
+	digest, err := docker.GetTag(job, r.Branch, r.Tag)
 	if err != nil {
 		return err
 	}
-	if len(imageIDs) == 0 {
+	if digest == "" {
 		return RunInitError{
 			message: fmt.Sprintf("Tag %s not found for job %s", r.Tag, job),
 		}
