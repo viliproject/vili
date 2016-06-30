@@ -1,8 +1,8 @@
-FROM quay.io/airware/vilibase:20151211-164200
+FROM quay.io/airware/vilibase:20160630-160722
 
 ENV GO15VENDOREXPERIMENT=1
 
-ADD . /go/src/github.com/airware/vili
+COPY . /go/src/github.com/airware/vili
 WORKDIR /go/src/github.com/airware/vili
 
 RUN cd public && npm install
