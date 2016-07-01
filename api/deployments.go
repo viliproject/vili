@@ -21,6 +21,7 @@ import (
 // Deployment represents a single deployment of an image for any app
 type Deployment struct {
 	ID       string    `json:"id"`
+	Branch   string    `json:"branch"`
 	Tag      string    `json:"tag"`
 	Time     time.Time `json:"time"`
 	Username string    `json:"username"`
@@ -195,11 +196,11 @@ func (d *Deployment) Init(env, app, username string, trigger bool) error {
 	d.Username = username
 	d.State = deploymentStateNew
 
-	imageIDs, err := docker.GetTagImageIDs(app, d.Tag)
+	digest, err := docker.GetTag(app, d.Branch, d.Tag)
 	if err != nil {
 		return err
 	}
-	if len(imageIDs) == 0 {
+	if digest == "" {
 		return DeploymentInitError{
 			message: fmt.Sprintf("Tag %s not found for app %s", d.Tag, app),
 		}

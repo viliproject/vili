@@ -1,6 +1,5 @@
 import React from 'react';
 import _ from 'underscore';
-import humanSize from 'human-size';
 import { Promise } from 'bluebird';
 import { viliApi, displayTime, template } from '../lib';
 import { Table, Loading } from '../shared'; // eslint-disable-line no-unused-vars
@@ -43,8 +42,8 @@ class Row extends React.Component { // eslint-disable-line no-unused-vars
         var cells = _.union([
             <td data-column="tag">{tag}</td>,
             <td data-column="branch">{data.branch}</td>,
+            <td data-column="revision">{data.revision || 'unknown'}</td>,
             <td data-column="buildtime">{displayTime(date)}</td>,
-            <td data-column="size">{humanSize(data.size, 1)}</td>,
             <td data-column="deployed_at">{this.props.deployedAt}</td>,
         ], this.props.hasApprovalColumn ? [
             <td data-column="approved">{this.state.approvalContents}</td>,
@@ -101,6 +100,7 @@ class Row extends React.Component { // eslint-disable-line no-unused-vars
         event.target.setAttribute('disabled', 'disabled');
         viliApi.deployments.create(this.props.env, this.props.app, {
             tag: this.props.data.tag,
+            branch: this.props.data.branch,
             trigger: false
         }).then(function(deployment) {
             router.transitionTo(`/${self.props.env}/apps/${self.props.app}/deployments/${deployment.id}`);
@@ -137,8 +137,8 @@ export class App extends React.Component {
         var columns = _.union([
             {title: 'Tag', key: 'tag'},
             {title: 'Branch', key: 'branch'},
+            {title: 'Revision', key: 'revision'},
             {title: 'Build Time', key: 'buildtime'},
-            {title: 'Size', key: 'size'},
             {title: 'Deployed', key: 'deployed_at'},
         ], this.state.hasApprovalColumn ? [{title: 'Approved', key: 'approved'}] : [], [
             {title: 'Actions', key: 'actions'},

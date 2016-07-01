@@ -4,9 +4,9 @@ export BUILD_DIR=$HOME/go/src/github.com/airware/vili/public/build
 
 export STATIC_LIVE_RELOAD=1
 
-export ENVIRONMENTS=tools staging preprod prodtools prod
-export PROD_ENVS=prod prodtools
-export APPROVAL_ENVS=preprod tools
+export ENVIRONMENTS="tools staging preprod prodtools prod"
+export PROD_ENVS="prod prodtools"
+export APPROVAL_ENVS="preprod tools"
 
 export LOG_DEBUG=1
 
@@ -25,8 +25,20 @@ export GITHUB_CONTENTS_PATH="vili/conf/%s"
 export GITHUB_ENVS_TOOLS_CONTENTSURL="https://api.github.com/repos/airware/loki/contents/k8s-tools/<%= path %>"
 export GITHUB_ENVS_PRODTOOLS_CONTENTSURL="https://api.github.com/repos/airware/loki/contents/k8s-tools/<%= path %>"
 
-export QUAY_TOKEN=token
-export QUAY_NAMESPACE=airware
+# Set to either "registry" or "ecr"
+export DOCKER_MODE=registry
+export REGISTRY_BRANCH_DELIMITER="-"
+export REGISTRY_NAMESPACE=airware # optional, omit for top-level repositories
+
+# registry mode
+export REGISTRY_URL=https://quay.io
+export REGISTRY_USERNAME=username
+export REGISTRY_PASSWORD=password
+
+# ecr mode
+# export AWS_REGION=us-east-1
+# export AWS_ACCESS_KEY_ID="accesskeyid"
+# export AWS_SECRET_ACCESS_KEY="secretaccesskey"
 
 export FIREBASE_URL=https://test.firebaseio.com/
 export FIREBASE_SECRET=secret
@@ -35,7 +47,7 @@ export SLACK_TOKEN=token
 export SLACK_EMOJI=":party_parrot:"
 export SLACK_CHANNEL="#slacktest"
 export SLACK_USERNAME=vilibot
-export SLACK_DEPLOY_USERNAMES=user1 user2
+export SLACK_DEPLOY_USERNAMES="user1 user2"
 
 export KUBE_TOOLS_URL=https://kubemasters-staging.airware.io
 export KUBE_STAGING_URL=https://kubemasters-staging.airware.io

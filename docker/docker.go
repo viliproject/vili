@@ -14,7 +14,7 @@ var service Service
 // Service is a docker service instance that fetches images from a repository
 type Service interface {
 	GetRepository(repo string, withBranches bool) ([]*Image, error)
-	GetTagImageIDs(repo, tag string) ([]string, error)
+	GetTag(repo, branch, tag string) (string, error)
 }
 
 // GetRepository returns the images in the given repository
@@ -22,18 +22,22 @@ func GetRepository(repo string, withBranches bool) ([]*Image, error) {
 	return service.GetRepository(repo, withBranches)
 }
 
-// GetTagImageIDs returns a list of image IDs for the given tag
-func GetTagImageIDs(repo, tag string) ([]string, error) {
-	return service.GetTagImageIDs(repo, tag)
+// GetTag returns an image digest for the given tag and branch
+func GetTag(repo, branch, tag string) (string, error) {
+	return service.GetTag(repo, branch, tag)
 }
 
 // Image represents a docker image in a repository
 type Image struct {
-	ID           string    `json:"id"`
-	Size         int       `json:"size"`
 	Tag          string    `json:"tag"`
 	Branch       string    `json:"branch"`
+	Revision     string    `json:"revision"`
 	LastModified time.Time `json:"lastModified"`
+}
+
+type getImagesResult struct {
+	images []*Image
+	err    error
 }
 
 // imageSorter joins a By function and a slice of Images to be sorted.
