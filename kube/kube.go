@@ -23,10 +23,12 @@ type Config struct {
 
 // EnvConfig is an environment's kubernetes configuration
 type EnvConfig struct {
-	URL       string
-	Namespace string
-	Token     string
-	Cert      string
+	URL        string
+	Namespace  string
+	Token      string
+	Cert       string
+	ClientCert string
+	ClientKey  string
 
 	client *client
 }
@@ -56,6 +58,16 @@ func Init(c *Config) error {
 
 		if envConfig.Namespace == "" {
 			envConfig.Namespace = env
+		}
+
+		if envConfig.ClientCert != "" {
+			cert, err := tls.LoadX509KeyPair(envConfig.ClientCert, envConfig.ClientKey)
+			if err != nil {
+				return err
+			}
+			tr.TLSClientConfig = &tls.Config{
+				Certificates: []tls.Certificate{cert},
+			}
 		}
 
 		envConfig.client = &client{
