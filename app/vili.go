@@ -64,8 +64,10 @@ func New() *App {
 			envConfigs := make(map[string]*kube.EnvConfig)
 			for _, env := range envs {
 				envConfigs[env] = &kube.EnvConfig{
-					URL:       config.GetString(config.KubernetesURL(env)),
-					Namespace: config.GetString(config.KubernetesNamespace(env)),
+					URL:        config.GetString(config.KubernetesURL(env)),
+					Namespace:  config.GetString(config.KubernetesNamespace(env)),
+					ClientCert: config.GetString(config.KubernetesClientCert(env)),
+					ClientKey:  config.GetString(config.KubernetesClientKey(env)),
 				}
 			}
 			kube.Init(&kube.Config{

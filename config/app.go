@@ -55,6 +55,16 @@ func KubernetesNamespace(env string) string {
 	return fmt.Sprintf("kube-%s-namespace", env)
 }
 
+// KubernetesClientCert returns the config variable name for robot tokens
+func KubernetesClientCert(env string) string {
+	return fmt.Sprintf("kube-%s-client-cert", env)
+}
+
+// KubernetesClientKey returns the config variable name for robot tokens
+func KubernetesClientKey(env string) string {
+	return fmt.Sprintf("kube-%s-client-key", env)
+}
+
 // GithubEnvContentsPath returns the config variable name for robot tokens
 func GithubEnvContentsPath(env string) string {
 	return fmt.Sprintf("github-envs-%s-contents-path", env)
