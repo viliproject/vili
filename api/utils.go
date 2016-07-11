@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/airware/vili/kube/v1"
+	"github.com/airware/vili/kube/extensions/v1beta1"
 )
 
 // LogMessage is a wrapper for log messages in the db
@@ -15,21 +15,8 @@ type LogMessage struct {
 	Level   string    `json:"level"`
 }
 
-func getImageTagFromController(controller *v1.ReplicationController) (string, error) {
-	containers := controller.Spec.Template.Spec.Containers
-	if len(containers) == 0 {
-		return "", fmt.Errorf("no containers in controller")
-	}
-	image := containers[0].Image
-	imageSplit := strings.Split(image, ":")
-	if len(imageSplit) != 2 {
-		return "", fmt.Errorf("invalid image: %s", image)
-	}
-	return imageSplit[1], nil
-}
-
-func getPortFromController(controller *v1.ReplicationController) (int, error) {
-	containers := controller.Spec.Template.Spec.Containers
+func getPortFromDeployment(deployment *v1beta1.Deployment) (int, error) {
+	containers := deployment.Spec.Template.Spec.Containers
 	if len(containers) == 0 {
 		return 0, fmt.Errorf("no containers in controller")
 	}
@@ -38,4 +25,17 @@ func getPortFromController(controller *v1.ReplicationController) (int, error) {
 		return 0, fmt.Errorf("no ports in controller")
 	}
 	return ports[0].ContainerPort, nil
+}
+
+func getImageTagFromDeployment(deployment *v1beta1.Deployment) (string, error) {
+	containers := deployment.Spec.Template.Spec.Containers
+	if len(containers) == 0 {
+		return "", fmt.Errorf("no containers in deployment")
+	}
+	image := containers[0].Image
+	imageSplit := strings.Split(image, ":")
+	if len(imageSplit) != 2 {
+		return "", fmt.Errorf("invalid image: %s", image)
+	}
+	return imageSplit[1], nil
 }

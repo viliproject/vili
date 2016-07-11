@@ -9,24 +9,8 @@ import { Table, Loading } from '../shared'; // eslint-disable-line no-unused-var
 
 
 const rolloutStrategies = [
-    {name: '33% - 67% - 100%',
-     steps: [
-         {ratio: .33},
-         {ratio: .67},
-         {ratio: 1},
-     ]},
-    {name: '1 - 25% - 50% - 100%',
-     steps: [
-         {count: 1},
-         {ratio: .25},
-         {ratio: .5},
-         {ratio: 1},
-     ]},
-    {name: '50% - 100%',
-     steps: [
-         {ratio: .5},
-         {ratio: 1},
-     ]},
+    'RollingUpdate',
+    'Recreate',
 ];
 
 class DeploymentHeader extends React.Component { // eslint-disable-line no-unused-vars
@@ -39,28 +23,19 @@ class DeploymentHeader extends React.Component { // eslint-disable-line no-unuse
         this.pause = this.pause.bind(this);
 
         this.onStrategyChange = this.onStrategyChange.bind(this);
-        this.onAutoPauseChange = this.onAutoPauseChange.bind(this);
         this.saveRollout = this.saveRollout.bind(this);
     }
 
     onStrategyChange(event) {
         var self = this;
-        this.setState({strategy: parseInt(event.target.value)}, function() {
-            self.saveRollout();
-        });
-    }
-
-    onAutoPauseChange(event) {
-        var self = this;
-        this.setState({autopause: event.target.checked}, function() {
+        this.setState({strategy: event.target.value}, function() {
             self.saveRollout();
         });
     }
 
     saveRollout() {
         var rollout = {
-            autopause: this.state.autopause,
-            strategy: rolloutStrategies[this.state.strategy],
+            strategy: this.state.strategy,
         };
         viliApi.deployments.setRollout(this.props.env, this.props.app, this.props.deployment, rollout);
     }
@@ -100,32 +75,22 @@ class DeploymentHeader extends React.Component { // eslint-disable-line no-unuse
                 banner = <Alert bsStyle="success">Deployment complete</Alert>;
                 break;
         }
-        var strategies = _.map(rolloutStrategies, function(strategy, ix) {
-            return <option value={ix}>{strategy.name}</option>;
+        var strategies = _.map(rolloutStrategies, function(strategy) {
+            return <option value={strategy}>{strategy}</option>;
         });
         var strategySelect = readOnlyForm ? (
             <p className="form-control-static">
-                {rolloutStrategies[this.state.strategy].name}
+                {this.state.strategy}
             </p>
           ) : (
             <Input type="select" value={this.state.strategy} onChange={this.onStrategyChange}>
                 {strategies}
             </Input>
         );
-        var autoPauseCheckbox = readOnlyForm ? (
-            <p className="form-control-static">
-                {String.fromCharCode(this.state.autopause ? '10003' : '10005')}
-            </p>
-        ) : (
-            <input type="checkbox" checked={this.state.autopause} onChange={this.onAutoPauseChange} />
-        );
         var form = (
             <form className="form-horizontal">
                 <Input label="Rollout Strategy" labelClassName="col-xs-4" wrapperClassName="col-xs-8">
                 {strategySelect}
-                </Input>
-                <Input label="Auto-Pause" labelClassName="col-xs-4" wrapperClassName="col-xs-8">
-                {autoPauseCheckbox}
                 </Input>
             </form>
         );
@@ -165,13 +130,11 @@ class DeploymentHeader extends React.Component { // eslint-disable-line no-unuse
     stateFromRollout(rollout) {
         if (!rollout) {
             return {
-                autopause: false,
-                strategy: 0,
+                strategy: 'RollingUpdate',
             };
         }
         return {
-            autopause: rollout.autopause,
-            strategy: rollout.strategy ? _.findIndex(rolloutStrategies, (x)=> x.name === rollout.strategy.name) : 0,
+            strategy: rollout.strategy ? rollout.strategy : 'RollingUpdate',
         };
     }
 

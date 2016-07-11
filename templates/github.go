@@ -36,9 +36,9 @@ func InitGithub(config *GithubConfig) {
 	}
 }
 
-// Controllers returns a list of controllers for the given environment
-func (s *githubService) Controllers(env string) ([]string, error) {
-	path := fmt.Sprintf(s.config.EnvContentsPaths[env], "controllers")
+// Deployments returns a list of deployments for the given environment
+func (s *githubService) Deployments(env string) ([]string, error) {
+	path := fmt.Sprintf(s.config.EnvContentsPaths[env], "deployments")
 	_, directoryContent, _, err := s.client.Repositories.GetContents(s.config.Owner, s.config.Repo, path, nil)
 	if err != nil {
 		return nil, err
@@ -54,9 +54,9 @@ func (s *githubService) Controllers(env string) ([]string, error) {
 	return controllers, nil
 }
 
-// Controller returns a list of controllers for the given environment
-func (s *githubService) Controller(env, name string) (Template, error) {
-	path := fmt.Sprintf(s.config.EnvContentsPaths[env], "controllers/"+name+".yaml")
+// Deployment returns a deployment for the given environment
+func (s *githubService) Deployment(env, name string) (Template, error) {
+	path := fmt.Sprintf(s.config.EnvContentsPaths[env], "deployments/"+name+".yaml")
 	fileContent, _, _, err := s.client.Repositories.GetContents(s.config.Owner, s.config.Repo, path, nil)
 	if err != nil {
 		return "", err

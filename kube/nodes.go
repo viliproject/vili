@@ -9,7 +9,7 @@ import (
 	"github.com/airware/vili/kube/v1"
 )
 
-// Pods is the default nodes service instance
+// Nodes is the default nodes service instance
 var Nodes = &NodesService{}
 
 // NodesService is the kubernetes service to interace with nodes

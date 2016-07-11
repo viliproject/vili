@@ -184,17 +184,17 @@ export class App extends React.Component {
                 state.approvalDB = self.props.db.child('releases').child(self.props.params.app);
             }
 
-            state.baseController = template(state.app.controllerTemplate, state.app.variables);
-            state.canDeploy = state.baseController.valid;
+            state.baseDeployment = template(state.app.deploymentTemplate, state.app.variables);
+            state.canDeploy = state.baseDeployment.valid;
             if (!state.canDeploy) {
-                // TODO show message saying controller not valid
+                // TODO show message saying deployment not valid
             }
-            if (!state.app.controller || state.app.controller.status === 'Failure') {
+            if (!state.app.deployment || state.app.deployment.status === 'Failure') {
                 state.currentTag = null;
             } else {
-                state.currentTag = state.app.controller.spec.template.spec.containers[0].image.split(':')[1];
+                state.currentTag = state.app.deployment.spec.template.spec.containers[0].image.split(':')[1];
             }
-            state.deployedAt = state.app.controller ? displayTime(new Date(state.app.controller.metadata.creationTimestamp)) : '';
+            state.deployedAt = state.app.deployment ? displayTime(new Date(state.app.deployment.metadata.creationTimestamp)) : '';
             self.setState(state);
         });
     }
