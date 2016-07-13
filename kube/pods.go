@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/airware/vili/kube/extensions/v1beta1"
 	"github.com/airware/vili/kube/unversioned"
 	"github.com/airware/vili/kube/v1"
 )
@@ -45,6 +46,46 @@ func (s *PodsService) ListForController(env string, controller *v1.ReplicationCo
 
 	var selector []string
 	for k, v := range controller.Spec.Selector {
+		selector = append(selector, fmt.Sprintf("%s=%s", k, v))
+	}
+	resp := &v1.PodList{}
+	path := fmt.Sprintf("pods?labelSelector=%s", strings.Join(selector, ","))
+	status, err := envConfig.client.makeRequest("GET", path, nil, resp)
+	if status != nil || err != nil {
+		return nil, status, err
+	}
+	return resp, nil, nil
+}
+
+// ListForReplicaSet fetches the list of pods in `env` for the given replicaset
+func (s *PodsService) ListForReplicaSet(env string, replicaSet *v1beta1.ReplicaSet) (*v1.PodList, *unversioned.Status, error) {
+	envConfig := config.EnvConfigs[env]
+	if envConfig == nil {
+		return nil, nil, invalidEnvError(env)
+	}
+
+	var selector []string
+	for k, v := range replicaSet.Spec.Selector.MatchLabels {
+		selector = append(selector, fmt.Sprintf("%s=%s", k, v))
+	}
+	resp := &v1.PodList{}
+	path := fmt.Sprintf("pods?labelSelector=%s", strings.Join(selector, ","))
+	status, err := envConfig.client.makeRequest("GET", path, nil, resp)
+	if status != nil || err != nil {
+		return nil, status, err
+	}
+	return resp, nil, nil
+}
+
+// ListForDeployment fetches the list of pods in `env` for the given deployment
+func (s *PodsService) ListForDeployment(env string, deployment *v1beta1.Deployment) (*v1.PodList, *unversioned.Status, error) {
+	envConfig := config.EnvConfigs[env]
+	if envConfig == nil {
+		return nil, nil, invalidEnvError(env)
+	}
+
+	var selector []string
+	for k, v := range deployment.Spec.Selector.MatchLabels {
 		selector = append(selector, fmt.Sprintf("%s=%s", k, v))
 	}
 	resp := &v1.PodList{}

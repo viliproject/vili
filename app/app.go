@@ -73,13 +73,13 @@ func appHandler(c *echo.Context) error {
 	funcs := []func(env string){
 		func(env string) {
 			defer wg.Done()
-			controllers, err := templates.Controllers(env)
+			deployments, err := templates.Deployments(env)
 			if err != nil {
 				log.Error(err)
 				failed = true
 			}
 			appsMutex.Lock()
-			envApps[env] = controllers
+			envApps[env] = deployments
 			appsMutex.Unlock()
 		},
 		func(env string) {

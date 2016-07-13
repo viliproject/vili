@@ -12,21 +12,21 @@ var service Service
 // Service is a template service that returns controller and pod templates for given
 // environments
 type Service interface {
-	Controllers(env string) ([]string, error)
-	Controller(env, name string) (Template, error)
+	Deployments(env string) ([]string, error)
+	Deployment(env, name string) (Template, error)
 	Pods(env string) ([]string, error)
 	Pod(env, name string) (Template, error)
 	Variables(env string) (map[string]string, error)
 }
 
-// Controllers returns a list of controllers for the given environment
-func Controllers(env string) ([]string, error) {
-	return service.Controllers(env)
+// Deployments returns a list of deployments for the given environment
+func Deployments(env string) ([]string, error) {
+	return service.Deployments(env)
 }
 
-// Controller returns a list of controllers for the given environment
-func Controller(env, name string) (Template, error) {
-	return service.Controller(env, name)
+// Deployment returns a deployment for the given environment
+func Deployment(env, name string) (Template, error) {
+	return service.Deployment(env, name)
 }
 
 // Pods returns a list of pods for the given environment

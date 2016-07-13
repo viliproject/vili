@@ -10,6 +10,7 @@ import (
 	"github.com/airware/vili/docker"
 	"github.com/airware/vili/errors"
 	"github.com/airware/vili/kube"
+	"github.com/airware/vili/kube/extensions/v1beta1"
 	"github.com/airware/vili/kube/unversioned"
 	"github.com/airware/vili/kube/v1"
 	"github.com/airware/vili/log"
@@ -20,8 +21,8 @@ import (
 
 // AppsResponse is the response for the app endpoint
 type AppsResponse struct {
-	Controllers *v1.ReplicationControllerList `json:"controllers,omitempty"`
-	Services    *v1.ServiceList               `json:"services,omitempty"`
+	Deployments *v1beta1.DeploymentList `json:"deployments,omitempty"`
+	Services    *v1.ServiceList         `json:"services,omitempty"`
 }
 
 func appsHandler(c *echo.Context) error {
@@ -34,16 +35,16 @@ func appsHandler(c *echo.Context) error {
 	// repository
 	var waitGroup sync.WaitGroup
 
-	// controllers
+	// deployments
 	waitGroup.Add(1)
 	go func() {
 		defer waitGroup.Done()
-		controllers, _, err := kube.Controllers.List(env, nil)
+		deployments, _, err := kube.Deployments.List(env, nil)
 		if err != nil {
 			log.Error(err)
 			failed = true
 		}
-		resp.Controllers = controllers
+		resp.Deployments = deployments
 	}()
 
 	// service
@@ -68,11 +69,11 @@ func appsHandler(c *echo.Context) error {
 
 // AppResponse is the response for the app endpoint
 type AppResponse struct {
-	Repository         []*docker.Image           `json:"repository,omitempty"`
-	ControllerTemplate string                    `json:"controllerTemplate,omitempty"`
-	Variables          map[string]string         `json:"variables,omitempty"`
-	Controller         *v1.ReplicationController `json:"controller,omitempty"`
-	Service            *v1.Service               `json:"service,omitempty"`
+	Repository         []*docker.Image     `json:"repository,omitempty"`
+	DeploymentTemplate string              `json:"deploymentTemplate,omitempty"`
+	Variables          map[string]string   `json:"variables,omitempty"`
+	Deployment         *v1beta1.Deployment `json:"deployment,omitempty"`
+	Service            *v1.Service         `json:"service,omitempty"`
 }
 
 func appHandler(c *echo.Context) error {
@@ -105,17 +106,17 @@ func appHandler(c *echo.Context) error {
 		}()
 	}
 
-	// controllerTemplate
-	if len(queryFields) == 0 || queryFields["controllerTemplate"] {
+	// deploymentTemplate
+	if len(queryFields) == 0 || queryFields["deploymentTemplate"] {
 		waitGroup.Add(1)
 		go func() {
 			defer waitGroup.Done()
-			body, err := templates.Controller(env, app)
+			body, err := templates.Deployment(env, app)
 			if err != nil {
 				log.Error(err)
 				failed = true
 			}
-			resp.ControllerTemplate = string(body)
+			resp.DeploymentTemplate = string(body)
 		}()
 	}
 
@@ -133,17 +134,17 @@ func appHandler(c *echo.Context) error {
 		}()
 	}
 
-	// controller
-	if len(queryFields) == 0 || queryFields["controller"] {
+	// deployment
+	if len(queryFields) == 0 || queryFields["deployment"] {
 		waitGroup.Add(1)
 		go func() {
 			defer waitGroup.Done()
-			controller, _, err := kube.Controllers.Get(env, app)
+			deployment, _, err := kube.Deployments.Get(env, app)
 			if err != nil {
 				log.Error(err)
 				failed = true
 			}
-			resp.Controller = controller
+			resp.Deployment = deployment
 		}()
 	}
 
@@ -178,19 +179,19 @@ func appCreateServiceHandler(c *echo.Context) error {
 	// repository
 	var waitGroup sync.WaitGroup
 
-	var controllerTemplate templates.Template
+	var deploymentTemplate templates.Template
 	var currentService *v1.Service
 
-	// controllerTemplate
+	// deploymentTemplate
 	waitGroup.Add(1)
 	go func() {
 		defer waitGroup.Done()
-		body, err := templates.Controller(env, app)
+		body, err := templates.Deployment(env, app)
 		if err != nil {
 			log.Error(err)
 			failed = true
 		}
-		controllerTemplate = body
+		deploymentTemplate = body
 	}()
 
 	// service
@@ -213,10 +214,10 @@ func appCreateServiceHandler(c *echo.Context) error {
 	if currentService != nil {
 		return server.ErrorResponse(c, errors.ConflictError("Service exists"))
 	}
-	controller := &v1.ReplicationController{}
-	controllerTemplate.Parse(controller)
+	deployment := &v1beta1.Deployment{}
+	deploymentTemplate.Parse(deployment)
 
-	controllerPort, err := getPortFromController(controller)
+	deploymentPort, err := getPortFromDeployment(deployment)
 	if err != nil {
 		return err
 	}
@@ -232,7 +233,7 @@ func appCreateServiceHandler(c *echo.Context) error {
 			Ports: []v1.ServicePort{
 				v1.ServicePort{
 					Protocol: "TCP",
-					Port:     controllerPort,
+					Port:     deploymentPort,
 				},
 			},
 			Selector: map[string]string{
@@ -248,8 +249,8 @@ func appCreateServiceHandler(c *echo.Context) error {
 	return c.JSON(http.StatusOK, resp)
 }
 
-// ControllerScaleRequest is a request to
-type ControllerScaleRequest struct {
+// DeploymentScaleRequest is a request to
+type DeploymentScaleRequest struct {
 	Replicas *int `json:"replicas"`
 }
 
@@ -257,7 +258,7 @@ func appScaleHandler(c *echo.Context) error {
 	env := c.Param("env")
 	app := c.Param("app")
 
-	scaleRequest := &ControllerScaleRequest{}
+	scaleRequest := &DeploymentScaleRequest{}
 	decoder := json.NewDecoder(c.Request().Body)
 	err := decoder.Decode(scaleRequest)
 	if err != nil {
@@ -267,16 +268,23 @@ func appScaleHandler(c *echo.Context) error {
 		return server.ErrorResponse(c, errors.BadRequestError("Replicas missing from scale request"))
 	}
 
-	_, status, err := kube.Controllers.Get(env, app)
+	deployment, status, err := kube.Deployments.Get(env, app)
 	if err != nil {
 		return err
 	}
 	if status != nil {
-		return fmt.Errorf("Controller %s not found", app)
+		return fmt.Errorf("Deployment %s not found", app)
 	}
-	resp, _, err := kube.Controllers.Patch(env, app, &v1.ReplicationController{
-		Spec: v1.ReplicationControllerSpec{
-			Replicas: scaleRequest.Replicas,
+	if deployment.Spec.Paused {
+		deployment.Spec.Paused = false
+		_, _, err := kube.Deployments.Replace(env, app, deployment)
+		if err != nil {
+			return err
+		}
+	}
+	resp, _, err := kube.Deployments.Scale(env, app, &v1beta1.Scale{
+		Spec: v1beta1.ScaleSpec{
+			Replicas: int32(*scaleRequest.Replicas),
 		},
 	})
 	if err != nil {

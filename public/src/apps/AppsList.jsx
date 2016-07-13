@@ -45,11 +45,11 @@ class Row extends React.Component { // eslint-disable-line no-unused-vars
 
     loadData() {
         var self = this;
-        if (this.props.controller) {
-            var controller = this.props.controller;
-            this.state.tag = controller.spec.template.spec.containers[0].image.split(':')[1];
-            this.state.deployed_at = displayTime(new Date(controller.metadata.creationTimestamp));
-            this.state.replicas = controller.status.replicas + '/' + controller.spec.replicas;
+        if (this.props.deployment) {
+            var deployment = this.props.deployment;
+            this.state.tag = deployment.spec.template.spec.containers[0].image.split(':')[1];
+            this.state.deployed_at = displayTime(new Date(deployment.metadata.creationTimestamp));
+            this.state.replicas = deployment.status.replicas + '/' + deployment.spec.replicas;
             // TODO count running/ready pods
             this.setState(this.state);
         }
@@ -148,7 +148,7 @@ export class AppsList extends React.Component {
             window.appconfig.envApps[this.props.params.env], function(appName) {
                 return {
                     _row: <Row name={appName}
-                               controller={self.state.controllerMap[appName]}
+                               deployment={self.state.deploymentMap[appName]}
                                env={self.props.params.env}
                                db={self.props.db}
                                envCanApproveTag={self.state.envCanApproveTag}
@@ -177,9 +177,9 @@ export class AppsList extends React.Component {
         Promise.props({
             apps: viliApi.apps.get(this.props.params.env),
         }).then(function(state) {
-            state.controllerMap = {};
-            _.each(state.apps.controllers.items, function(rc) {
-                state.controllerMap[rc.metadata.name] = rc;
+            state.deploymentMap = {};
+            _.each(state.apps.deployments.items, function(rc) {
+                state.deploymentMap[rc.metadata.name] = rc;
             });
             state.envCanApproveTag = _.contains(window.appconfig.approvalEnvs, self.props.params.env);
             self.setState(state);
@@ -206,14 +206,14 @@ export class AppsList extends React.Component {
         }
         var self = this;
         _.each(window.appconfig.envApps[this.props.params.env], function(appName) {
-            var controller = self.state.controllerMap[appName];
-            if (!controller) {
+            var deployment = self.state.deploymentMap[appName];
+            if (!deployment) {
                 return;
             }
             var row = self.refs['row-' + appName];
             if (row && row.state.tag && !row.state.approval) {
-                var app = controller.metadata.name;
-                var tag = controller.spec.template.spec.containers[0].image.split(':')[1];
+                var app = deployment.metadata.name;
+                var tag = deployment.spec.template.spec.containers[0].image.split(':')[1];
                 viliApi.releases.create(app, tag, {
                     url: url,
                 });
@@ -227,14 +227,14 @@ export class AppsList extends React.Component {
         }
         var self = this;
         _.each(window.appconfig.envApps[this.props.params.env], function(appName) {
-            var controller = self.state.controllerMap[appName];
-            if (!controller) {
+            var deployment = self.state.deploymentMap[appName];
+            if (!deployment) {
                 return;
             }
             var row = self.refs['row-' + appName];
             if (row && row.state.tag && row.state.approval) {
-                var app = controller.metadata.name;
-                var tag = controller.spec.template.spec.containers[0].image.split(':')[1];
+                var app = deployment.metadata.name;
+                var tag = deployment.spec.template.spec.containers[0].image.split(':')[1];
                 viliApi.releases.delete(app, tag);
             }
         });

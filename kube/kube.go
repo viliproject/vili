@@ -91,10 +91,14 @@ type client struct {
 }
 
 func (c *client) makeRequestRaw(method, path string, body io.Reader) ([]byte, *unversioned.Status, error) {
+	apiBase := fmt.Sprintf("%s/api/v1/", c.url)
+	if strings.HasPrefix(path, "deployments") || strings.HasPrefix(path, "replicasets") {
+		apiBase = fmt.Sprintf("%s/apis/extensions/v1beta1/", c.url)
+	}
 	if !strings.HasPrefix(path, "namespace") && !strings.HasPrefix(path, "node") {
 		path = fmt.Sprintf("namespaces/%s/%s", c.namespace, path)
 	}
-	urlStr := fmt.Sprintf("%s/api/v1/%s", c.url, path)
+	urlStr := apiBase + path
 	req, err := http.NewRequest(method, urlStr, body)
 	if err != nil {
 		return nil, nil, err

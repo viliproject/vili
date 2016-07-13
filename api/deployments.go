@@ -21,6 +21,8 @@ import (
 // Deployment represents a single deployment of an image for any app
 type Deployment struct {
 	ID       string    `json:"id"`
+	Env      string    `json:"env"`
+	App      string    `json:"app"`
 	Branch   string    `json:"branch"`
 	Tag      string    `json:"tag"`
 	Time     time.Time `json:"time"`
@@ -74,23 +76,15 @@ type Pod struct {
 }
 
 // Rollout is the description of how the deployment will be rolled out
-// Autopause determines whether the deployment will pause automatically at each step
+// TODO: support MaxUnavailable and MaxSurge for rolling updates
 type Rollout struct {
-	Autopause bool             `json:"autopause"`
-	Strategy  *RolloutStrategy `json:"strategy"`
+	Strategy string `json:"strategy"`
 }
 
-// RolloutStrategy is the strategy used to roll out pods
-type RolloutStrategy struct {
-	Name  string                `json:"name"`
-	Steps []RolloutStrategyStep `json:"steps"`
-}
-
-// RolloutStrategyStep is the specification of a step of a rollout strategy
-type RolloutStrategyStep struct {
-	Count *int     `json:"count,omitempty"`
-	Ratio *float64 `json:"ratio,omitempty"`
-}
+const (
+	rolloutStrategyRollingUpdate = "RollingUpdate"
+	rolloutStrategyRecreate      = "Recreate"
+)
 
 const (
 	deploymentActionResume   = "resume"
@@ -115,6 +109,9 @@ func deploymentCreateHandler(c *echo.Context) error {
 	deployment := &Deployment{}
 	if err := json.NewDecoder(c.Request().Body).Decode(deployment); err != nil {
 		return err
+	}
+	if deployment.Branch == "" {
+		return server.ErrorResponse(c, errors.BadRequestError("Request missing branch"))
 	}
 	if deployment.Tag == "" {
 		return server.ErrorResponse(c, errors.BadRequestError("Request missing tag"))
@@ -192,6 +189,8 @@ func deploymentActionHandler(c *echo.Context) error {
 // data to firebase
 func (d *Deployment) Init(env, app, username string, trigger bool) error {
 	d.ID = util.RandLowercaseString(16)
+	d.Env = env
+	d.App = app
 	d.Time = time.Now()
 	d.Username = username
 	d.State = deploymentStateNew
@@ -206,25 +205,25 @@ func (d *Deployment) Init(env, app, username string, trigger bool) error {
 		}
 	}
 
-	controller, _, err := kube.Controllers.Get(env, app)
+	deployment, _, err := kube.Deployments.Get(env, app)
 	if err != nil {
 		return err
 	}
-	if controller != nil {
-		kubePods, _, err := kube.Pods.ListForController(env, controller)
+	if deployment != nil {
+		kubePods, _, err := kube.Pods.ListForDeployment(env, deployment)
 		if err != nil {
 			return err
 		}
-		imageTag, err := getImageTagFromController(controller)
+		imageTag, err := getImageTagFromDeployment(deployment)
 		if err != nil {
 			return err
 		}
 		pods, _, _ := getPodsFromPodList(kubePods)
-		d.DesiredReplicas = len(pods)
+		d.DesiredReplicas = int(*deployment.Spec.Replicas)
 		d.OriginalPods = pods
 		d.FromPods = pods
 		d.FromTag = imageTag
-		d.FromUID = string(controller.ObjectMeta.UID)
+		d.FromUID = string(deployment.ObjectMeta.UID)
 	} else {
 		d.DesiredReplicas = 0
 	}
@@ -237,7 +236,8 @@ func (d *Deployment) Init(env, app, username string, trigger bool) error {
 	if err != nil {
 		return err
 	}
-	deployer.addMessage(fmt.Sprintf("Deployment for tag %s created by %s", d.Tag, d.Username), "debug")
+
+	deployer.addMessage(fmt.Sprintf("Deployment for tag %s and branch %s created by %s", d.Tag, d.Branch, d.Username), "debug")
 
 	if trigger {
 		if err := deployer.resume(); err != nil {

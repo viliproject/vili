@@ -19,15 +19,15 @@ export class AppSpec extends React.Component {
     }
 
     render() {
-        if (!this.state.baseController) {
+        if (!this.state.baseDeployment) {
             return <Loading />;
         }
-        var usedVariables = _.map(this.state.baseController.usedVariables, function(variable) {
+        var usedVariables = _.map(this.state.baseDeployment.usedVariables, function(variable) {
             return (
                 <tr><td>{variable.key}</td><td>{variable.value}</td></tr>
             );
         });
-        var missingVariables = _.map(this.state.baseController.missingVariables, function(variable) {
+        var missingVariables = _.map(this.state.baseDeployment.missingVariables, function(variable) {
             return (
                 <tr><td>{variable}</td><td><span class="text-danger">missing</span></td></tr>
             );
@@ -39,7 +39,7 @@ export class AppSpec extends React.Component {
                         <div id="source-yaml">
                             <pre><code className="nix" ref={
                                   function(node) { if (node) { hljs.highlightBlock(node.getDOMNode()); } } }>
-                                {this.state.baseController[this.state.display]}
+                                {this.state.baseDeployment[this.state.display]}
                             </code></pre>
                         </div>
                     </div>
@@ -71,7 +71,7 @@ export class AppSpec extends React.Component {
         Promise.props({
             app: viliApi.apps.get(this.props.params.env, this.props.params.app)
         }).then(function(state) {
-            state.baseController = template(state.app.controllerTemplate, state.app.variables);
+            state.baseDeployment = template(state.app.deploymentTemplate, state.app.variables);
             self.setState(state);
         });
     }
