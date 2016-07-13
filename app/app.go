@@ -68,6 +68,8 @@ func appHandler(c *echo.Context) error {
 
 	failed := false
 	var wg sync.WaitGroup
+	var appsMutex sync.Mutex
+	var jobsMutex sync.Mutex
 	funcs := []func(env string){
 		func(env string) {
 			defer wg.Done()
@@ -76,7 +78,9 @@ func appHandler(c *echo.Context) error {
 				log.Error(err)
 				failed = true
 			}
+			appsMutex.Lock()
 			envApps[env] = controllers
+			appsMutex.Unlock()
 		},
 		func(env string) {
 			defer wg.Done()
@@ -85,7 +89,9 @@ func appHandler(c *echo.Context) error {
 				log.Error(err)
 				failed = true
 			}
+			jobsMutex.Lock()
 			envJobs[env] = pods
+			jobsMutex.Unlock()
 		},
 	}
 
