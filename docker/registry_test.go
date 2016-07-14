@@ -42,3 +42,42 @@ func TestRegistryGetTag(t *testing.T) {
 	}
 	log.Info(digest)
 }
+
+func TestRegistryFullName(t *testing.T) {
+	for _, testCase := range []struct {
+		RegistryConfig
+		repo     string
+		branch   string
+		tag      string
+		fullName string
+	}{
+		{
+			RegistryConfig{
+				BaseURL: "registry-1.docker.io",
+			},
+			"redis",
+			"master",
+			"1.9.1",
+			"registry-1.docker.io/redis:1.9.1",
+		},
+		{
+			RegistryConfig{
+				BaseURL:         "quay.io",
+				Namespace:       "airware",
+				BranchDelimiter: "-",
+			},
+			"vili",
+			"testbranch",
+			"abcdef",
+			"quay.io/airware/vili-testbranch:abcdef",
+		},
+	} {
+		testService := &RegistryService{&testCase.RegistryConfig}
+		fullName, err := testService.FullName(testCase.repo, testCase.branch, testCase.tag)
+		if err != nil {
+			t.Error(err)
+		} else if fullName != testCase.fullName {
+			t.Errorf("%s != %s", fullName, testCase.fullName)
+		}
+	}
+}

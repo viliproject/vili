@@ -117,6 +117,22 @@ func (s *ECRService) GetTag(repo, branch, tag string) (string, error) {
 	return *resp.Images[0].ImageId.ImageDigest, nil
 }
 
+// FullName implements the Service interface
+func (s *ECRService) FullName(repo, branch, tag string) (string, error) {
+	resp, err := s.ecr.DescribeRepositories(&ecr.DescribeRepositoriesInput{
+		RepositoryNames: []*string{
+			aws.String(s.getRepositoryForBranch(repo, branch)),
+		},
+	})
+	if err != nil {
+		return "", err
+	}
+	if len(resp.Repositories) < 1 {
+		return "", errors.New("Repository not found")
+	}
+	return *resp.Repositories[0].RepositoryUri + ":" + tag, nil
+}
+
 func (s *ECRService) getImagesForBranch(repoName, branchName string) ([]*Image, error) {
 	fullRepoName := s.getRepositoryForBranch(repoName, branchName)
 
@@ -152,9 +168,8 @@ func (s *ECRService) getImagesForBranch(repoName, branchName string) ([]*Image, 
 		}
 		if resp.NextToken == nil {
 			return images, nil
-		} else {
-			nextToken = resp.NextToken
 		}
+		nextToken = resp.NextToken
 	}
 }
 
@@ -164,7 +179,6 @@ func (s *ECRService) getRepositoryForBranch(repoName, branchName string) string 
 	}
 	if branchName == "master" {
 		return repoName
-	} else {
-		return repoName + s.config.BranchDelimiter + strings.ToLower(branchName)
 	}
+	return repoName + s.config.BranchDelimiter + strings.ToLower(branchName)
 }
