@@ -15,6 +15,7 @@ var service Service
 type Service interface {
 	GetRepository(repo string, withBranches bool) ([]*Image, error)
 	GetTag(repo, branch, tag string) (string, error)
+	FullName(repo, branch, tag string) (string, error)
 }
 
 // GetRepository returns the images in the given repository
@@ -25,6 +26,11 @@ func GetRepository(repo string, withBranches bool) ([]*Image, error) {
 // GetTag returns an image digest for the given tag and branch
 func GetTag(repo, branch, tag string) (string, error) {
 	return service.GetTag(repo, branch, tag)
+}
+
+// FullName returns the complete docker image name, including any branch info
+func FullName(repo, branch, tag string) (string, error) {
+	return service.FullName(repo, branch, tag)
 }
 
 // Image represents a docker image in a repository

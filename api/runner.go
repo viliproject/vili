@@ -2,12 +2,12 @@ package api
 
 import (
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/CloudCom/firego"
 	"github.com/airware/vili/config"
+	"github.com/airware/vili/docker"
 	"github.com/airware/vili/errors"
 	"github.com/airware/vili/kube"
 	"github.com/airware/vili/kube/v1"
@@ -340,13 +340,12 @@ func (r *runnerSpec) createNewPod() (*v1.Pod, error) {
 	if len(containers) == 0 {
 		return nil, fmt.Errorf("no containers in pod")
 	}
-	image := containers[0].Image
-	imageSplit := strings.Split(image, ":")
-	if len(imageSplit) != 2 {
-		return nil, fmt.Errorf("invalid image: %s", image)
+
+	imageName, err := docker.FullName(r.job, r.run.Branch, r.run.Tag)
+	if err != nil {
+		return nil, err
 	}
-	imageSplit[1] = r.run.Tag
-	containers[0].Image = strings.Join(imageSplit, ":")
+	containers[0].Image = imageName
 
 	pod.ObjectMeta.Name = r.job + "-" + r.run.ID
 	pod.ObjectMeta.Labels = map[string]string{

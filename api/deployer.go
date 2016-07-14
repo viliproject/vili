@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/CloudCom/firego"
 	"github.com/airware/vili/config"
+	"github.com/airware/vili/docker"
 	"github.com/airware/vili/errors"
 	"github.com/airware/vili/kube"
 	"github.com/airware/vili/kube/extensions/v1beta1"
@@ -72,8 +72,7 @@ func makeDeployer(env, app string, deployment *Deployment) (*deployerSpec, error
 	}
 
 	if deployment.FromUID != "" && deployer.fromReplicaSet == nil && deployer.toReplicaSet == nil {
-		deployer.db.Child("state").Set("completed")
-		return nil, errors.BadRequestError("Could not find any replica sets for this deployment")
+		log.Warn("Could not find any replica sets for this deployment")
 	}
 
 	return deployer, nil
@@ -178,13 +177,11 @@ func (d *deployerSpec) resume() error {
 		return err
 	}
 
-	image := deployment.Spec.Template.Spec.Containers[0].Image
-	imageSplit := strings.Split(image, ":")
-	if len(imageSplit) != 2 {
-		return fmt.Errorf("invalid image: %s", image)
+	imageName, err := docker.FullName(d.app, d.deployment.Branch, d.deployment.Tag)
+	if err != nil {
+		return err
 	}
-	imageSplit[1] = d.deployment.Tag
-	deployment.Spec.Template.Spec.Containers[0].Image = strings.Join(imageSplit, ":")
+	deployment.Spec.Template.Spec.Containers[0].Image = imageName
 
 	if d.deployment.DesiredReplicas == 0 {
 		d.deployment.DesiredReplicas = int(*deployment.Spec.Replicas)
@@ -278,6 +275,7 @@ func (d *deployerSpec) resume() error {
 				revision := replicaSet.ObjectMeta.Annotations["deployment.kubernetes.io/revision"]
 				if revision == newRevision {
 					toReplicaSet = &replicaSet
+					break
 				}
 			}
 		}
@@ -421,12 +419,12 @@ func (d *deployerSpec) rollback() error {
 // utils
 func (d *deployerSpec) monitorRollout() error {
 	for {
-		fromReplicas, toReplicas, err := d.refreshReplicaSetPodCount(d.toReplicaSet)
+		readyCount, runningCount, err := d.refreshReplicaSetPodCount(d.toReplicaSet)
 		if err != nil {
 			return err
 		}
-		log.Debugf("Replica Count: From: %v, To: %v", fromReplicas, toReplicas)
-		if int32(toReplicas) == *d.toReplicaSet.Spec.Replicas {
+		log.Debugf("Replica Count: Ready: %v, Running: %v", readyCount, runningCount)
+		if int32(readyCount) == *d.toReplicaSet.Spec.Replicas {
 			d.addMessage(fmt.Sprintf("Successfully completed rollout in %s", d.deployment.Clock.humanize()), "info")
 			d.db.Child("state").Set(deploymentStateCompleted)
 			return nil

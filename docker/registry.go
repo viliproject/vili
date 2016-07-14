@@ -90,6 +90,17 @@ func (s *RegistryService) GetTag(repo, branch, tag string) (string, error) {
 	return desc.Digest.String(), nil
 }
 
+// FullName implements the Service interface
+func (s *RegistryService) FullName(repo, branch, tag string) (string, error) {
+	if s.config.Namespace != "" {
+		repo = s.config.Namespace + "/" + repo
+	}
+	if branch != "master" {
+		repo += s.config.BranchDelimiter + strings.ToLower(branch)
+	}
+	return s.config.BaseURL + "/" + repo + ":" + tag, nil
+}
+
 func (s *RegistryService) getImagesForBranch(repoName, branchName string) ([]*Image, error) {
 	repo, err := s.getRepositoryForBranch(repoName, branchName)
 	if err != nil {
