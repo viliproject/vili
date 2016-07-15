@@ -18,8 +18,7 @@ export class JobRuns extends React.Component {
         var columns = [
             {title: 'Time', key: 'time'},
             {title: 'Run', key: 'run'},
-            {title: 'From Tag', key: 'fromtag'},
-            {title: 'To Tag', key: 'totag'},
+            {title: 'Tag', key: 'tag'},
             {title: 'Status', key: 'status'},
         ];
 
@@ -30,8 +29,7 @@ export class JobRuns extends React.Component {
             return {
                 time: displayTime(new Date(run.time)),
                 run: runLink,
-                fromtag: run.fromTag,
-                totag: run.tag,
+                tag: run.tag,
                 status: run.state || 'new',
             };
         });
