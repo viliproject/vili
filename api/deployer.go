@@ -292,7 +292,7 @@ func (d *deployerSpec) rollback() error {
 	d.addMessage(message, "warn")
 
 	if d.fromController != nil && d.toController != nil {
-		if err := d.scaleController(d.fromController, d.deployment.DesiredReplicas); err != nil {
+		if err := d.scaleController(d.fromController, int32(d.deployment.DesiredReplicas)); err != nil {
 			return err
 		}
 		if err := d.scaleController(d.toController, 0); err != nil {
@@ -324,7 +324,7 @@ func (d *deployerSpec) rollout() error {
 			return err
 		}
 		// scale to controller
-		if err := d.scaleController(d.toController, desiredToReplicas); err != nil {
+		if err := d.scaleController(d.toController, int32(desiredToReplicas)); err != nil {
 			return err
 		}
 		// scale from controller
@@ -334,7 +334,7 @@ func (d *deployerSpec) rollout() error {
 				return err
 			}
 			if fromReplicas > desiredFromReplicas {
-				if err := d.scaleController(d.fromController, desiredFromReplicas); err != nil {
+				if err := d.scaleController(d.fromController, int32(desiredFromReplicas)); err != nil {
 					return err
 				}
 			}
@@ -371,7 +371,7 @@ func (d *deployerSpec) rollout() error {
 		}
 	}
 	// then create a new controller by copying the to controller
-	_, err = d.createNewController(d.app, d.deployment.DesiredReplicas)
+	_, err = d.createNewController(d.app, int32(d.deployment.DesiredReplicas))
 	if err != nil {
 		return err
 	}
@@ -393,7 +393,7 @@ func (d *deployerSpec) rollout() error {
 	return nil
 }
 
-func (d *deployerSpec) scaleController(controller *v1.ReplicationController, desiredReplicas int) error {
+func (d *deployerSpec) scaleController(controller *v1.ReplicationController, desiredReplicas int32) error {
 	if err := d.ping(); err != nil {
 		return err
 	}
@@ -436,7 +436,7 @@ func (d *deployerSpec) scaleController(controller *v1.ReplicationController, des
 		if err != nil {
 			return err
 		}
-		if readyCount == runningCount && readyCount == desiredReplicas {
+		if readyCount == runningCount && readyCount == int(desiredReplicas) {
 			break
 		}
 		// tick
@@ -526,7 +526,7 @@ func (d *deployerSpec) refreshControllerPodCount(controller *v1.ReplicationContr
 	return readyCount, runningCount, nil
 }
 
-func (d *deployerSpec) createNewController(name string, replicas int) (*v1.ReplicationController, error) {
+func (d *deployerSpec) createNewController(name string, replicas int32) (*v1.ReplicationController, error) {
 	controller := &v1.ReplicationController{}
 	err := d.populatedTemplate.Parse(controller)
 	if err != nil {

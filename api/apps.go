@@ -232,7 +232,7 @@ func appCreateServiceHandler(c *echo.Context) error {
 			Ports: []v1.ServicePort{
 				v1.ServicePort{
 					Protocol: "TCP",
-					Port:     controllerPort,
+					Port:     int32(controllerPort),
 				},
 			},
 			Selector: map[string]string{
@@ -274,9 +274,10 @@ func appScaleHandler(c *echo.Context) error {
 	if status != nil {
 		return fmt.Errorf("Controller %s not found", app)
 	}
+	replicas := int32(*scaleRequest.Replicas)
 	resp, _, err := kube.Controllers.Patch(env, app, &v1.ReplicationController{
 		Spec: v1.ReplicationControllerSpec{
-			Replicas: scaleRequest.Replicas,
+			Replicas: &replicas,
 		},
 	})
 	if err != nil {
