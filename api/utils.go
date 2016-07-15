@@ -15,7 +15,7 @@ type LogMessage struct {
 	Level   string    `json:"level"`
 }
 
-func getPortFromDeployment(deployment *v1beta1.Deployment) (int, error) {
+func getPortFromDeployment(deployment *v1beta1.Deployment) (int32, error) {
 	containers := deployment.Spec.Template.Spec.Containers
 	if len(containers) == 0 {
 		return 0, fmt.Errorf("no containers in controller")
