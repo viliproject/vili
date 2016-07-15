@@ -37,5 +37,5 @@ func getPortFromController(controller *v1.ReplicationController) (int, error) {
 	if len(ports) == 0 {
 		return 0, fmt.Errorf("no ports in controller")
 	}
-	return ports[0].ContainerPort, nil
+	return int(ports[0].ContainerPort), nil
 }
