@@ -45,13 +45,14 @@ func handleCommand(command []string, username string, envs []string) error {
 	}
 	switch command[0] {
 	case "deploy":
-		if len(command) != 4 {
+		if len(command) != 5 {
 			log.Debugf("Skipping invalid command %s", command)
 			return nil
 		}
 		app := command[1]
-		tag := command[2]
-		env := command[3]
+		branch := command[2]
+		tag := command[3]
+		env := command[4]
 
 		if !util.Contains(envs, env) {
 			slack.PostLogMessage(fmt.Sprintf("Invalid environment *%s*", env), "error")
@@ -60,7 +61,8 @@ func handleCommand(command []string, username string, envs []string) error {
 
 		log.Debugf("Deploying app %s, tag %s to env %s, requested by %s", app, tag, env, username)
 		deployment := api.Deployment{
-			Tag: tag,
+			Branch: branch,
+			Tag:    tag,
 		}
 		err := deployment.Init(env, app, username, true)
 		if err != nil {
@@ -74,13 +76,14 @@ func handleCommand(command []string, username string, envs []string) error {
 			}
 		}
 	case "run":
-		if len(command) != 4 {
+		if len(command) != 5 {
 			log.Debugf("Skipping invalid command %s", command)
 			return nil
 		}
 		job := command[1]
-		tag := command[2]
-		env := command[3]
+		branch := command[2]
+		tag := command[3]
+		env := command[4]
 
 		if !util.Contains(envs, env) {
 			slack.PostLogMessage(fmt.Sprintf("Invalid environment *%s*", env), "error")
@@ -89,7 +92,8 @@ func handleCommand(command []string, username string, envs []string) error {
 
 		log.Debugf("Running job %s, tag %s in env %s, requested by %s", job, tag, env, username)
 		run := api.Run{
-			Tag: tag,
+			Branch: branch,
+			Tag:    tag,
 		}
 		err := run.Init(env, job, username, true)
 		if err != nil {
