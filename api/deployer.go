@@ -177,6 +177,8 @@ func (d *deployerSpec) resume() error {
 		return err
 	}
 
+	deployment.Spec.Template.ObjectMeta.Labels["deployment"] = d.deployment.ID
+
 	imageName, err := docker.FullName(d.app, d.deployment.Branch, d.deployment.Tag)
 	if err != nil {
 		return err
