@@ -14,7 +14,7 @@ import (
 )
 
 // runDeployBot runs the deploy bot that listens to messages in the slack channel
-func runDeployBot(envs []string) {
+func runDeployBot(envs *util.StringSet) {
 	mentions := make(chan *slack.Mention)
 	go slack.ListenForMentions(mentions)
 
@@ -38,7 +38,7 @@ func runDeployBot(envs []string) {
 	}
 }
 
-func handleCommand(command []string, username string, envs []string) error {
+func handleCommand(command []string, username string, envs *util.StringSet) error {
 	if len(command) == 0 {
 		log.Debug("Skipping empty command")
 		return nil
@@ -54,7 +54,7 @@ func handleCommand(command []string, username string, envs []string) error {
 		tag := command[3]
 		env := command[4]
 
-		if !util.Contains(envs, env) {
+		if !envs.Contains(env) {
 			slack.PostLogMessage(fmt.Sprintf("Invalid environment *%s*", env), "error")
 			return nil
 		}
@@ -85,7 +85,7 @@ func handleCommand(command []string, username string, envs []string) error {
 		tag := command[3]
 		env := command[4]
 
-		if !util.Contains(envs, env) {
+		if !envs.Contains(env) {
 			slack.PostLogMessage(fmt.Sprintf("Invalid environment *%s*", env), "error")
 			return nil
 		}

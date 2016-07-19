@@ -18,8 +18,8 @@ type ReplicaSetsService struct {
 
 // List fetches the list of replicasets in `env`
 func (s *ReplicaSetsService) List(env string, query *url.Values) (*v1beta1.ReplicaSetList, *unversioned.Status, error) {
-	envConfig := config.EnvConfigs[env]
-	if envConfig == nil {
+	client, err := getClient(env)
+	if err != nil {
 		return nil, nil, invalidEnvError(env)
 	}
 	resp := &v1beta1.ReplicaSetList{}
@@ -27,7 +27,7 @@ func (s *ReplicaSetsService) List(env string, query *url.Values) (*v1beta1.Repli
 	if query != nil {
 		path += "?" + query.Encode()
 	}
-	status, err := envConfig.client.makeRequest("GET", path, nil, resp)
+	status, err := client.makeRequest("GET", path, nil, resp)
 	if status != nil || err != nil {
 		return nil, status, err
 	}
@@ -36,12 +36,12 @@ func (s *ReplicaSetsService) List(env string, query *url.Values) (*v1beta1.Repli
 
 // Get fetches the replicaset in `env` with `name`
 func (s *ReplicaSetsService) Get(env, name string) (*v1beta1.ReplicaSet, *unversioned.Status, error) {
-	envConfig := config.EnvConfigs[env]
-	if envConfig == nil {
+	client, err := getClient(env)
+	if err != nil {
 		return nil, nil, invalidEnvError(env)
 	}
 	resp := &v1beta1.ReplicaSet{}
-	status, err := envConfig.client.makeRequest("GET", "replicasets/"+name, nil, resp)
+	status, err := client.makeRequest("GET", "replicasets/"+name, nil, resp)
 	if status != nil || err != nil {
 		return nil, status, err
 	}
@@ -50,8 +50,8 @@ func (s *ReplicaSetsService) Get(env, name string) (*v1beta1.ReplicaSet, *unvers
 
 // Create creates a replicaset in `env`
 func (s *ReplicaSetsService) Create(env string, data *v1beta1.ReplicaSet) (*v1beta1.ReplicaSet, *unversioned.Status, error) {
-	envConfig := config.EnvConfigs[env]
-	if envConfig == nil {
+	client, err := getClient(env)
+	if err != nil {
 		return nil, nil, invalidEnvError(env)
 	}
 	dataBytes, err := json.Marshal(data)
@@ -59,7 +59,7 @@ func (s *ReplicaSetsService) Create(env string, data *v1beta1.ReplicaSet) (*v1be
 		return nil, nil, err
 	}
 	resp := &v1beta1.ReplicaSet{}
-	status, err := envConfig.client.makeRequest(
+	status, err := client.makeRequest(
 		"POST",
 		"replicasets",
 		bytes.NewReader(dataBytes),
@@ -73,8 +73,8 @@ func (s *ReplicaSetsService) Create(env string, data *v1beta1.ReplicaSet) (*v1be
 
 // Patch patches the replicaset in `env` with `name`
 func (s *ReplicaSetsService) Patch(env, name string, data *v1beta1.ReplicaSet) (*v1beta1.ReplicaSet, *unversioned.Status, error) {
-	envConfig := config.EnvConfigs[env]
-	if envConfig == nil {
+	client, err := getClient(env)
+	if err != nil {
 		return nil, nil, invalidEnvError(env)
 	}
 	dataBytes, err := json.Marshal(data)
@@ -82,7 +82,7 @@ func (s *ReplicaSetsService) Patch(env, name string, data *v1beta1.ReplicaSet) (
 		return nil, nil, err
 	}
 	resp := &v1beta1.ReplicaSet{}
-	status, err := envConfig.client.makeRequest(
+	status, err := client.makeRequest(
 		"PATCH",
 		"replicasets/"+name,
 		bytes.NewReader(dataBytes),
@@ -96,12 +96,12 @@ func (s *ReplicaSetsService) Patch(env, name string, data *v1beta1.ReplicaSet) (
 
 // Delete deletes the replicaset in `env` with `name`
 func (s *ReplicaSetsService) Delete(env, name string) (*v1beta1.ReplicaSet, *unversioned.Status, error) {
-	envConfig := config.EnvConfigs[env]
-	if envConfig == nil {
+	client, err := getClient(env)
+	if err != nil {
 		return nil, nil, invalidEnvError(env)
 	}
 	resp := &v1beta1.ReplicaSet{}
-	status, err := envConfig.client.makeRequest("DELETE", "replicasets/"+name, nil, resp)
+	status, err := client.makeRequest("DELETE", "replicasets/"+name, nil, resp)
 	if status != nil || err != nil {
 		return nil, status, err
 	}

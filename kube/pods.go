@@ -21,8 +21,8 @@ type PodsService struct {
 
 // List fetches the list of pods in `env`
 func (s *PodsService) List(env string, query *url.Values) (*v1.PodList, *unversioned.Status, error) {
-	envConfig := config.EnvConfigs[env]
-	if envConfig == nil {
+	client, err := getClient(env)
+	if err != nil {
 		return nil, nil, invalidEnvError(env)
 	}
 	resp := &v1.PodList{}
@@ -30,7 +30,7 @@ func (s *PodsService) List(env string, query *url.Values) (*v1.PodList, *unversi
 	if query != nil {
 		path += "?" + query.Encode()
 	}
-	status, err := envConfig.client.makeRequest("GET", path, nil, resp)
+	status, err := client.makeRequest("GET", path, nil, resp)
 	if status != nil || err != nil {
 		return nil, status, err
 	}
@@ -39,8 +39,8 @@ func (s *PodsService) List(env string, query *url.Values) (*v1.PodList, *unversi
 
 // ListForController fetches the list of pods in `env` for the given controller
 func (s *PodsService) ListForController(env string, controller *v1.ReplicationController) (*v1.PodList, *unversioned.Status, error) {
-	envConfig := config.EnvConfigs[env]
-	if envConfig == nil {
+	client, err := getClient(env)
+	if err != nil {
 		return nil, nil, invalidEnvError(env)
 	}
 
@@ -50,7 +50,7 @@ func (s *PodsService) ListForController(env string, controller *v1.ReplicationCo
 	}
 	resp := &v1.PodList{}
 	path := fmt.Sprintf("pods?labelSelector=%s", strings.Join(selector, ","))
-	status, err := envConfig.client.makeRequest("GET", path, nil, resp)
+	status, err := client.makeRequest("GET", path, nil, resp)
 	if status != nil || err != nil {
 		return nil, status, err
 	}
@@ -59,8 +59,8 @@ func (s *PodsService) ListForController(env string, controller *v1.ReplicationCo
 
 // ListForReplicaSet fetches the list of pods in `env` for the given replicaset
 func (s *PodsService) ListForReplicaSet(env string, replicaSet *v1beta1.ReplicaSet) (*v1.PodList, *unversioned.Status, error) {
-	envConfig := config.EnvConfigs[env]
-	if envConfig == nil {
+	client, err := getClient(env)
+	if err != nil {
 		return nil, nil, invalidEnvError(env)
 	}
 
@@ -70,7 +70,7 @@ func (s *PodsService) ListForReplicaSet(env string, replicaSet *v1beta1.ReplicaS
 	}
 	resp := &v1.PodList{}
 	path := fmt.Sprintf("pods?labelSelector=%s", strings.Join(selector, ","))
-	status, err := envConfig.client.makeRequest("GET", path, nil, resp)
+	status, err := client.makeRequest("GET", path, nil, resp)
 	if status != nil || err != nil {
 		return nil, status, err
 	}
@@ -79,8 +79,8 @@ func (s *PodsService) ListForReplicaSet(env string, replicaSet *v1beta1.ReplicaS
 
 // ListForDeployment fetches the list of pods in `env` for the given deployment
 func (s *PodsService) ListForDeployment(env string, deployment *v1beta1.Deployment) (*v1.PodList, *unversioned.Status, error) {
-	envConfig := config.EnvConfigs[env]
-	if envConfig == nil {
+	client, err := getClient(env)
+	if err != nil {
 		return nil, nil, invalidEnvError(env)
 	}
 
@@ -90,7 +90,7 @@ func (s *PodsService) ListForDeployment(env string, deployment *v1beta1.Deployme
 	}
 	resp := &v1.PodList{}
 	path := fmt.Sprintf("pods?labelSelector=%s", strings.Join(selector, ","))
-	status, err := envConfig.client.makeRequest("GET", path, nil, resp)
+	status, err := client.makeRequest("GET", path, nil, resp)
 	if status != nil || err != nil {
 		return nil, status, err
 	}
@@ -99,12 +99,12 @@ func (s *PodsService) ListForDeployment(env string, deployment *v1beta1.Deployme
 
 // Get fetches the pod in `env` with `name`
 func (s *PodsService) Get(env, name string) (*v1.Pod, *unversioned.Status, error) {
-	envConfig := config.EnvConfigs[env]
-	if envConfig == nil {
+	client, err := getClient(env)
+	if err != nil {
 		return nil, nil, invalidEnvError(env)
 	}
 	resp := &v1.Pod{}
-	status, err := envConfig.client.makeRequest("GET", "pods/"+name, nil, resp)
+	status, err := client.makeRequest("GET", "pods/"+name, nil, resp)
 	if status != nil || err != nil {
 		return nil, status, err
 	}
@@ -113,11 +113,11 @@ func (s *PodsService) Get(env, name string) (*v1.Pod, *unversioned.Status, error
 
 // GetLog fetches the pod log in `env` with `name`
 func (s *PodsService) GetLog(env, name string) (string, *unversioned.Status, error) {
-	envConfig := config.EnvConfigs[env]
-	if envConfig == nil {
+	client, err := getClient(env)
+	if err != nil {
 		return "", nil, invalidEnvError(env)
 	}
-	body, status, err := envConfig.client.makeRequestRaw("GET", "pods/"+name+"/log", nil)
+	body, status, err := client.makeRequestRaw("GET", "pods/"+name+"/log", nil)
 	if status != nil || err != nil {
 		return "", status, err
 	}
@@ -126,8 +126,8 @@ func (s *PodsService) GetLog(env, name string) (string, *unversioned.Status, err
 
 // Create creates a pod in `env`
 func (s *PodsService) Create(env string, data *v1.Pod) (*v1.Pod, *unversioned.Status, error) {
-	envConfig := config.EnvConfigs[env]
-	if envConfig == nil {
+	client, err := getClient(env)
+	if err != nil {
 		return nil, nil, invalidEnvError(env)
 	}
 	dataBytes, err := json.Marshal(data)
@@ -135,7 +135,7 @@ func (s *PodsService) Create(env string, data *v1.Pod) (*v1.Pod, *unversioned.St
 		return nil, nil, err
 	}
 	resp := &v1.Pod{}
-	status, err := envConfig.client.makeRequest(
+	status, err := client.makeRequest(
 		"POST",
 		"pods",
 		bytes.NewReader(dataBytes),
@@ -149,12 +149,12 @@ func (s *PodsService) Create(env string, data *v1.Pod) (*v1.Pod, *unversioned.St
 
 // Delete deletes the pod in `env` with `name`
 func (s *PodsService) Delete(env, name string) (*v1.Pod, *unversioned.Status, error) {
-	envConfig := config.EnvConfigs[env]
-	if envConfig == nil {
+	client, err := getClient(env)
+	if err != nil {
 		return nil, nil, invalidEnvError(env)
 	}
 	resp := &v1.Pod{}
-	status, err := envConfig.client.makeRequest("DELETE", "pods/"+name, nil, resp)
+	status, err := client.makeRequest("DELETE", "pods/"+name, nil, resp)
 	if status != nil || err != nil {
 		return nil, status, err
 	}
@@ -163,8 +163,8 @@ func (s *PodsService) Delete(env, name string) (*v1.Pod, *unversioned.Status, er
 
 // DeleteForController deletes the pods in `env` for the given controller
 func (s *PodsService) DeleteForController(env string, controller *v1.ReplicationController) (*v1.PodList, *unversioned.Status, error) {
-	envConfig := config.EnvConfigs[env]
-	if envConfig == nil {
+	client, err := getClient(env)
+	if err != nil {
 		return nil, nil, invalidEnvError(env)
 	}
 
@@ -174,7 +174,7 @@ func (s *PodsService) DeleteForController(env string, controller *v1.Replication
 	}
 	for _, pod := range podList.Items {
 		resp := &v1.Pod{}
-		status, err := envConfig.client.makeRequest("DELETE", "pods/"+pod.ObjectMeta.Name, nil, resp)
+		status, err := client.makeRequest("DELETE", "pods/"+pod.ObjectMeta.Name, nil, resp)
 		if status != nil || err != nil {
 			return nil, status, err
 		}

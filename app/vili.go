@@ -3,6 +3,7 @@ package vili
 import (
 	"net/url"
 	"sync"
+	"time"
 
 	"github.com/airware/vili/api"
 	"github.com/airware/vili/auth"
@@ -19,6 +20,7 @@ import (
 	"github.com/airware/vili/slack"
 	"github.com/airware/vili/stats"
 	"github.com/airware/vili/templates"
+	"github.com/airware/vili/util"
 	"github.com/labstack/echo"
 )
 
@@ -27,6 +29,7 @@ const appName = "vili"
 // App is the wrapper for the tyr app
 type App struct {
 	server *server.Server
+	envs   *util.StringSet
 }
 
 // New returns a new server instance
@@ -44,7 +47,7 @@ func New() *App {
 	})
 
 	stats.TrackMemStats()
-	envs := config.GetStringSlice(config.Environments)
+	envs := util.NewStringSet(config.GetStringSlice(config.Environments))
 
 	// Set everything up in parallel
 	var wg sync.WaitGroup
@@ -62,14 +65,14 @@ func New() *App {
 		func() {
 			defer wg.Done()
 			envConfigs := make(map[string]*kube.EnvConfig)
-			for _, env := range envs {
+			envs.ForEach(func(env string) {
 				envConfigs[env] = &kube.EnvConfig{
 					URL:        config.GetString(config.KubernetesURL(env)),
 					Namespace:  config.GetString(config.KubernetesNamespace(env)),
 					ClientCert: config.GetString(config.KubernetesClientCert(env)),
 					ClientKey:  config.GetString(config.KubernetesClientKey(env)),
 				}
-			}
+			})
 			kube.Init(&kube.Config{
 				EnvConfigs: envConfigs,
 			})
@@ -107,13 +110,14 @@ func New() *App {
 		func() {
 			defer wg.Done()
 			envContentsPaths := make(map[string]string, 0)
-			for _, env := range envs {
+			envs.ForEach(func(env string) {
 				envContentsPath := config.GetString(config.GithubEnvContentsPath(env))
 				if envContentsPath == "" {
 					envContentsPath = config.GetString(config.GithubContentsPath)
 				}
 				envContentsPaths[env] = envContentsPath
-			}
+			})
+			envContentsPaths[config.GetString(config.DefaultEnv)] = config.GetString(config.GithubContentsPath)
 			templates.InitGithub(&templates.GithubConfig{
 				Token:            config.GetString(config.GithubToken),
 				Owner:            config.GetString(config.GithubOwner),
@@ -176,7 +180,7 @@ func New() *App {
 				Channel:         config.GetString(config.SlackChannel),
 				Username:        config.GetString(config.SlackUsername),
 				Emoji:           config.GetString(config.SlackEmoji),
-				DeployUsernames: config.GetStringSlice(config.SlackDeployUsernames),
+				DeployUsernames: util.NewStringSet(config.GetStringSlice(config.SlackDeployUsernames)),
 			})
 		},
 	}
@@ -201,18 +205,33 @@ func New() *App {
 	auth.AddHandlers(s)
 	api.AddHandlers(s, envs)
 	s.Echo().Get("/static/:name", public.StaticHandler)
-	s.Echo().Get("/", homeHandler)
-	s.Echo().Get("/*", middleware.RequireUser(appHandler))
+	s.Echo().Get("/", homeHandler(envs))
+	s.Echo().Get("/*", middleware.RequireUser(appHandler(envs)))
 	return &App{
 		server: s,
+		envs:   envs,
 	}
 }
 
 // Start starts the app
 func (a *App) Start() {
-	envs := config.GetStringSlice(config.Environments)
-	go runDeployBot(envs)
+	go a.monitorEnvs()
+	go runDeployBot(a.envs)
 	a.server.Start()
+}
+
+func (a *App) monitorEnvs() {
+	for {
+		envs, err := kube.DetectEnvs()
+		if err != nil {
+			log.Warn("Unable to detect environments: ", err)
+		} else if envs != nil {
+			envs = append(envs, config.GetStringSlice(config.Environments)...)
+			log.Debug("Found envs: ", envs)
+			a.envs.Set(envs)
+		}
+		time.Sleep(15 * time.Second)
+	}
 }
 
 // StartTest starts the test app

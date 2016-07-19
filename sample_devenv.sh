@@ -7,6 +7,7 @@ export STATIC_LIVE_RELOAD=1
 export ENVIRONMENTS="tools staging preprod prodtools prod"
 export PROD_ENVS="prod prodtools"
 export APPROVAL_ENVS="preprod tools"
+export DEFAULT_ENV="staging"
 
 export LOG_DEBUG=1
 

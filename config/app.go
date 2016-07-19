@@ -15,6 +15,7 @@ const (
 	Environments            = "environments"
 	ProdEnvs                = "prod-envs"
 	ApprovalEnvs            = "approval-envs"
+	DefaultEnv              = "default-env"
 	LogDebug                = "log-debug"
 	LogJSON                 = "log-json"
 	RedisPort               = "redis-port"
