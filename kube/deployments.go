@@ -18,8 +18,8 @@ type DeploymentsService struct {
 
 // List fetches the list of deployments in `env`
 func (s *DeploymentsService) List(env string, query *url.Values) (*v1beta1.DeploymentList, *unversioned.Status, error) {
-	envConfig := config.EnvConfigs[env]
-	if envConfig == nil {
+	client, err := getClient(env)
+	if err != nil {
 		return nil, nil, invalidEnvError(env)
 	}
 	resp := &v1beta1.DeploymentList{}
@@ -27,7 +27,7 @@ func (s *DeploymentsService) List(env string, query *url.Values) (*v1beta1.Deplo
 	if query != nil {
 		path += "?" + query.Encode()
 	}
-	status, err := envConfig.client.makeRequest("GET", path, nil, resp)
+	status, err := client.makeRequest("GET", path, nil, resp)
 	if status != nil || err != nil {
 		return nil, status, err
 	}
@@ -36,12 +36,12 @@ func (s *DeploymentsService) List(env string, query *url.Values) (*v1beta1.Deplo
 
 // Get fetches the deployment in `env` with `name`
 func (s *DeploymentsService) Get(env, name string) (*v1beta1.Deployment, *unversioned.Status, error) {
-	envConfig := config.EnvConfigs[env]
-	if envConfig == nil {
+	client, err := getClient(env)
+	if err != nil {
 		return nil, nil, invalidEnvError(env)
 	}
 	resp := &v1beta1.Deployment{}
-	status, err := envConfig.client.makeRequest("GET", "deployments/"+name, nil, resp)
+	status, err := client.makeRequest("GET", "deployments/"+name, nil, resp)
 	if status != nil || err != nil {
 		return nil, status, err
 	}
@@ -50,8 +50,8 @@ func (s *DeploymentsService) Get(env, name string) (*v1beta1.Deployment, *unvers
 
 // Create creates a deployment in `env`
 func (s *DeploymentsService) Create(env string, data *v1beta1.Deployment) (*v1beta1.Deployment, *unversioned.Status, error) {
-	envConfig := config.EnvConfigs[env]
-	if envConfig == nil {
+	client, err := getClient(env)
+	if err != nil {
 		return nil, nil, invalidEnvError(env)
 	}
 	dataBytes, err := json.Marshal(data)
@@ -59,7 +59,7 @@ func (s *DeploymentsService) Create(env string, data *v1beta1.Deployment) (*v1be
 		return nil, nil, err
 	}
 	resp := &v1beta1.Deployment{}
-	status, err := envConfig.client.makeRequest(
+	status, err := client.makeRequest(
 		"POST",
 		"deployments",
 		bytes.NewReader(dataBytes),
@@ -73,8 +73,8 @@ func (s *DeploymentsService) Create(env string, data *v1beta1.Deployment) (*v1be
 
 // Replace replaces the deployment in `env` with `name`
 func (s *DeploymentsService) Replace(env, name string, data *v1beta1.Deployment) (*v1beta1.Deployment, *unversioned.Status, error) {
-	envConfig := config.EnvConfigs[env]
-	if envConfig == nil {
+	client, err := getClient(env)
+	if err != nil {
 		return nil, nil, invalidEnvError(env)
 	}
 	dataBytes, err := json.Marshal(data)
@@ -82,7 +82,7 @@ func (s *DeploymentsService) Replace(env, name string, data *v1beta1.Deployment)
 		return nil, nil, err
 	}
 	resp := &v1beta1.Deployment{}
-	status, err := envConfig.client.makeRequest(
+	status, err := client.makeRequest(
 		"PUT",
 		"deployments/"+name,
 		bytes.NewReader(dataBytes),
@@ -96,8 +96,8 @@ func (s *DeploymentsService) Replace(env, name string, data *v1beta1.Deployment)
 
 // Scale scales the deployment in `env` with `name`
 func (s *DeploymentsService) Scale(env, name string, data *v1beta1.Scale) (*v1beta1.Scale, *unversioned.Status, error) {
-	envConfig := config.EnvConfigs[env]
-	if envConfig == nil {
+	client, err := getClient(env)
+	if err != nil {
 		return nil, nil, invalidEnvError(env)
 	}
 	dataBytes, err := json.Marshal(data)
@@ -105,7 +105,7 @@ func (s *DeploymentsService) Scale(env, name string, data *v1beta1.Scale) (*v1be
 		return nil, nil, err
 	}
 	resp := &v1beta1.Scale{}
-	status, err := envConfig.client.makeRequest(
+	status, err := client.makeRequest(
 		"PATCH",
 		"deployments/"+name+"/scale",
 		bytes.NewReader(dataBytes),
@@ -119,8 +119,8 @@ func (s *DeploymentsService) Scale(env, name string, data *v1beta1.Scale) (*v1be
 
 // Rollback rolls back the deployment in `env` with `name`
 func (s *DeploymentsService) Rollback(env, name string, data *v1beta1.DeploymentRollback) (*v1beta1.DeploymentRollback, *unversioned.Status, error) {
-	envConfig := config.EnvConfigs[env]
-	if envConfig == nil {
+	client, err := getClient(env)
+	if err != nil {
 		return nil, nil, invalidEnvError(env)
 	}
 	dataBytes, err := json.Marshal(data)
@@ -128,7 +128,7 @@ func (s *DeploymentsService) Rollback(env, name string, data *v1beta1.Deployment
 		return nil, nil, err
 	}
 	resp := &v1beta1.DeploymentRollback{}
-	status, err := envConfig.client.makeRequest(
+	status, err := client.makeRequest(
 		"POST",
 		"deployments/"+name+"/rollback",
 		bytes.NewReader(dataBytes),
@@ -142,12 +142,12 @@ func (s *DeploymentsService) Rollback(env, name string, data *v1beta1.Deployment
 
 // Delete deletes the deployment in `env` with `name`
 func (s *DeploymentsService) Delete(env, name string) (*v1beta1.Deployment, *unversioned.Status, error) {
-	envConfig := config.EnvConfigs[env]
-	if envConfig == nil {
+	client, err := getClient(env)
+	if err != nil {
 		return nil, nil, invalidEnvError(env)
 	}
 	resp := &v1beta1.Deployment{}
-	status, err := envConfig.client.makeRequest("DELETE", "deployments/"+name, nil, resp)
+	status, err := client.makeRequest("DELETE", "deployments/"+name, nil, resp)
 	if status != nil || err != nil {
 		return nil, status, err
 	}

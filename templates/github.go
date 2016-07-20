@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/airware/vili/config"
 	"github.com/google/go-github/github"
 	"golang.org/x/oauth2"
 )
@@ -36,9 +37,17 @@ func InitGithub(config *GithubConfig) {
 	}
 }
 
+func (s *githubService) resolvePath(env, subPath string) string {
+	envContentsPath, ok := s.config.EnvContentsPaths[env]
+	if !ok {
+		envContentsPath = s.config.EnvContentsPaths[config.GetString(config.DefaultEnv)]
+	}
+	return fmt.Sprintf(envContentsPath, subPath)
+}
+
 // Deployments returns a list of deployments for the given environment
 func (s *githubService) Deployments(env string) ([]string, error) {
-	path := fmt.Sprintf(s.config.EnvContentsPaths[env], "deployments")
+	path := s.resolvePath(env, "deployments")
 	_, directoryContent, _, err := s.client.Repositories.GetContents(s.config.Owner, s.config.Repo, path, nil)
 	if err != nil {
 		return nil, err
@@ -56,7 +65,7 @@ func (s *githubService) Deployments(env string) ([]string, error) {
 
 // Deployment returns a deployment for the given environment
 func (s *githubService) Deployment(env, name string) (Template, error) {
-	path := fmt.Sprintf(s.config.EnvContentsPaths[env], "deployments/"+name+".yaml")
+	path := s.resolvePath(env, "deployments/"+name+".yaml")
 	fileContent, _, _, err := s.client.Repositories.GetContents(s.config.Owner, s.config.Repo, path, nil)
 	if err != nil {
 		return "", err
@@ -79,7 +88,7 @@ func (s *githubService) Deployment(env, name string) (Template, error) {
 
 // Pods returns a list of pods for the given environment
 func (s *githubService) Pods(env string) ([]string, error) {
-	path := fmt.Sprintf(s.config.EnvContentsPaths[env], "pods")
+	path := s.resolvePath(env, "pods")
 	_, directoryContent, _, err := s.client.Repositories.GetContents(s.config.Owner, s.config.Repo, path, nil)
 	if err != nil {
 		if errResp, ok := err.(*github.ErrorResponse); ok {
@@ -102,7 +111,7 @@ func (s *githubService) Pods(env string) ([]string, error) {
 
 // Pod returns a list of pods for the given environment
 func (s *githubService) Pod(env, name string) (Template, error) {
-	path := fmt.Sprintf(s.config.EnvContentsPaths[env], "pods/"+name+".yaml")
+	path := s.resolvePath(env, "pods/"+name+".yaml")
 	fileContent, _, _, err := s.client.Repositories.GetContents(s.config.Owner, s.config.Repo, path, nil)
 	if err != nil {
 		return "", err
@@ -125,7 +134,11 @@ func (s *githubService) Pod(env, name string) (Template, error) {
 
 // Variables returns a list of variabless for the given environment
 func (s *githubService) Variables(env string) (map[string]string, error) {
-	path := fmt.Sprintf(s.config.EnvContentsPaths[env], "variables/"+env+".json")
+	varEnv := env
+	if _, ok := s.config.EnvContentsPaths[env]; !ok {
+		varEnv = config.GetString(config.DefaultEnv)
+	}
+	path := s.resolvePath(env, "variables/"+varEnv+".json")
 	fileContent, _, _, err := s.client.Repositories.GetContents(s.config.Owner, s.config.Repo, path, nil)
 	if err != nil {
 		return nil, err

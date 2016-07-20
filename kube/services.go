@@ -17,12 +17,12 @@ type ServicesService struct {
 
 // List fetches the list of services in `env`
 func (s *ServicesService) List(env string) (*v1.ServiceList, error) {
-	envConfig := config.EnvConfigs[env]
-	if envConfig == nil {
+	client, err := getClient(env)
+	if err != nil {
 		return nil, invalidEnvError(env)
 	}
 	resp := &v1.ServiceList{}
-	_, err := envConfig.client.makeRequest("GET", "replicationservices", nil, resp)
+	_, err = client.makeRequest("GET", "replicationservices", nil, resp)
 	if err != nil {
 		return nil, err
 	}
@@ -31,12 +31,12 @@ func (s *ServicesService) List(env string) (*v1.ServiceList, error) {
 
 // Get fetches the service in `env` with `name`
 func (s *ServicesService) Get(env, name string) (*v1.Service, *unversioned.Status, error) {
-	envConfig := config.EnvConfigs[env]
-	if envConfig == nil {
+	client, err := getClient(env)
+	if err != nil {
 		return nil, nil, invalidEnvError(env)
 	}
 	resp := &v1.Service{}
-	status, err := envConfig.client.makeRequest("GET", "services/"+name, nil, resp)
+	status, err := client.makeRequest("GET", "services/"+name, nil, resp)
 	if status != nil || err != nil {
 		return nil, status, err
 	}
@@ -45,8 +45,8 @@ func (s *ServicesService) Get(env, name string) (*v1.Service, *unversioned.Statu
 
 // Create fetches the service in `env` with `name`
 func (s *ServicesService) Create(env, name string, data *v1.Service) (*v1.Service, error) {
-	envConfig := config.EnvConfigs[env]
-	if envConfig == nil {
+	client, err := getClient(env)
+	if err != nil {
 		return nil, invalidEnvError(env)
 	}
 	dataBytes, err := json.Marshal(data)
@@ -54,7 +54,7 @@ func (s *ServicesService) Create(env, name string, data *v1.Service) (*v1.Servic
 		return nil, err
 	}
 	resp := &v1.Service{}
-	_, err = envConfig.client.makeRequest(
+	_, err = client.makeRequest(
 		"POST",
 		"services",
 		bytes.NewReader(dataBytes),

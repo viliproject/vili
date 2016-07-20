@@ -18,8 +18,8 @@ type NodesService struct {
 
 // List fetches the list of nodes in `env`
 func (s *NodesService) List(env string, query *url.Values) (*v1.NodeList, error) {
-	envConfig := config.EnvConfigs[env]
-	if envConfig == nil {
+	client, err := getClient(env)
+	if err != nil {
 		return nil, invalidEnvError(env)
 	}
 	resp := &v1.NodeList{}
@@ -27,7 +27,7 @@ func (s *NodesService) List(env string, query *url.Values) (*v1.NodeList, error)
 	if query != nil {
 		path += "?" + query.Encode()
 	}
-	_, err := envConfig.client.makeRequest("GET", path, nil, resp)
+	_, err = client.makeRequest("GET", path, nil, resp)
 	if err != nil {
 		return nil, err
 	}
@@ -36,12 +36,12 @@ func (s *NodesService) List(env string, query *url.Values) (*v1.NodeList, error)
 
 // Get fetches the node in `env` with `name`
 func (s *NodesService) Get(env, name string) (*v1.Node, *unversioned.Status, error) {
-	envConfig := config.EnvConfigs[env]
-	if envConfig == nil {
+	client, err := getClient(env)
+	if err != nil {
 		return nil, nil, invalidEnvError(env)
 	}
 	resp := &v1.Node{}
-	status, err := envConfig.client.makeRequest("GET", "nodes/"+name, nil, resp)
+	status, err := client.makeRequest("GET", "nodes/"+name, nil, resp)
 	if status != nil || err != nil {
 		return nil, status, err
 	}
@@ -50,8 +50,8 @@ func (s *NodesService) Get(env, name string) (*v1.Node, *unversioned.Status, err
 
 // Patch patches the node in `env` with `name`
 func (s *NodesService) Patch(env, name string, data *v1.Node) (*v1.Node, error) {
-	envConfig := config.EnvConfigs[env]
-	if envConfig == nil {
+	client, err := getClient(env)
+	if err != nil {
 		return nil, invalidEnvError(env)
 	}
 	dataBytes, err := json.Marshal(data)
@@ -59,7 +59,7 @@ func (s *NodesService) Patch(env, name string, data *v1.Node) (*v1.Node, error) 
 		return nil, err
 	}
 	resp := &v1.Node{}
-	_, err = envConfig.client.makeRequest(
+	_, err = client.makeRequest(
 		"PATCH",
 		"nodes/"+name,
 		bytes.NewReader(dataBytes),
@@ -74,8 +74,8 @@ func (s *NodesService) Patch(env, name string, data *v1.Node) (*v1.Node, error) 
 // PatchUnschedulable changes the unschedulable value of the node in `env` with `name`
 // This is necessary because Go doesn't serialize false Unschedulable values in v1.NodeSpec
 func (s *NodesService) PatchUnschedulable(env, name string, unschedulable bool) (*v1.Node, error) {
-	envConfig := config.EnvConfigs[env]
-	if envConfig == nil {
+	client, err := getClient(env)
+	if err != nil {
 		return nil, invalidEnvError(env)
 	}
 
@@ -89,7 +89,7 @@ func (s *NodesService) PatchUnschedulable(env, name string, unschedulable bool) 
 		return nil, err
 	}
 	resp := &v1.Node{}
-	_, err = envConfig.client.makeRequest(
+	_, err = client.makeRequest(
 		"PATCH",
 		"nodes/"+name,
 		bytes.NewReader(dataBytes),

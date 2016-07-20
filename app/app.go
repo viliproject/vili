@@ -15,6 +15,7 @@ import (
 	"github.com/airware/vili/public"
 	"github.com/airware/vili/session"
 	"github.com/airware/vili/templates"
+	"github.com/airware/vili/util"
 )
 
 const homeTemplate = `
@@ -48,93 +49,101 @@ type FirebaseConfig struct {
 	Token string `json:"token"`
 }
 
-func homeHandler(c *echo.Context) error {
-	if c.Get("user") == nil {
+func homeHandler(envs *util.StringSet) func(c *echo.Context) error {
+	return func(c *echo.Context) error {
+		if c.Get("user") == nil {
+			staticLiveReload := config.GetBool(config.StaticLiveReload)
+			return c.HTML(
+				http.StatusOK,
+				homeTemplate,
+				"null",
+				fmt.Sprintf("/static/app-%s.js", public.GetHash(staticLiveReload)),
+			)
+		}
+		return appHandler(envs)(c)
+	}
+}
+
+func appHandler(envs *util.StringSet) func(c *echo.Context) error {
+	return func(c *echo.Context) error {
+		envSlice := []string{}
+		envs.ForEach(func(e string) {
+			envSlice = append(envSlice, e)
+		})
+
+		envApps := make(map[string][]string)
+		envJobs := make(map[string][]string)
+
+		failed := false
+		var wg sync.WaitGroup
+		var appsMutex sync.Mutex
+		var jobsMutex sync.Mutex
+		funcs := []func(env string){
+			func(env string) {
+				defer wg.Done()
+				deployments, err := templates.Deployments(env)
+				if err != nil {
+					log.Error(err)
+					failed = true
+				}
+				appsMutex.Lock()
+				envApps[env] = deployments
+				appsMutex.Unlock()
+			},
+			func(env string) {
+				defer wg.Done()
+				pods, err := templates.Pods(env)
+				if err != nil {
+					log.Error(err)
+					failed = true
+				}
+				jobsMutex.Lock()
+				envJobs[env] = pods
+				jobsMutex.Unlock()
+			},
+		}
+
+		wg.Add(len(funcs) * len(envSlice))
+		for _, f := range funcs {
+			for _, env := range envSlice {
+				go f(env)
+			}
+		}
+		wg.Wait()
+		if failed {
+			return errors.New("failed github call")
+		}
+
+		user, _ := c.Get("user").(*session.User)
+
+		firebaseToken, err := firebase.NewToken(user)
+		if err != nil {
+			return err
+		}
+
+		appConfig := AppConfig{
+			URI:          config.GetString(config.URI),
+			User:         user,
+			Envs:         envSlice,
+			ProdEnvs:     config.GetStringSlice(config.ProdEnvs),
+			ApprovalEnvs: config.GetStringSlice(config.ApprovalEnvs),
+			EnvApps:      envApps,
+			EnvJobs:      envJobs,
+			Firebase: FirebaseConfig{
+				URL:   config.GetString(config.FirebaseURL),
+				Token: firebaseToken,
+			},
+		}
+		appConfigBytes, err := json.Marshal(appConfig)
+		if err != nil {
+			return err
+		}
 		staticLiveReload := config.GetBool(config.StaticLiveReload)
 		return c.HTML(
 			http.StatusOK,
 			homeTemplate,
-			"null",
+			string(appConfigBytes),
 			fmt.Sprintf("/static/app-%s.js", public.GetHash(staticLiveReload)),
 		)
 	}
-	return appHandler(c)
-}
-
-func appHandler(c *echo.Context) error {
-	envs := config.GetStringSlice(config.Environments)
-	envApps := make(map[string][]string)
-	envJobs := make(map[string][]string)
-
-	failed := false
-	var wg sync.WaitGroup
-	var appsMutex sync.Mutex
-	var jobsMutex sync.Mutex
-	funcs := []func(env string){
-		func(env string) {
-			defer wg.Done()
-			deployments, err := templates.Deployments(env)
-			if err != nil {
-				log.Error(err)
-				failed = true
-			}
-			appsMutex.Lock()
-			envApps[env] = deployments
-			appsMutex.Unlock()
-		},
-		func(env string) {
-			defer wg.Done()
-			pods, err := templates.Pods(env)
-			if err != nil {
-				log.Error(err)
-				failed = true
-			}
-			jobsMutex.Lock()
-			envJobs[env] = pods
-			jobsMutex.Unlock()
-		},
-	}
-
-	wg.Add(len(funcs) * len(envs))
-	for _, f := range funcs {
-		for _, env := range envs {
-			go f(env)
-		}
-	}
-	wg.Wait()
-	if failed {
-		return errors.New("failed github call")
-	}
-
-	user, _ := c.Get("user").(*session.User)
-
-	firebaseToken, err := firebase.NewToken(user)
-	if err != nil {
-		return err
-	}
-
-	appConfig := AppConfig{
-		URI:          config.GetString(config.URI),
-		User:         user,
-		Envs:         envs,
-		ProdEnvs:     config.GetStringSlice(config.ProdEnvs),
-		ApprovalEnvs: config.GetStringSlice(config.ApprovalEnvs),
-		EnvApps:      envApps,
-		EnvJobs:      envJobs,
-		Firebase: FirebaseConfig{
-			URL:   config.GetString(config.FirebaseURL),
-			Token: firebaseToken,
-		},
-	}
-	appConfigBytes, err := json.Marshal(appConfig)
-	if err != nil {
-		return err
-	}
-	staticLiveReload := config.GetBool(config.StaticLiveReload)
-	return c.HTML(
-		http.StatusOK,
-		homeTemplate,
-		string(appConfigBytes),
-		fmt.Sprintf("/static/app-%s.js", public.GetHash(staticLiveReload)),
-	)
 }

@@ -26,7 +26,7 @@ type Config struct {
 	Channel         string
 	Username        string
 	Emoji           string
-	DeployUsernames []string
+	DeployUsernames *util.StringSet
 }
 
 // Init initializes the slack client
@@ -87,7 +87,7 @@ func ListenForMentions(mentions chan<- *Mention) {
 		for _, user := range users {
 			if user.Name == config.Username {
 				botID = user.ID
-			} else if util.Contains(config.DeployUsernames, user.Name) {
+			} else if config.DeployUsernames.Contains(user.Name) {
 				deployUsers[user.ID] = user.Name
 			}
 		}

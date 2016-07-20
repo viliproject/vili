@@ -17,7 +17,7 @@ var WaitGroup sync.WaitGroup
 var Exiting = false
 
 // AddHandlers adds api handlers to the server
-func AddHandlers(s *server.Server, envs []string) {
+func AddHandlers(s *server.Server, envs *util.StringSet) {
 	envPrefix := "/api/v1/envs/:env/"
 	// apps
 	s.Echo().Get(envPrefix+"apps", envMiddleware(envs, appsHandler))
@@ -55,9 +55,9 @@ func AddHandlers(s *server.Server, envs []string) {
 	s.Echo().Get("/api/*", middleware.RequireUser(notFoundHandler))
 }
 
-func envMiddleware(envs []string, h echo.HandlerFunc) echo.HandlerFunc {
+func envMiddleware(envs *util.StringSet, h echo.HandlerFunc) echo.HandlerFunc {
 	return middleware.RequireUser(func(c *echo.Context) error {
-		if !util.Contains(envs, c.Param("env")) {
+		if !envs.Contains(c.Param("env")) {
 			return notFoundHandler(c)
 		}
 		return h(c)
