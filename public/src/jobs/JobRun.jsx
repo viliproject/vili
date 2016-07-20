@@ -16,11 +16,12 @@ class RunButtons extends React.Component { // eslint-disable-line no-unused-vars
     }
 
     render() {
-        if (!this.state || !this.state.val) {
+        if (!this.props.status) {
             return <Loading />;
         }
+
         var contents = null;
-        switch (this.state.val) {
+        switch (this.props.status) {
             case 'new':
                 contents = <Button bsStyle="success" onClick={this.start}>Start</Button>;
                 break;
@@ -38,17 +39,6 @@ class RunButtons extends React.Component { // eslint-disable-line no-unused-vars
                 break;
         }
         return <div className="deploy-buttons col-md-10">{contents}</div>;
-    }
-
-    componentDidMount() {
-        var self = this;
-        this.props.runDB.child('state').on('value', function(snapshot) {
-            self.setState({val: snapshot.val()});
-        });
-    }
-
-    componentWillUnmount() {
-        this.props.runDB.child('state').off();
     }
 
     start(event) {
@@ -86,11 +76,71 @@ class Clock extends React.Component { // eslint-disable-line no-unused-vars
     }
 }
 
-class Output extends React.Component { // eslint-disable-line no-unused-vars
+class Variables extends React.Component {
+    constructor(props) {
+        super(props);
+        this.setVariables = this.setVariables.bind(this);
+        this.onVariableChange = this.onVariableChange.bind(this);
+    }
+
+    componentDidMount() {
+        var self = this;
+        this.props.runDB.child('variables').on('value', function(snapshot) {
+            self.setState({val: snapshot.val()});
+        });
+    }
+
+    componentWillUnmount() {
+        this.props.runDB.child('variables').off();
+    }
 
     render() {
         if (!this.state || !this.state.val) {
             return <div></div>;
+        }
+        var self = this;
+        var variables = _.map(_.pairs(this.state.val), function(pair) {
+            return <VariableRow name={pair[0]} value={pair[1]} onChange={self.onVariableChange(pair[0])} disabled={self.props.status != 'new'} />;
+        });
+
+        return <table id="variables" className="table">
+            <tr>
+                <th>Key</th><th>Value</th>
+            </tr>
+            {variables}
+        </table>
+    }
+
+    setVariables(vars) {
+        viliApi.runs.setVariables(this.props.env, this.props.job, this.props.run, vars);
+    }
+
+    onVariableChange(variable) {
+        var self = this;
+        return function(event) {
+            var newVal = {};
+            newVal[variable] = event.target.value;
+            newVal = _.extend(self.state.val, newVal);
+            self.setVariables(newVal);
+            self.setState({val: newVal});
+        }
+    }
+}
+
+class VariableRow extends React.Component {
+    render() {
+        return <tr>
+            <td>{this.props.name}</td>
+            <td><input type="text" defaultValue={this.props.value} onChange={this.props.onChange} disabled={this.props.disabled}/></td>
+        </tr>
+    }
+}
+
+class Output extends React.Component { // eslint-disable-line no-unused-vars
+
+    render() {
+        if (!this.state || !this.state.val) {
+            return <div />;
         }
         return (
             <div>
@@ -155,25 +205,45 @@ class Logs extends React.Component { // eslint-disable-line no-unused-vars
 
 export class JobRun extends React.Component {
     render() {
-        var runDB = this.props.db.child(this.props.params.env)
-            .child('jobs').child(this.props.params.job)
-            .child('runs').child(this.props.params.run);
+        if (!this.state || !this.state.runDB) {
+            return <div />;
+        }
         return (
             <div className="run">
                 <div className="row">
                     <RunButtons env={this.props.params.env}
                                 job={this.props.params.job}
                                 run={this.props.params.run}
-                                runDB={runDB} />
-                    <Clock runDB={runDB} />
+                                status={this.state.status}
+                                runDB={this.state.runDB} />
+                    <Clock runDB={this.state.runDB} />
                 </div>
-                <Logs runDB={runDB} />
-                <Output runDB={runDB} />
+                <Variables env={this.props.params.env}
+                           job={this.props.params.job}
+                           run={this.props.params.run}
+                           status={this.state.status}
+                           runDB={this.state.runDB} />
+                <Logs runDB={this.state.runDB} />
+                <Output runDB={this.state.runDB} />
             </div>
         );
     }
 
     componentDidMount() {
+        var self = this;
+        var runDB = this.props.db.child(this.props.params.env)
+            .child('jobs').child(this.props.params.job)
+            .child('runs').child(this.props.params.run);
         this.props.activateTab('runs');
+        runDB.child('state').on('value', function(snapshot) {
+            self.setState({status: snapshot.val()});
+        });
+        this.setState({runDB: runDB});
+    }
+
+    componentWillUnmount() {
+        if (this.state && this.state.runDB) {
+            this.state.runDB.child('state').off();
+        }
     }
 }

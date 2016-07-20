@@ -137,6 +137,9 @@ class ViliApi {
             create: function(env, job, spec) {
                 return makePostRequest('/envs/' + env + '/jobs/' + job + '/runs', spec);
             },
+            setVariables: function(env, job, id, variables) {
+                return makePutRequest('/envs/' + env + '/jobs/' + job + '/runs/' + id + '/variables', variables);
+            },
             start: function(env, job, id) {
                 return makePostRequest('/envs/' + env + '/jobs/' + job + '/runs/' + id + '/start');
             },
