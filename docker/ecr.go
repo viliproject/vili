@@ -22,6 +22,7 @@ type ECRConfig struct {
 	SecretAccessKey string
 	Namespace       string
 	BranchDelimiter string
+	RegistryID      *string
 }
 
 // ECRService is an implementation of the docker Service interface
@@ -105,6 +106,7 @@ func (s *ECRService) GetTag(repo, branch, tag string) (string, error) {
 			},
 		},
 		RepositoryName: aws.String(fullRepoName),
+		RegistryId:     s.config.RegistryID,
 	})
 	if err != nil {
 		return "", err
@@ -123,6 +125,7 @@ func (s *ECRService) FullName(repo, branch, tag string) (string, error) {
 		RepositoryNames: []*string{
 			aws.String(s.getRepositoryForBranch(repo, branch)),
 		},
+		RegistryId: s.config.RegistryID,
 	})
 	if err != nil {
 		return "", err
@@ -143,6 +146,7 @@ func (s *ECRService) getImagesForBranch(repoName, branchName string) ([]*Image, 
 		resp, err := s.ecr.ListImages(&ecr.ListImagesInput{
 			RepositoryName: aws.String(fullRepoName),
 			NextToken:      nextToken,
+			RegistryId:     s.config.RegistryID,
 		})
 		if err != nil {
 			return images, err
