@@ -141,15 +141,14 @@ func (s *DeploymentsService) Rollback(env, name string, data *v1beta1.Deployment
 }
 
 // Delete deletes the deployment in `env` with `name`
-func (s *DeploymentsService) Delete(env, name string) (*v1beta1.Deployment, *unversioned.Status, error) {
+func (s *DeploymentsService) Delete(env, name string) (*unversioned.Status, error) {
 	client, err := getClient(env)
 	if err != nil {
-		return nil, nil, invalidEnvError(env)
+		return nil, invalidEnvError(env)
 	}
-	resp := &v1beta1.Deployment{}
-	status, err := client.makeRequest("DELETE", "deployments/"+name, nil, resp)
+	status, err := client.makeRequest("DELETE", "deployments/"+name, nil, nil)
 	if status != nil || err != nil {
-		return nil, status, err
+		return status, err
 	}
-	return resp, nil, nil
+	return nil, nil
 }

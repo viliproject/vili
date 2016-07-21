@@ -154,6 +154,15 @@ class ViliApi {
             },
         };
 
+        this.environments = {
+            create: function(name) {
+                return makePutRequest('/environments/' + name);
+            },
+            delete: function(name) {
+                return makeDeleteRequest('/environments/' + name);
+            },
+        };
+
     }
 }
 

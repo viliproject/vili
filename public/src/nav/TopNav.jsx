@@ -2,6 +2,7 @@ import React from 'react';
 import _ from 'underscore';
 import { Link } from 'react-router'; // eslint-disable-line no-unused-vars
 import { Navbar, Nav, NavDropdown, MenuItem } from 'react-bootstrap'; // eslint-disable-line no-unused-vars
+import { viliApi } from '../lib';
 import { LinkMenuItem } from '../shared'; // eslint-disable-line no-unused-vars
 
 export class TopNav extends React.Component {
@@ -20,7 +21,7 @@ export class TopNav extends React.Component {
                 spath = path.split('/');
             var envElements = window.appconfig.envs.map(function(env) {
                 spath[1] = env;
-                return <LinkMenuItem key={env} to={spath.join('/')} active={env===self.props.env}>{env}</LinkMenuItem>;
+                return <LinkMenuItem key={env} to={spath.join('/')} active={env===self.props.env} onRemove={env===self.props.env ? null : self.deleteEnvironment(env)}>{env}</LinkMenuItem>;
             });
             return (
                 <Navbar className={isProd ? 'prod' : ''}
@@ -37,6 +38,8 @@ export class TopNav extends React.Component {
                         <NavDropdown id="env-dropdown"
                                      title={this.props.env || <span className="text-danger">Select Environment</span>}>
                             {envElements}
+                            <MenuItem divider />
+                            <MenuItem onSelect={this.createNewEnvironment}>Create Environment</MenuItem>
                         </NavDropdown>
                     </Nav>
                 </Navbar>
@@ -54,4 +57,23 @@ export class TopNav extends React.Component {
             );
         }
     }
+
+    createNewEnvironment() {
+        var envName = prompt('Enter the name of the new environment to create');
+        if (!envName) {
+            return;
+        }
+        viliApi.environments.create(envName);
+    }
+
+    deleteEnvironment(env) {
+        return function() {
+            var envName = prompt('Are you sure you wish to delete this environment? Enter the environment name to confirm');
+            if (envName != env) {
+                return
+            }
+            viliApi.environments.delete(envName);
+        }
+    }
+
 }

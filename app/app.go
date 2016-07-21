@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 	"sync"
 
 	"github.com/labstack/echo"
@@ -70,6 +71,7 @@ func appHandler(envs *util.StringSet) func(c *echo.Context) error {
 		envs.ForEach(func(e string) {
 			envSlice = append(envSlice, e)
 		})
+		sort.Strings(envSlice)
 
 		envApps := make(map[string][]string)
 		envJobs := make(map[string][]string)
