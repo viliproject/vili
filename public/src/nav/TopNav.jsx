@@ -10,8 +10,6 @@ export class TopNav extends React.Component {
         var self = this;
 
         if (window.appconfig) {
-            var isProd = _.contains(window.appconfig.prodEnvs, this.props.env);
-
             // user
             var user = window.appconfig.user;
             var userText = user.firstName + ' ' + user.lastName + ' (' + user.username + ')';
@@ -20,11 +18,23 @@ export class TopNav extends React.Component {
             var path  = window.location.pathname + window.location.search,
                 spath = path.split('/');
             var envElements = window.appconfig.envs.map(function(env) {
-                spath[1] = env;
-                return <LinkMenuItem key={env} to={spath.join('/')} active={env===self.props.env} onRemove={env===self.props.env ? null : self.deleteEnvironment(env)}>{env}</LinkMenuItem>;
+                spath[1] = env.name;
+                var onRemove = null;
+                if (self.props.env && env.name !== self.props.env.name && !env.protected) {
+                    onRemove = function() {
+                        self.deleteEnvironment(env.name);
+                    };
+                }
+                return <LinkMenuItem
+                    key={env.name}
+                    to={spath.join('/')}
+                    active={self.props.env && env.name===self.props.env.name}
+                    onRemove={onRemove}>
+                    {env}
+                </LinkMenuItem>;
             });
             return (
-                <Navbar className={isProd ? 'prod' : ''}
+                <Navbar className={this.props.env && this.props.env.prod ? 'prod' : ''}
                         fixedTop={true} fluid={true}>
                     <div className="navbar-header pull-left">
                         <Link className="navbar-brand" to="home">Vili</Link>
@@ -36,7 +46,7 @@ export class TopNav extends React.Component {
                     </Nav>
                     <Nav key="env" ulClassName="environment" pullRight={true}>
                         <NavDropdown id="env-dropdown"
-                                     title={this.props.env || <span className="text-danger">Select Environment</span>}>
+                                     title={(this.props.env && this.props.env.name) || <span className="text-danger">Select Environment</span>}>
                             {envElements}
                             <MenuItem divider />
                             <MenuItem onSelect={this.createNewEnvironment}>Create Environment</MenuItem>
@@ -64,16 +74,16 @@ export class TopNav extends React.Component {
             return;
         }
         viliApi.environments.create(envName);
+        window.location.reload();
     }
 
     deleteEnvironment(env) {
-        return function() {
-            var envName = prompt('Are you sure you wish to delete this environment? Enter the environment name to confirm');
-            if (envName != env) {
-                return
-            }
-            viliApi.environments.delete(envName);
+        var envName = prompt('Are you sure you wish to delete this environment? Enter the environment name to confirm');
+        if (envName !== env) {
+            return
         }
+        viliApi.environments.delete(envName);
+        window.location.reload();
     }
 
 }

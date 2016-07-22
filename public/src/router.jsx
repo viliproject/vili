@@ -1,6 +1,6 @@
 import React from 'react'
 import Router, { Route, Link, RouteHandler, DefaultRoute } from 'react-router'; // eslint-disable-line no-unused-vars
-
+import _ from 'underscore';
 import { TopNav, SideNav } from './nav' // eslint-disable-line no-unused-vars
 import { AppsList, AppBase, App, AppSpec, AppPods, AppService, AppDeployments, AppDeployment } from './apps' // eslint-disable-line no-unused-vars
 import { JobsList, JobBase, Job, JobSpec, JobRuns, JobRun } from './jobs' // eslint-disable-line no-unused-vars
@@ -23,7 +23,7 @@ class Home extends React.Component {
         var content = '';
         if (window.appconfig) {
             var links = window.appconfig.envs.map(function(env) {
-                return <li><Link key={env} to={`/${env}`}>{env}</Link></li>;
+                return <li><Link key={env.name} to={`/${env.name}`}>{env.name}</Link></li>;
             });
             content = (
                 <div>
@@ -69,12 +69,13 @@ class Environment extends React.Component {
     }
 
     render() {
+        var env = _.findWhere(window.appconfig.envs, {name: this.props.params.env});
         return (
             <div>
-                <TopNav env={this.props.params.env} />
+                <TopNav env={env} />
                 <div className="page-wrapper">
                     <div className="sidebar">
-                        <SideNav env={this.props.params.env} ref="sidenav"/>
+                        <SideNav env={env} ref="sidenav"/>
                     </div>
                     <div className="content-wrapper">
                         <RouteHandler db={this.props.db} activateSideNavItem={this.activateSideNavItem} />

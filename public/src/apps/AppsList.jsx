@@ -19,7 +19,7 @@ class Row extends React.Component { // eslint-disable-line no-unused-vars
 
     render() {
         var actions = [];
-        if (this.props.envCanApproveTag) {
+        if (this.props.env.approval) {
             if (this.state.approval) {
                 actions.push(<button type="button" className="btn btn-xs btn-danger" onClick={this.unapproveTag}>Unapprove</button>);
 
@@ -30,12 +30,12 @@ class Row extends React.Component { // eslint-disable-line no-unused-vars
 
         var cells = _.union([
             <td data-column="name">
-                <Link to={`/${this.props.env}/apps/${this.props.name}`}>{this.props.name}</Link>
+                <Link to={`/${this.props.env.name}/apps/${this.props.name}`}>{this.props.name}</Link>
             </td>,
             <td data-column="tag">{this.state.tag}</td>,
             <td data-column="replicas">{this.state.replicas}</td>,
             <td data-column="deployed_at">{this.state.deployed_at}</td>,
-        ], this.props.envCanApproveTag ? [
+        ], this.props.env.approval ? [
             <td data-column="approved">{this.state.approvalContents}</td>,
             <td data-column="actions">{actions}</td>,
         ] : []);
@@ -53,7 +53,7 @@ class Row extends React.Component { // eslint-disable-line no-unused-vars
             // TODO count running/ready pods
             this.setState(this.state);
         }
-        if (this.props.envCanApproveTag && this.state.tag) {
+        if (this.props.env.approval && this.state.tag) {
             var db = this.props.db.child('releases').child(this.props.name).child(this.state.tag);
             db.off();
             db.on('value', function(snapshot) {
@@ -139,7 +139,7 @@ export class AppsList extends React.Component {
             {title: 'Tag', key: 'tag'},
             {title: 'Replicas', key: 'replicas'},
             {title: 'Deployed', key: 'deployed_at'},
-        ], this.state.envCanApproveTag ? [
+        ], this.state.env.approval ? [
             {title: 'Approved', key: 'approved'},
             {title: 'Actions', key: 'actions'},
         ] : []);
@@ -149,15 +149,14 @@ export class AppsList extends React.Component {
                 return {
                     _row: <Row name={appName}
                                deployment={self.state.deploymentMap[appName]}
-                               env={self.props.params.env}
+                               env={self.state.env}
                                db={self.props.db}
-                               envCanApproveTag={self.state.envCanApproveTag}
                                ref={'row-' + appName}
                           />,
                 };
             });
 
-        if (self.state.envCanApproveTag) {
+        if (self.state.env.approval) {
             header.push(<ButtonToolbar pullRight={true}>
                 <Button onClick={this.approveAllTags} bsStyle="success" bsSize="small">Approve All</Button>
                 <Button onClick={this.unapproveAllTags} bsStyle="danger" bsSize="small">Unapprove All</Button>
@@ -181,7 +180,7 @@ export class AppsList extends React.Component {
             _.each(state.apps.deployments.items, function(rc) {
                 state.deploymentMap[rc.metadata.name] = rc;
             });
-            state.envCanApproveTag = _.contains(window.appconfig.approvalEnvs, self.props.params.env);
+            state.env = _.findWhere(window.appconfig.envs, {name: self.props.params.env});
             self.setState(state);
         });
     }

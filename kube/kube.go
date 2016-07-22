@@ -35,21 +35,6 @@ type EnvConfig struct {
 	client *client
 }
 
-// DetectEnvs returns the list of environments in the kubernetes cluster
-func DetectEnvs() ([]string, error) {
-	namespaceList, _, err := Namespaces.List(nil)
-	if err != nil {
-		return nil, err
-	}
-	envs := []string{}
-	for _, namespace := range namespaceList.Items {
-		if namespace.Name != "kube-system" {
-			envs = append(envs, namespace.Name)
-		}
-	}
-	return envs, nil
-}
-
 func getClient(env string) (*client, error) {
 	envConfig, ok := kubeconfig.EnvConfigs[env]
 	if ok {

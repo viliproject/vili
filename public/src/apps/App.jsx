@@ -27,10 +27,10 @@ class Row extends React.Component { // eslint-disable-line no-unused-vars
         var date = new Date(data.lastModified);
 
         var actions = [];
-        if (this.props.canDeploy && (!this.props.envNeedsApprovalForDeploy || this.state.approval)) {
+        if (this.props.canDeploy && (!this.props.env.prod || this.state.approval)) {
             actions.push(<button type="button" className="btn btn-xs btn-primary" onClick={this.deployTag}>Deploy</button>);
         }
-        if (this.props.envCanApproveTag) {
+        if (this.props.env && this.props.env.approval) {
             if (this.state.approval) {
                 actions.push(<button type="button" className="btn btn-xs btn-danger" onClick={this.unapproveTag}>Unapprove</button>);
 
@@ -98,12 +98,12 @@ class Row extends React.Component { // eslint-disable-line no-unused-vars
     deployTag(event) {
         var self = this;
         event.target.setAttribute('disabled', 'disabled');
-        viliApi.deployments.create(this.props.env, this.props.app, {
+        viliApi.deployments.create(this.props.env.name, this.props.app, {
             tag: this.props.data.tag,
             branch: this.props.data.branch,
             trigger: false
         }).then(function(deployment) {
-            router.transitionTo(`/${self.props.env}/apps/${self.props.app}/deployments/${deployment.id}`);
+            router.transitionTo(`/${self.props.env.name}/apps/${self.props.app}/deployments/${deployment.id}`);
         });
     }
 
@@ -152,9 +152,7 @@ export class App extends React.Component {
             var row = <Row data={data} currentTag={self.state.currentTag}
                            deployedAt={deployed ? self.state.deployedAt : ''}
                            canDeploy={self.state.canDeploy}
-                           envNeedsApprovalForDeploy={self.state.envNeedsApprovalForDeploy}
                            hasApprovalColumn={self.state.hasApprovalColumn}
-                           envCanApproveTag={self.state.envCanApproveTag}
                            approvalDB={self.state.approvalDB}
                            env={self.props.params.env}
                            app={self.props.params.app}
@@ -177,9 +175,8 @@ export class App extends React.Component {
         Promise.props({
             app: viliApi.apps.get(this.props.params.env, this.props.params.app)
         }).then(function(state) {
-            state.envCanApproveTag = _.contains(window.appconfig.approvalEnvs, self.props.params.env);
-            state.envNeedsApprovalForDeploy = _.contains(window.appconfig.prodEnvs, self.props.params.env);
-            state.hasApprovalColumn = state.envCanApproveTag || state.envNeedsApprovalForDeploy;
+            state.env = _.findWhere(window.appconfig.envs, {name: self.props.params.env});
+            state.hasApprovalColumn = state.env.approval || state.env.prod;
             if (state.hasApprovalColumn) {
                 state.approvalDB = self.props.db.child('releases').child(self.props.params.app);
             }
