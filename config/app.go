@@ -36,6 +36,7 @@ const (
 	AWSRegion               = "aws-region"
 	AWSAccessKeyID          = "aws-access-key-id"
 	AWSSecretAccessKey      = "aws-secret-access-key"
+	ECRAccountID            = "ecr-account-id"
 	DockerMode              = "docker-mode"
 	FirebaseURL             = "firebase-url"
 	FirebaseSecret          = "firebase-secret"

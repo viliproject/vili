@@ -40,6 +40,7 @@ export REGISTRY_PASSWORD=password
 # export AWS_REGION=us-east-1
 # export AWS_ACCESS_KEY_ID="accesskeyid"
 # export AWS_SECRET_ACCESS_KEY="secretaccesskey"
+# export ECR_ACCOUNT_ID=123456789012 # only needed if accessing another account's ecr registry
 
 export FIREBASE_URL=https://test.firebaseio.com/
 export FIREBASE_SECRET=secret

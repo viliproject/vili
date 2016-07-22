@@ -139,12 +139,18 @@ func New() *App {
 					BranchDelimiter: config.GetString(config.RegistryBranchDelimiter),
 				})
 			case "ecr":
+				ecrAccountID := config.GetString(config.ECRAccountID)
+				var registryID *string
+				if ecrAccountID != "" {
+					registryID = &ecrAccountID
+				}
 				docker.InitECR(&docker.ECRConfig{
 					Region:          config.GetString(config.AWSRegion),
 					AccessKeyID:     config.GetString(config.AWSAccessKeyID),
 					SecretAccessKey: config.GetString(config.AWSSecretAccessKey),
 					Namespace:       config.GetString(config.RegistryNamespace),
 					BranchDelimiter: config.GetString(config.RegistryBranchDelimiter),
+					RegistryID:      registryID,
 				})
 			default:
 				log.Panic("invalid docker mode provided")
