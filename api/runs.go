@@ -13,6 +13,7 @@ import (
 	"github.com/airware/vili/log"
 	"github.com/airware/vili/server"
 	"github.com/airware/vili/session"
+	"github.com/airware/vili/templates"
 	"github.com/airware/vili/util"
 	"github.com/labstack/echo"
 )
@@ -29,6 +30,9 @@ type Run struct {
 	Clock *Clock `json:"clock"`
 
 	UID string `json:"uid"`
+
+	PodTemplate templates.Template `json:"template"`
+	Variables   map[string]string  `json:"variables"`
 }
 
 const (
@@ -109,6 +113,35 @@ func runActionHandler(c *echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
+func runVariablesEditHandler(c *echo.Context) error {
+	env := c.Param("env")
+	job := c.Param("job")
+	runID := c.Param("run")
+
+	run := &Run{}
+	if err := runDB(env, job, runID).Value(run); err != nil {
+		return err
+	}
+	if run.ID == "" {
+		return server.ErrorResponse(c, errors.NotFoundError("Run not found"))
+	}
+	if run.State != "new" {
+		return server.ErrorResponse(c, errors.BadRequestError("Can only update variables for new jobs"))
+	}
+
+	variables := make(map[string]string)
+	if err := json.NewDecoder(c.Request().Body).Decode(&variables); err != nil {
+		return err
+	}
+
+	if err := runDB(env, job, runID).Child("variables").Set(variables); err != nil {
+		return err
+	}
+
+	c.JSON(http.StatusOK, variables)
+	return nil
+}
+
 // utils
 
 // Init initializes a job run, checks to make sure it is valid, and writes the run
@@ -128,6 +161,13 @@ func (r *Run) Init(env, job, username string, trigger bool) error {
 			message: fmt.Sprintf("Tag %s not found for job %s", r.Tag, job),
 		}
 	}
+
+	body, err := templates.Pod(env, job)
+	if err != nil {
+		return err
+	}
+	r.PodTemplate = body
+	r.Variables = r.PodTemplate.ExtractVariables()
 
 	if err = runDB(env, job, r.ID).Set(r); err != nil {
 		return err

@@ -45,6 +45,7 @@ func AddHandlers(s *server.Server, envs *util.StringSet) {
 
 	// runs
 	s.Echo().Post(envPrefix+"jobs/:job/runs", envMiddleware(envs, runCreateHandler))
+	s.Echo().Put(envPrefix+"jobs/:job/runs/:run/variables", envMiddleware(envs, runVariablesEditHandler))
 	s.Echo().Post(envPrefix+"jobs/:job/runs/:run/:action", envMiddleware(envs, runActionHandler))
 
 	// releases

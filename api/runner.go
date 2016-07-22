@@ -2,7 +2,6 @@ package api
 
 import (
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/CloudCom/firego"
@@ -33,8 +32,6 @@ type runnerSpec struct {
 	pod *v1.Pod
 
 	// for resume
-	podTemplate       templates.Template
-	variables         map[string]string
 	populatedTemplate templates.Template
 	lastPing          time.Time
 }
@@ -103,42 +100,9 @@ func (r *runnerSpec) addMessage(message, level string) error {
 
 func (r *runnerSpec) start() error {
 	log.Infof("Starting run %s for job %s in env %s", r.run.ID, r.job, r.env)
-	var waitGroup sync.WaitGroup
-	failed := false
-
-	// podTemplate
-	waitGroup.Add(1)
-	go func() {
-		defer waitGroup.Done()
-		body, err := templates.Pod(r.env, r.job)
-		if err != nil {
-			log.Error(err)
-			failed = true
-			return
-		}
-		r.podTemplate = body
-	}()
-
-	// variables
-	waitGroup.Add(1)
-	go func() {
-		defer waitGroup.Done()
-		variables, err := templates.Variables(r.env)
-		if err != nil {
-			log.Error(err)
-			failed = true
-			return
-		}
-		r.variables = variables
-	}()
-
-	waitGroup.Wait()
-	if failed {
-		return fmt.Errorf("Failed one of the service calls")
-	}
 
 	// combine the template with the variables to get the populated template
-	populatedTemplate, invalid := r.podTemplate.Populate(r.variables)
+	populatedTemplate, invalid := r.run.PodTemplate.Populate(r.run.Variables)
 	if invalid {
 		return errors.BadRequestError("Pod template missing variables")
 	}
@@ -261,7 +225,6 @@ func (r *runnerSpec) waitForPod() error {
 	elapsed := 0 * time.Second
 	ticker := time.NewTicker(runPollPeriod)
 	defer ticker.Stop()
-WaitLoop:
 	for {
 		if err := r.ping(); err != nil {
 			return err
@@ -287,11 +250,11 @@ WaitLoop:
 					return err
 				}
 				r.addMessage(fmt.Sprintf("Successfully completed job in %s", r.run.Clock.humanize()), "info")
-				break WaitLoop
+				return nil
 			case v1.PodFailed:
 				r.db.Child("state").Set(runStateFailed)
 				r.db.Child("stateReason").Set("Pod failed")
-				break WaitLoop
+				return nil
 			}
 		}
 
@@ -302,7 +265,6 @@ WaitLoop:
 			return runnerTimeout{}
 		}
 	}
-	return nil
 }
 
 // ping updates the run clock, and checks if the run should be terminated
