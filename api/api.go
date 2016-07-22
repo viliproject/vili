@@ -52,7 +52,7 @@ func AddHandlers(s *server.Server) {
 	s.Echo().Delete("/api/v1/releases/:app/:tag", middleware.RequireUser(releaseDeleteHandler))
 
 	// environments
-	s.Echo().Put("/api/v1/environments/:env", middleware.RequireUser(environmentCreateHandler))
+	s.Echo().Post("/api/v1/environments", middleware.RequireUser(environmentCreateHandler))
 	s.Echo().Delete("/api/v1/environments/:env", middleware.RequireUser(environmentDeleteHandler))
 
 	// catchall not found handler

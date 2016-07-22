@@ -155,8 +155,8 @@ class ViliApi {
         };
 
         this.environments = {
-            create: function(name) {
-                return makePutRequest('/environments/' + name);
+            create: function(spec) {
+                return makePostRequest('/environments', spec);
             },
             delete: function(name) {
                 return makeDeleteRequest('/environments/' + name);

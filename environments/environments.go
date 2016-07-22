@@ -15,9 +15,10 @@ var rwMutex sync.RWMutex
 // Environment describes an environment backed by a kubernetes namespace
 type Environment struct {
 	Name      string `json:"name"`
-	Protected bool   `json:"protected"`
-	Prod      bool   `json:"prod"`
-	Approval  bool   `json:"approval"`
+	Branch    string `json:"branch,omitempty"`
+	Protected bool   `json:"protected,omitempty"`
+	Prod      bool   `json:"prod,omitempty"`
+	Approval  bool   `json:"approval,omitempty"`
 }
 
 // Init initializes the global environments list
@@ -42,12 +43,12 @@ func Environments() (ret []Environment) {
 }
 
 // Create creates a new environment with `name`
-func Create(name string) error {
+func Create(name, branch string) error {
 	_, status, err := kube.Namespaces.Create(&v1.Namespace{
 		ObjectMeta: v1.ObjectMeta{
 			Name: name,
 			Annotations: map[string]string{
-				"airware.feature-environment": name,
+				"vili.environment-branch": branch,
 			},
 		},
 	})
@@ -115,7 +116,8 @@ func RefreshEnvs() error {
 	for _, namespace := range namespaceList.Items {
 		if namespace.Name != "kube-system" && namespace.Name != "default" {
 			newEnvs = append(newEnvs, Environment{
-				Name: namespace.Name,
+				Name:   namespace.Name,
+				Branch: namespace.Annotations["airware.feature-branch"],
 			})
 		}
 	}
