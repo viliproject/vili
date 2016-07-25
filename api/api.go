@@ -3,10 +3,10 @@ package api
 import (
 	"sync"
 
+	"github.com/airware/vili/environments"
 	"github.com/airware/vili/errors"
 	"github.com/airware/vili/middleware"
 	"github.com/airware/vili/server"
-	"github.com/airware/vili/util"
 	"github.com/labstack/echo"
 )
 
@@ -17,50 +17,56 @@ var WaitGroup sync.WaitGroup
 var Exiting = false
 
 // AddHandlers adds api handlers to the server
-func AddHandlers(s *server.Server, envs *util.StringSet) {
+func AddHandlers(s *server.Server) {
 	envPrefix := "/api/v1/envs/:env/"
 	// apps
-	s.Echo().Get(envPrefix+"apps", envMiddleware(envs, appsHandler))
-	s.Echo().Get(envPrefix+"apps/:app", envMiddleware(envs, appHandler))
-	s.Echo().Post(envPrefix+"apps/:app/service", envMiddleware(envs, appCreateServiceHandler))
-	s.Echo().Put(envPrefix+"apps/:app/scale", envMiddleware(envs, appScaleHandler))
+	s.Echo().Get(envPrefix+"apps", envMiddleware(appsHandler))
+	s.Echo().Get(envPrefix+"apps/:app", envMiddleware(appHandler))
+	s.Echo().Post(envPrefix+"apps/:app/service", envMiddleware(appCreateServiceHandler))
+	s.Echo().Put(envPrefix+"apps/:app/scale", envMiddleware(appScaleHandler))
 
 	// jobs
-	s.Echo().Get(envPrefix+"jobs/:job", envMiddleware(envs, jobHandler))
+	s.Echo().Get(envPrefix+"jobs/:job", envMiddleware(jobHandler))
 
 	// nodes
-	s.Echo().Get(envPrefix+"nodes", envMiddleware(envs, nodesHandler))
-	s.Echo().Get(envPrefix+"nodes/:node", envMiddleware(envs, nodeHandler))
-	s.Echo().Put(envPrefix+"nodes/:node/:state", envMiddleware(envs, nodeStateEditHandler))
+	s.Echo().Get(envPrefix+"nodes", envMiddleware(nodesHandler))
+	s.Echo().Get(envPrefix+"nodes/:node", envMiddleware(nodeHandler))
+	s.Echo().Put(envPrefix+"nodes/:node/:state", envMiddleware(nodeStateEditHandler))
 
 	// pods
-	s.Echo().Get(envPrefix+"pods", envMiddleware(envs, podsHandler))
-	s.Echo().Get(envPrefix+"pods/:pod", envMiddleware(envs, podHandler))
-	s.Echo().Delete(envPrefix+"pods/:pod", envMiddleware(envs, podDeleteHandler))
+	s.Echo().Get(envPrefix+"pods", envMiddleware(podsHandler))
+	s.Echo().Get(envPrefix+"pods/:pod", envMiddleware(podHandler))
+	s.Echo().Delete(envPrefix+"pods/:pod", envMiddleware(podDeleteHandler))
 
 	// deployments
-	s.Echo().Post(envPrefix+"apps/:app/deployments", envMiddleware(envs, deploymentCreateHandler))
-	s.Echo().Put(envPrefix+"apps/:app/deployments/:deployment/rollout", envMiddleware(envs, deploymentRolloutEditHandler))
-	s.Echo().Post(envPrefix+"apps/:app/deployments/:deployment/:action", envMiddleware(envs, deploymentActionHandler))
+	s.Echo().Post(envPrefix+"apps/:app/deployments", envMiddleware(deploymentCreateHandler))
+	s.Echo().Put(envPrefix+"apps/:app/deployments/:deployment/rollout", envMiddleware(deploymentRolloutEditHandler))
+	s.Echo().Post(envPrefix+"apps/:app/deployments/:deployment/:action", envMiddleware(deploymentActionHandler))
 
 	// runs
-	s.Echo().Post(envPrefix+"jobs/:job/runs", envMiddleware(envs, runCreateHandler))
-	s.Echo().Post(envPrefix+"jobs/:job/runs/:run/:action", envMiddleware(envs, runActionHandler))
+	s.Echo().Post(envPrefix+"jobs/:job/runs", envMiddleware(runCreateHandler))
+	s.Echo().Post(envPrefix+"jobs/:job/runs/:run/:action", envMiddleware(runActionHandler))
 
 	// releases
 	s.Echo().Post("/api/v1/releases/:app/:tag", middleware.RequireUser(releaseCreateHandler))
 	s.Echo().Delete("/api/v1/releases/:app/:tag", middleware.RequireUser(releaseDeleteHandler))
 
+	// environments
+	s.Echo().Post("/api/v1/environments", middleware.RequireUser(environmentCreateHandler))
+	s.Echo().Delete("/api/v1/environments/:env", middleware.RequireUser(environmentDeleteHandler))
+
 	// catchall not found handler
 	s.Echo().Get("/api/*", middleware.RequireUser(notFoundHandler))
 }
 
-func envMiddleware(envs *util.StringSet, h echo.HandlerFunc) echo.HandlerFunc {
+func envMiddleware(h echo.HandlerFunc) echo.HandlerFunc {
 	return middleware.RequireUser(func(c *echo.Context) error {
-		if !envs.Contains(c.Param("env")) {
-			return notFoundHandler(c)
+		for _, env := range environments.Environments() {
+			if c.Param("env") == env.Name {
+				return h(c)
+			}
 		}
-		return h(c)
+		return notFoundHandler(c)
 	})
 }
 

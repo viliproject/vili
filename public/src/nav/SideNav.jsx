@@ -24,27 +24,27 @@ export class SideNav extends React.Component {
         var nav = [];
         if (this.props.env) {
             var activeItem = this.state.activeItem;
-            var apps = window.appconfig.envApps[this.props.env];
+            var apps = window.appconfig.envApps[this.props.env.name];
             if (!_.isEmpty(apps)) {
-                nav.push(<LinkMenuItem key="apps" to={`/${self.props.env}/apps`}
+                nav.push(<LinkMenuItem key="apps" to={`/${self.props.env.name}/apps`}
                                        active={activeItem[0]==='apps' && !activeItem[1]}>Apps</LinkMenuItem>);
                 _.map(apps, function(app) {
-                    nav.push(<LinkMenuItem key={`apps-${app}`} to={`/${self.props.env}/apps/${app}`} subitem={true}
+                    nav.push(<LinkMenuItem key={`apps-${app}`} to={`/${self.props.env.name}/apps/${app}`} subitem={true}
                                            active={activeItem[0]==='apps' && activeItem[1]===app}>{app}</LinkMenuItem>);
                 });
             }
-            var jobs = window.appconfig.envJobs[this.props.env];
+            var jobs = window.appconfig.envJobs[this.props.env.name];
             if (!_.isEmpty(jobs)) {
-                nav.push(<LinkMenuItem key="jobs" to={`/${self.props.env}/jobs`}
+                nav.push(<LinkMenuItem key="jobs" to={`/${self.props.env.name}/jobs`}
                                        active={activeItem[0]==='jobs' && !activeItem[1]}>Jobs</LinkMenuItem>);
                 _.map(jobs, function(job) {
-                    nav.push(<LinkMenuItem key={`jobs-${job}`} to={`/${self.props.env}/jobs/${job}`} subitem={true}
+                    nav.push(<LinkMenuItem key={`jobs-${job}`} to={`/${self.props.env.name}/jobs/${job}`} subitem={true}
                                            active={activeItem[0]==='jobs' && activeItem[1]===job}>{job}</LinkMenuItem>);
                 });
             }
-            nav.push(<LinkMenuItem key="nodes" to={`/${self.props.env}/nodes`}
+            nav.push(<LinkMenuItem key="nodes" to={`/${self.props.env.name}/nodes`}
                                    active={activeItem[0]==='nodes'}>Nodes</LinkMenuItem>);
-            nav.push(<LinkMenuItem key="pods" to={`/${self.props.env}/pods`}
+            nav.push(<LinkMenuItem key="pods" to={`/${self.props.env.name}/pods`}
                                    active={activeItem[0]==='pods'}>Pods</LinkMenuItem>);
         }
         return (

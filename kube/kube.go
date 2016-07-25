@@ -13,7 +13,6 @@ import (
 
 	"github.com/airware/vili/config"
 	"github.com/airware/vili/kube/unversioned"
-	"github.com/airware/vili/kube/v1"
 )
 
 var kubeconfig *Config
@@ -34,27 +33,6 @@ type EnvConfig struct {
 	ClientKey  string
 
 	client *client
-}
-
-// DetectEnvs returns the list of environments in the kubernetes cluster
-func DetectEnvs() ([]string, error) {
-	client, err := getDefaultClient()
-	if err != nil {
-		return nil, err
-	}
-	namespaceList := &v1.NamespaceList{}
-	_, err = client.makeRequest("GET", "namespaces", nil, namespaceList)
-	if err != nil {
-		return nil, err
-	}
-
-	envs := []string{}
-	for _, namespace := range namespaceList.Items {
-		if namespace.Name != "kube-system" {
-			envs = append(envs, namespace.Name)
-		}
-	}
-	return envs, nil
 }
 
 func getClient(env string) (*client, error) {
@@ -210,6 +188,9 @@ func (c *client) makeRequest(method, path string, body io.Reader, dest interface
 	respBody, status, err := c.makeRequestRaw(method, path, body)
 	if status != nil || err != nil {
 		return status, err
+	}
+	if dest == nil {
+		return nil, nil
 	}
 	return nil, json.Unmarshal(respBody, dest)
 }

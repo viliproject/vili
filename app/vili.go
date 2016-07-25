@@ -9,6 +9,7 @@ import (
 	"github.com/airware/vili/auth"
 	"github.com/airware/vili/config"
 	"github.com/airware/vili/docker"
+	"github.com/airware/vili/environments"
 	"github.com/airware/vili/firebase"
 	"github.com/airware/vili/kube"
 	"github.com/airware/vili/log"
@@ -47,7 +48,25 @@ func New() *App {
 	})
 
 	stats.TrackMemStats()
-	envs := util.NewStringSet(config.GetStringSlice(config.Environments))
+	envs := []environments.Environment{}
+	for _, envName := range config.GetStringSlice(config.Environments) {
+		env := environments.Environment{
+			Name:      envName,
+			Protected: true,
+		}
+		for _, prodName := range config.GetStringSlice(config.ProdEnvs) {
+			if envName == prodName {
+				env.Prod = true
+			}
+		}
+		for _, approvalName := range config.GetStringSlice(config.ApprovalEnvs) {
+			if envName == approvalName {
+				env.Approval = true
+			}
+		}
+		envs = append(envs, env)
+	}
+	environments.Init(envs)
 
 	// Set everything up in parallel
 	var wg sync.WaitGroup
@@ -65,14 +84,14 @@ func New() *App {
 		func() {
 			defer wg.Done()
 			envConfigs := make(map[string]*kube.EnvConfig)
-			envs.ForEach(func(env string) {
-				envConfigs[env] = &kube.EnvConfig{
-					URL:        config.GetString(config.KubernetesURL(env)),
-					Namespace:  config.GetString(config.KubernetesNamespace(env)),
-					ClientCert: config.GetString(config.KubernetesClientCert(env)),
-					ClientKey:  config.GetString(config.KubernetesClientKey(env)),
+			for _, env := range envs {
+				envConfigs[env.Name] = &kube.EnvConfig{
+					URL:        config.GetString(config.KubernetesURL(env.Name)),
+					Namespace:  config.GetString(config.KubernetesNamespace(env.Name)),
+					ClientCert: config.GetString(config.KubernetesClientCert(env.Name)),
+					ClientKey:  config.GetString(config.KubernetesClientKey(env.Name)),
 				}
-			})
+			}
 			kube.Init(&kube.Config{
 				EnvConfigs: envConfigs,
 			})
@@ -110,13 +129,13 @@ func New() *App {
 		func() {
 			defer wg.Done()
 			envContentsPaths := make(map[string]string, 0)
-			envs.ForEach(func(env string) {
-				envContentsPath := config.GetString(config.GithubEnvContentsPath(env))
+			for _, env := range envs {
+				envContentsPath := config.GetString(config.GithubEnvContentsPath(env.Name))
 				if envContentsPath == "" {
 					envContentsPath = config.GetString(config.GithubContentsPath)
 				}
-				envContentsPaths[env] = envContentsPath
-			})
+				envContentsPaths[env.Name] = envContentsPath
+			}
 			envContentsPaths[config.GetString(config.DefaultEnv)] = config.GetString(config.GithubContentsPath)
 			templates.InitGithub(&templates.GithubConfig{
 				Token:            config.GetString(config.GithubToken),
@@ -209,13 +228,12 @@ func New() *App {
 	})
 
 	auth.AddHandlers(s)
-	api.AddHandlers(s, envs)
+	api.AddHandlers(s)
 	s.Echo().Get("/static/:name", public.StaticHandler)
-	s.Echo().Get("/", homeHandler(envs))
-	s.Echo().Get("/*", middleware.RequireUser(appHandler(envs)))
+	s.Echo().Get("/", homeHandler)
+	s.Echo().Get("/*", middleware.RequireUser(appHandler))
 	return &App{
 		server: s,
-		envs:   envs,
 	}
 }
 
@@ -228,13 +246,8 @@ func (a *App) Start() {
 
 func (a *App) monitorEnvs() {
 	for {
-		envs, err := kube.DetectEnvs()
-		if err != nil {
+		if err := environments.RefreshEnvs(); err != nil {
 			log.Warn("Unable to detect environments: ", err)
-		} else if envs != nil {
-			envs = append(envs, config.GetStringSlice(config.Environments)...)
-			log.Debug("Found envs: ", envs)
-			a.envs.Set(envs)
 		}
 		time.Sleep(15 * time.Second)
 	}

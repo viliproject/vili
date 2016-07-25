@@ -23,10 +23,10 @@ class Row extends React.Component { // eslint-disable-line no-unused-vars
         var date = new Date(data.lastModified);
 
         var actions = [];
-        if (this.props.canRun && (!this.props.envNeedsApprovalForRun || this.state.approval)) {
+        if (this.props.canRun && (!this.props.env.prod || this.state.approval)) {
             actions.push(<button type="button" className="btn btn-xs btn-primary" onClick={this.runTag}>Run</button>);
         }
-        if (this.props.envCanApproveTag) {
+        if (this.props.env && this.props.env.approval) {
             if (this.state.approval) {
                 actions.push(<button type="button" className="btn btn-xs btn-danger" onClick={this.unapproveTag}>Unapprove</button>);
 
@@ -78,12 +78,12 @@ class Row extends React.Component { // eslint-disable-line no-unused-vars
 
     runTag() {
         var self = this;
-        viliApi.runs.create(this.props.env, this.props.job, {
+        viliApi.runs.create(this.props.env.name, this.props.job, {
             tag: this.props.data.tag,
             branch: this.props.data.branch,
             trigger: false
         }).then(function(run) {
-            router.transitionTo(`/${self.props.env}/jobs/${self.props.job}/runs/${run.id}`);
+            router.transitionTo(`/${self.props.env.name}/jobs/${self.props.job}/runs/${run.id}`);
         });
     }
 
@@ -129,11 +129,9 @@ export class Job extends React.Component {
             var date = new Date(data.lastModified);
             var row = <Row data={data} currentTag={self.state.currentTag}
                            canRun={self.state.canRun}
-                           envNeedsApprovalForRun={self.state.envNeedsApprovalForRun}
                            hasApprovalColumn={self.state.hasApprovalColumn}
-                           envCanApproveTag={self.state.envCanApproveTag}
                            approvalDB={self.state.approvalDB}
-                           env={self.props.params.env}
+                           env={self.state.env}
                            job={self.props.params.job}
                       />;
             rows.push({
@@ -154,9 +152,8 @@ export class Job extends React.Component {
         Promise.props({
             job: viliApi.jobs.get(this.props.params.env, this.props.params.job)
         }).then(function(state) {
-            state.envCanApproveTag = _.contains(window.appconfig.approvalEnvs, self.props.params.env);
-            state.envNeedsApprovalForDeploy = _.contains(window.appconfig.prodEnvs, self.props.params.env);
-            state.hasApprovalColumn = state.envCanApproveTag || state.envNeedsApprovalForRun;
+            state.env = _.findWhere(window.appconfig.envs, {name: self.props.params.env});
+            state.hasApprovalColumn = state.env.approval || state.env.prod;
             if (state.hasApprovalColumn) {
                 state.approvalDB = self.props.db.child('releases').child(self.props.params.job);
             }
