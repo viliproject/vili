@@ -5,22 +5,18 @@ import (
 	"time"
 )
 
-var branches = []string{
-	"master",
-	"develop",
-}
 var service Service
 
 // Service is a docker service instance that fetches images from a repository
 type Service interface {
-	GetRepository(repo string, withBranches bool) ([]*Image, error)
+	GetRepository(repo string, branches []string) ([]*Image, error)
 	GetTag(repo, branch, tag string) (string, error)
 	FullName(repo, branch, tag string) (string, error)
 }
 
 // GetRepository returns the images in the given repository
-func GetRepository(repo string, withBranches bool) ([]*Image, error) {
-	return service.GetRepository(repo, withBranches)
+func GetRepository(repo string, branches []string) ([]*Image, error) {
+	return service.GetRepository(repo, branches)
 }
 
 // GetTag returns an image digest for the given tag and branch

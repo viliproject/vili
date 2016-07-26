@@ -15,7 +15,7 @@ func TestECRGetRepository(t *testing.T) {
 		Namespace:       os.Getenv("REGISTRY_NAMESPACE"),
 		BranchDelimiter: os.Getenv("REGISTRY_BRANCH_DELIMITER"),
 	})
-	images, err := testService.GetRepository("vili", true)
+	images, err := testService.GetRepository("vili", []string{"master", "develop"})
 	if err != nil {
 		log.Error(err)
 	}

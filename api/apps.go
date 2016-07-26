@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/airware/vili/docker"
+	"github.com/airware/vili/environments"
 	"github.com/airware/vili/errors"
 	"github.com/airware/vili/kube"
 	"github.com/airware/vili/kube/extensions/v1beta1"
@@ -88,6 +89,11 @@ func appHandler(c *echo.Context) error {
 		}
 	}
 
+	environment, err := environments.Get(env)
+	if err != nil {
+		return err
+	}
+
 	resp := AppResponse{}
 	failed := false
 
@@ -97,7 +103,11 @@ func appHandler(c *echo.Context) error {
 		waitGroup.Add(1)
 		go func() {
 			defer waitGroup.Done()
-			images, err := docker.GetRepository(app, true)
+			branches := []string{"master", "develop"}
+			if environment.Branch != "" {
+				branches = append(branches, environment.Branch)
+			}
+			images, err := docker.GetRepository(app, branches)
 			if err != nil {
 				log.Error(err)
 				failed = true
