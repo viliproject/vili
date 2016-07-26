@@ -9,7 +9,7 @@ import (
 	"github.com/airware/vili/kube/v1"
 )
 
-var environments []Environment
+var environments map[string]Environment
 var rwMutex sync.RWMutex
 
 // Environment describes an environment backed by a kubernetes namespace
@@ -24,11 +24,10 @@ type Environment struct {
 // Init initializes the global environments list
 func Init(envs []Environment) {
 	rwMutex.Lock()
-	environments = []Environment{}
+	environments = make(map[string]Environment)
 	for _, env := range envs {
-		environments = append(environments, env)
+		environments[env.Name] = env
 	}
-	sort.Sort(byName(environments))
 	rwMutex.Unlock()
 }
 
@@ -39,7 +38,19 @@ func Environments() (ret []Environment) {
 		ret = append(ret, env)
 	}
 	rwMutex.RUnlock()
+	sort.Sort(byName(ret))
 	return
+}
+
+// Get returns the environment with `name`
+func Get(name string) (Environment, error) {
+	rwMutex.RLock()
+	defer rwMutex.RUnlock()
+	env, ok := environments[name]
+	if !ok {
+		return Environment{}, errors.New(name + " not found")
+	}
+	return env, nil
 }
 
 // Create creates a new environment with `name`
@@ -60,11 +71,10 @@ func Create(name, branch string) error {
 	}
 
 	rwMutex.Lock()
-	defer rwMutex.Unlock()
-	environments = append(environments, Environment{
+	environments[name] = Environment{
 		Name: name,
-	})
-	sort.Sort(byName(environments))
+	}
+	rwMutex.Unlock()
 	return nil
 }
 
@@ -72,17 +82,12 @@ func Create(name, branch string) error {
 func Delete(name string) error {
 	rwMutex.Lock()
 	defer rwMutex.Unlock()
-	envIndex := -1
-	for i, env := range environments {
-		if env.Name == name {
-			envIndex = i
-			if env.Protected {
-				return errors.New(name + " is a protected environment")
-			}
-		}
-	}
-	if envIndex < 0 {
+
+	env, ok := environments[name]
+	if !ok {
 		return errors.New(name + " not found")
+	} else if env.Protected {
+		return errors.New(name + " is a protected environment")
 	}
 
 	status, err := kube.Namespaces.Delete(name)
@@ -93,8 +98,7 @@ func Delete(name string) error {
 		return errors.New(status.Message)
 	}
 
-	environments = append(environments[:envIndex], environments[envIndex+1:]...)
-
+	delete(environments, name)
 	return nil
 }
 
@@ -105,23 +109,27 @@ func RefreshEnvs() error {
 		return err
 	}
 
-	newEnvs := []Environment{}
+	newEnvs := make(map[string]Environment)
 	rwMutex.Lock()
 	defer rwMutex.Unlock()
-	for _, env := range environments {
+	for name, env := range environments {
 		if env.Protected {
-			newEnvs = append(newEnvs, env)
+			newEnvs[name] = env
 		}
 	}
 	for _, namespace := range namespaceList.Items {
 		if namespace.Name != "kube-system" && namespace.Name != "default" {
-			newEnvs = append(newEnvs, Environment{
-				Name:   namespace.Name,
-				Branch: namespace.Annotations["airware.feature-branch"],
-			})
+			if env, ok := newEnvs[namespace.Name]; ok {
+				env.Branch = namespace.Annotations["vili.environment-branch"]
+				newEnvs[namespace.Name] = env
+			} else {
+				newEnvs[namespace.Name] = Environment{
+					Name:   namespace.Name,
+					Branch: namespace.Annotations["vili.environment-branch"],
+				}
+			}
 		}
 	}
-	sort.Sort(byName(newEnvs))
 	environments = newEnvs
 	return nil
 }

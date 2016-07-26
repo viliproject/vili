@@ -61,12 +61,10 @@ func AddHandlers(s *server.Server) {
 
 func envMiddleware(h echo.HandlerFunc) echo.HandlerFunc {
 	return middleware.RequireUser(func(c *echo.Context) error {
-		for _, env := range environments.Environments() {
-			if c.Param("env") == env.Name {
-				return h(c)
-			}
+		if _, err := environments.Get(c.Param("env")); err != nil {
+			return notFoundHandler(c)
 		}
-		return notFoundHandler(c)
+		return h(c)
 	})
 }
 

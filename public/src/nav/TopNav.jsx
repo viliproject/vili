@@ -44,7 +44,7 @@ export class TopNav extends React.Component {
                     to={spath.join('/')}
                     active={self.props.env && env.name===self.props.env.name}
                     onRemove={onRemove}>
-                    {env}
+                    {env.name}
                 </LinkMenuItem>;
             });
             return (

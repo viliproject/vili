@@ -40,35 +40,33 @@ func InitRegistry(c *RegistryConfig) error {
 }
 
 // GetRepository implements the Service interface
-func (s *RegistryService) GetRepository(repo string, withBranches bool) ([]*Image, error) {
+func (s *RegistryService) GetRepository(repo string, branches []string) ([]*Image, error) {
 	var waitGroup sync.WaitGroup
 	imagesChan := make(chan getImagesResult, len(branches))
 
-	if withBranches {
-		for _, branch := range branches {
-			if branch != "master" {
-				waitGroup.Add(1)
-				go func(branch string) {
-					defer waitGroup.Done()
-					images, err := s.getImagesForBranch(repo, branch)
-					imagesChan <- getImagesResult{images: images, err: err}
-				}(branch)
-			}
-		}
-	}
-
-	images, err := s.getImagesForBranch(repo, "master")
-	if err != nil {
-		return nil, err
+	for _, branch := range branches {
+		waitGroup.Add(1)
+		go func(branch string) {
+			defer waitGroup.Done()
+			images, err := s.getImagesForBranch(repo, branch)
+			imagesChan <- getImagesResult{images: images, err: err}
+		}(branch)
 	}
 
 	waitGroup.Wait()
 	close(imagesChan)
+
+	var images []*Image
+	var err error
 	for result := range imagesChan {
 		if result.err != nil {
-			return nil, result.err
+			err = result.err
 		}
 		images = append(images, result.images...)
+	}
+
+	if len(images) == 0 && err != nil {
+		return nil, err
 	}
 
 	sortByLastModified(images)
