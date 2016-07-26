@@ -23,8 +23,8 @@ export GITHUB_TOKEN=token
 export GITHUB_OWNER=airware
 export GITHUB_REPO=loki
 export GITHUB_CONTENTS_PATH="vili/conf/%s"
-export GITHUB_ENVS_TOOLS_CONTENTSURL="https://api.github.com/repos/airware/loki/contents/k8s-tools/<%= path %>"
-export GITHUB_ENVS_PRODTOOLS_CONTENTSURL="https://api.github.com/repos/airware/loki/contents/k8s-tools/<%= path %>"
+export GITHUB_ENVS_TOOLS_CONTENTS_PATH="vili/toolsconf/%s"
+export GITHUB_ENVS_PRODTOOLS_CONTENTS_PATH="vili/prodtoolsconf/%s"
 
 # Set to either "registry" or "ecr"
 export DOCKER_MODE=registry
