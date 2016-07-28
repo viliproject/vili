@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/airware/vili/environments"
+	"github.com/airware/vili/templates"
 	"github.com/labstack/echo"
 )
 
@@ -12,6 +13,7 @@ import (
 type EnvironmentCreateRequest struct {
 	Name   string `json:"name"`
 	Branch string `json:"branch"`
+	Spec   string `json:"spec"`
 }
 
 func environmentCreateHandler(c *echo.Context) error {
@@ -22,14 +24,15 @@ func environmentCreateHandler(c *echo.Context) error {
 		return err
 	}
 
-	if envCreateRequest.Name == "" || envCreateRequest.Branch == "" {
-		return c.JSON(http.StatusBadRequest, "Must provide a non-empty name and branch")
+	if envCreateRequest.Name == "" || envCreateRequest.Branch == "" || envCreateRequest.Spec == "" {
+		return c.JSON(http.StatusBadRequest, "Must provide a non-empty name, branch, and spec")
 	}
 
-	if err := environments.Create(envCreateRequest.Name, envCreateRequest.Branch); err != nil {
-		return err
+	resources, err := environments.Create(envCreateRequest.Name, envCreateRequest.Branch, envCreateRequest.Spec)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, err.Error())
 	}
-	return c.NoContent(http.StatusCreated)
+	return c.JSON(http.StatusCreated, resources)
 }
 
 func environmentDeleteHandler(c *echo.Context) error {
@@ -40,3 +43,33 @@ func environmentDeleteHandler(c *echo.Context) error {
 	}
 	return c.NoContent(http.StatusNoContent)
 }
+
+func environmentTemplateHandler(c *echo.Context) error {
+	branch := c.Query("branch")
+	if branch == "" {
+		branch = "master"
+	}
+
+	templ, err := templates.Environment(branch)
+	if err != nil {
+		return c.JSON(http.StatusOK, map[string]string{
+			"template": defaultTemplate,
+			"details":  err.Error(),
+		})
+	}
+	return c.JSON(http.StatusOK, map[string]string{
+		"template": string(templ),
+	})
+}
+
+const defaultTemplate string = `---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {NAMESPACE}
+  annotations:
+    vili.environment-branch: {BRANCH}
+spec:
+  finalizers:
+  - kubernetes
+`

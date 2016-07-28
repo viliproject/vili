@@ -1,6 +1,7 @@
 package kube
 
 import (
+	"bytes"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
@@ -8,6 +9,8 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -28,11 +31,72 @@ type EnvConfig struct {
 	URL        string
 	Namespace  string
 	Token      string
-	Cert       string
 	ClientCert string
 	ClientKey  string
 
 	client *client
+}
+
+// Create uses `kubectl create` to create the objects defined by `spec`
+func Create(spec string) (map[string][]string, error) {
+	out, err := kubectl(bytes.NewReader([]byte(spec)), "create", "-f", "-", "-o", "name")
+	if err != nil {
+		return nil, err
+	}
+	resources := make(map[string][]string)
+	for _, resource := range strings.Fields(out) {
+		parts := strings.SplitN(resource, "/", 2)
+		resources[parts[0]] = append(resources[parts[0]], parts[1])
+	}
+	return resources, err
+}
+
+// Delete uses `kubectl delete` to delete the objects defined by `spec`
+func Delete(spec string) (map[string][]string, error) {
+	out, err := kubectl(bytes.NewReader([]byte(spec)), "delete", "-f", "-", "-o", "name")
+	resources := make(map[string][]string)
+	for _, resource := range strings.Fields(out) {
+		parts := strings.SplitN(resource, "/", 2)
+		resources[parts[0]] = append(resources[parts[0]], parts[1])
+	}
+	return resources, err
+}
+
+func kubectl(stdin io.Reader, args ...string) (string, error) {
+	envConfig, ok := kubeconfig.EnvConfigs[config.GetString(config.DefaultEnv)]
+	if !ok {
+		token, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/token")
+		if err != nil {
+			return "", err
+		}
+		envConfig = &EnvConfig{
+			URL:   "https://kubernetes.default.svc.cluster.local",
+			Token: string(token),
+		}
+	}
+	kubeArgs := []string{"--server", envConfig.URL}
+	if envConfig.Token != "" {
+		kubeArgs = append(kubeArgs, "--token", envConfig.Token)
+	}
+	if _, err := os.Stat("/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"); !os.IsNotExist(err) {
+		kubeArgs = append(kubeArgs, "--certificate-authority", "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt")
+	}
+	if envConfig.ClientCert != "" {
+		kubeArgs = append(kubeArgs, "--client-certificate", envConfig.ClientCert)
+	}
+	if envConfig.ClientKey != "" {
+		kubeArgs = append(kubeArgs, "--client-key", envConfig.ClientKey)
+	}
+	kubeArgs = append(kubeArgs, args...)
+
+	cmd := exec.Command("kubectl", kubeArgs...)
+	cmd.Stdin = stdin
+
+	out, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	return string(out), nil
 }
 
 func getClient(env string) (*client, error) {

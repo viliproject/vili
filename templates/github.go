@@ -132,6 +132,29 @@ func (s *githubService) Pod(env, name string) (Template, error) {
 	return Template(body), nil
 }
 
+// Environment returns an environment template for the given branch
+func (s *githubService) Environment(branch string) (Template, error) {
+	path := s.resolvePath("", "environment.yaml")
+	fileContent, _, _, err := s.client.Repositories.GetContents(s.config.Owner, s.config.Repo, path, &github.RepositoryContentGetOptions{Ref: branch})
+	if err != nil {
+		return "", err
+	}
+	if fileContent.DownloadURL == nil {
+		return "", fmt.Errorf("no download url in github file response")
+	}
+
+	resp, err := http.Get(*fileContent.DownloadURL)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	return Template(body), nil
+}
+
 // Variables returns a list of variabless for the given environment
 func (s *githubService) Variables(env string) (map[string]string, error) {
 	varEnv := env
