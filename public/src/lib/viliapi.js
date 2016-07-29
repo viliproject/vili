@@ -117,7 +117,11 @@ class ViliApi {
 
         this.deployments = {
             create: function(env, app, spec) {
-                return makePostRequest('/envs/' + env + '/apps/' + app + '/deployments', spec);
+                var qs = '';
+                if (spec.trigger) {
+                    qs = '?trigger=true';
+                }
+                return makePostRequest('/envs/' + env + '/apps/' + app + '/deployments' + qs, spec);
             },
             setRollout: function(env, app, id, rollout) {
                 return makePutRequest('/envs/' + env + '/apps/' + app + '/deployments/' + id + '/rollout', rollout);

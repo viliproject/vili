@@ -429,7 +429,7 @@ func (d *deployerSpec) monitorRollout() error {
 		if d.fromReplicaSet != nil {
 			_, fromRunningCount, _ = d.refreshReplicaSetPodCount(d.fromReplicaSet)
 		}
-		log.Debugf("Replica Count: Ready: %v, Running: %v", readyCount, runningCount)
+		log.Debugf("%s Replica Count: Ready: %v, Running: %v", d.app, readyCount, runningCount)
 		if readyCount == d.deployment.DesiredReplicas && fromRunningCount == 0 {
 			d.addMessage(fmt.Sprintf("Successfully completed rollout in %s", d.deployment.Clock.humanize()), "info")
 			d.db.Child("state").Set(deploymentStateCompleted)

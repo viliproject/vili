@@ -220,7 +220,9 @@ func (d *Deployment) Init(env, app, username string, trigger bool) error {
 			return err
 		}
 		pods, _, _ := getPodsFromPodList(kubePods)
-		d.DesiredReplicas = int(*deployment.Spec.Replicas)
+		if d.DesiredReplicas == 0 {
+			d.DesiredReplicas = int(*deployment.Spec.Replicas)
+		}
 		d.OriginalPods = pods
 		d.FromPods = pods
 		d.FromTag = imageTag
@@ -238,8 +240,6 @@ func (d *Deployment) Init(env, app, username string, trigger bool) error {
 				}
 			}
 		}
-	} else {
-		d.DesiredReplicas = 0
 	}
 
 	if err = deploymentDB(env, app, d.ID).Set(d); err != nil {
