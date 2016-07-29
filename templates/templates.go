@@ -16,6 +16,7 @@ type Service interface {
 	Deployment(env, name string) (Template, error)
 	Pods(env string) ([]string, error)
 	Pod(env, name string) (Template, error)
+	Environment(branch string) (Template, error)
 	Variables(env string) (map[string]string, error)
 }
 
@@ -37,6 +38,11 @@ func Pods(env string) ([]string, error) {
 // Pod returns a list of pods for the given environment
 func Pod(env, name string) (Template, error) {
 	return service.Pod(env, name)
+}
+
+// Environment returns an environment template for the given branch
+func Environment(branch string) (Template, error) {
+	return service.Environment(branch)
 }
 
 // Variables returns a list of variabless for the given environment

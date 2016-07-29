@@ -2,11 +2,11 @@ package environments
 
 import (
 	"errors"
+	"os/exec"
 	"sort"
 	"sync"
 
 	"github.com/airware/vili/kube"
-	"github.com/airware/vili/kube/v1"
 )
 
 var environments map[string]Environment
@@ -54,28 +54,22 @@ func Get(name string) (Environment, error) {
 }
 
 // Create creates a new environment with `name`
-func Create(name, branch string) error {
-	_, status, err := kube.Namespaces.Create(&v1.Namespace{
-		ObjectMeta: v1.ObjectMeta{
-			Name: name,
-			Annotations: map[string]string{
-				"vili.environment-branch": branch,
-			},
-		},
-	})
+func Create(name, branch, spec string) (map[string][]string, error) {
+	resources, err := kube.Create(spec)
 	if err != nil {
-		return err
-	}
-	if status != nil {
-		return errors.New(status.Message)
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return nil, errors.New(string(exitErr.Stderr))
+		}
+		return nil, err
 	}
 
 	rwMutex.Lock()
 	environments[name] = Environment{
-		Name: name,
+		Name:   name,
+		Branch: branch,
 	}
 	rwMutex.Unlock()
-	return nil
+	return resources, nil
 }
 
 // Delete deletes the environment with `name`

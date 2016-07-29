@@ -1,9 +1,9 @@
 import React from 'react';
-import _ from 'underscore';
 import { Link } from 'react-router'; // eslint-disable-line no-unused-vars
-import { Navbar, Nav, NavDropdown, MenuItem, Modal, Label, Input, Button } from 'react-bootstrap'; // eslint-disable-line no-unused-vars
+import { Navbar, Nav, NavDropdown, MenuItem } from 'react-bootstrap'; // eslint-disable-line no-unused-vars
 import { viliApi } from '../lib';
 import { LinkMenuItem } from '../shared'; // eslint-disable-line no-unused-vars
+import { EnvCreateModal } from '../envs';
 
 export class TopNav extends React.Component {
     constructor(props) {
@@ -15,9 +15,6 @@ export class TopNav extends React.Component {
 
         this.showCreateEnvModal = this.showCreateEnvModal.bind(this);
         this.hideCreateEnvModal = this.hideCreateEnvModal.bind(this);
-        this.onEnvNameChange = this.onEnvNameChange.bind(this);
-        this.onEnvBranchChange = this.onEnvBranchChange.bind(this);
-        this.createNewEnvironment = this.createNewEnvironment.bind(this);
     }
 
     render() {
@@ -47,6 +44,10 @@ export class TopNav extends React.Component {
                     {env.name}
                 </LinkMenuItem>;
             });
+            var envCreateModal = null;
+            if (this.state.showCreateEnvModal) {
+                envCreateModal = <EnvCreateModal onHide={this.hideCreateEnvModal} />;
+            }
             return (
                 <Navbar className={this.props.env && this.props.env.prod ? 'prod' : ''}
                         fixedTop={true} fluid={true}>
@@ -66,31 +67,7 @@ export class TopNav extends React.Component {
                             <MenuItem onSelect={this.showCreateEnvModal}>Create Environment</MenuItem>
                         </NavDropdown>
                     </Nav>
-                    <Modal show={this.state.showCreateEnvModal} onHide={this.hideCreateEnvModal}>
-                        <Modal.Header closeButton>
-                            <Modal.Title>Create New Environment</Modal.Title>
-                        </Modal.Header>
-                        <Modal.Body>
-                            <Label>Environment Name</Label>
-                            <Input
-                                type="text"
-                                value={this.state.envName}
-                                placeholder="my-feature-environment"
-                                onChange={this.onEnvNameChange}
-                            />
-                            <Label>Default Branch</Label>
-                            <Input
-                                type="text"
-                                value={this.state.envBranch}
-                                placeholder="feature/branch"
-                                onChange={this.onEnvBranchChange}
-                            />
-                        </Modal.Body>
-                        <Modal.Footer>
-                            <Button onClick={this.hideCreateEnvModal}>Close</Button>
-                            <Button bsStyle="primary" onClick={this.createNewEnvironment} disabled={!this.state.envName || !this.state.envBranch}>Create</Button>
-                        </Modal.Footer>
-                    </Modal>
+                    {envCreateModal}
                 </Navbar>
             );
         } else {
@@ -108,31 +85,15 @@ export class TopNav extends React.Component {
     }
 
     showCreateEnvModal() {
-        this.setState({showCreateEnvModal: true});
+        this.setState({
+            showCreateEnvModal: true,
+        });
     }
 
     hideCreateEnvModal() {
         this.setState({
             showCreateEnvModal: false,
-            envName: null,
-            envBranch: null,
         });
-    }
-
-    onEnvNameChange(event) {
-        this.setState({envName: event.target.value});
-    }
-
-    onEnvBranchChange(event) {
-        this.setState({envBranch: event.target.value});
-    }
-
-    createNewEnvironment() {
-        viliApi.environments.create({
-            name: this.state.envName,
-            branch: this.state.envBranch,
-        });
-        window.location.reload();
     }
 
     deleteEnvironment(env) {
