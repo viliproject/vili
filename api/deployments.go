@@ -12,7 +12,6 @@ import (
 	"github.com/airware/vili/errors"
 	"github.com/airware/vili/firebase"
 	"github.com/airware/vili/kube"
-	"github.com/airware/vili/kube/extensions/v1beta1"
 	"github.com/airware/vili/kube/v1"
 	"github.com/airware/vili/server"
 	"github.com/airware/vili/session"
@@ -230,19 +229,14 @@ func (d *Deployment) Init(env, app, username string, trigger bool) error {
 			"labelSelector": []string{"app=" + app},
 		})
 		revision := deployment.ObjectMeta.Annotations["deployment.kubernetes.io/revision"]
-		var fromReplicaSet *v1beta1.ReplicaSet
 		if replicaSetList != nil {
 			for _, replicaSet := range replicaSetList.Items {
 				rev := replicaSet.ObjectMeta.Annotations["deployment.kubernetes.io/revision"]
 				if rev == revision {
-					fromReplicaSet = &replicaSet
+					d.FromUID = string(replicaSet.ObjectMeta.UID)
 					break
 				}
 			}
-		}
-
-		if fromReplicaSet != nil {
-			d.FromUID = string(fromReplicaSet.ObjectMeta.UID)
 		}
 	} else {
 		d.DesiredReplicas = 0
