@@ -33,12 +33,13 @@ const homeTemplate = `
 
 // AppConfig is the frontend configuration
 type AppConfig struct {
-	URI      string                     `json:"uri"`
-	User     *session.User              `json:"user"`
-	Envs     []environments.Environment `json:"envs"`
-	EnvApps  map[string][]string        `json:"envApps"`
-	EnvJobs  map[string][]string        `json:"envJobs"`
-	Firebase FirebaseConfig             `json:"firebase"`
+	URI        string                     `json:"uri"`
+	User       *session.User              `json:"user"`
+	DefaultEnv string                     `json:"defaultEnv"`
+	Envs       []environments.Environment `json:"envs"`
+	EnvApps    map[string][]string        `json:"envApps"`
+	EnvJobs    map[string][]string        `json:"envJobs"`
+	Firebase   FirebaseConfig             `json:"firebase"`
 }
 
 // FirebaseConfig is the Firebase configuration
@@ -114,11 +115,12 @@ func appHandler(c *echo.Context) error {
 	}
 
 	appConfig := AppConfig{
-		URI:     config.GetString(config.URI),
-		User:    user,
-		Envs:    envs,
-		EnvApps: envApps,
-		EnvJobs: envJobs,
+		URI:        config.GetString(config.URI),
+		User:       user,
+		DefaultEnv: config.GetString(config.DefaultEnv),
+		Envs:       envs,
+		EnvApps:    envApps,
+		EnvJobs:    envJobs,
 		Firebase: FirebaseConfig{
 			URL:   config.GetString(config.FirebaseURL),
 			Token: firebaseToken,

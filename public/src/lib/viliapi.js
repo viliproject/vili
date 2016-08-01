@@ -117,7 +117,11 @@ class ViliApi {
 
         this.deployments = {
             create: function(env, app, spec) {
-                return makePostRequest('/envs/' + env + '/apps/' + app + '/deployments', spec);
+                var qs = '';
+                if (spec.trigger) {
+                    qs = '?trigger=true';
+                }
+                return makePostRequest('/envs/' + env + '/apps/' + app + '/deployments' + qs, spec);
             },
             setRollout: function(env, app, id, rollout) {
                 return makePutRequest('/envs/' + env + '/apps/' + app + '/deployments/' + id + '/rollout', rollout);
@@ -135,7 +139,11 @@ class ViliApi {
 
         this.runs = {
             create: function(env, job, spec) {
-                return makePostRequest('/envs/' + env + '/jobs/' + job + '/runs', spec);
+                var qs = '';
+                if (spec.trigger) {
+                    qs = '?trigger=true';
+                }
+                return makePostRequest('/envs/' + env + '/jobs/' + job + '/runs' + qs, spec);
             },
             start: function(env, job, id) {
                 return makePostRequest('/envs/' + env + '/jobs/' + job + '/runs/' + id + '/start');
