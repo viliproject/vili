@@ -154,7 +154,7 @@ export class App extends React.Component {
                            canDeploy={self.state.canDeploy}
                            hasApprovalColumn={self.state.hasApprovalColumn}
                            approvalDB={self.state.approvalDB}
-                           env={self.props.params.env}
+                           env={self.state.env}
                            app={self.props.params.app}
                       />;
             rows.push({
