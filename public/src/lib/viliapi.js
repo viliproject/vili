@@ -139,7 +139,11 @@ class ViliApi {
 
         this.runs = {
             create: function(env, job, spec) {
-                return makePostRequest('/envs/' + env + '/jobs/' + job + '/runs', spec);
+                var qs = '';
+                if (spec.trigger) {
+                    qs = '?trigger=true';
+                }
+                return makePostRequest('/envs/' + env + '/jobs/' + job + '/runs' + qs, spec);
             },
             start: function(env, job, id) {
                 return makePostRequest('/envs/' + env + '/jobs/' + job + '/runs/' + id + '/start');

@@ -21,13 +21,15 @@ export class EnvCreateModal extends React.Component {
         this.createNewEnvironment = this.createNewEnvironment.bind(this);
         this.loadApps = this.loadApps.bind(this);
         this.deployApps = this.deployApps.bind(this);
+        this.loadJobs = this.loadJobs.bind(this);
+        this.runJobs = this.runJobs.bind(this);
     }
 
     render() {
         var self = this;
-        var createButton = null;
+        var actionButton = null;
         if (!this.state.createdResources) {
-            createButton = (
+            actionButton = (
                 <Button
                     bsStyle="primary"
                     onClick={this.createNewEnvironment}
@@ -36,21 +38,37 @@ export class EnvCreateModal extends React.Component {
                 </Button>
             );
         } else if (!this.state.apps) {
-            createButton = (
+            actionButton = (
                 <Button
                     bsStyle="primary"
                     onClick={this.loadApps}>
                     Deploy Apps
                 </Button>
             );
-        } else if (!this.state.deployed) {
-            createButton = (
+        } else if (!this.state.appsDeployed) {
+            actionButton = (
                 <Button
                     bsStyle="primary"
                     onClick={this.deployApps}>
                     Confirm
                 </Button>
-            )
+            );
+        } else if (!this.state.jobs) {
+            actionButton = (
+                <Button
+                    bsStyle="primary"
+                    onClick={this.loadJobs}>
+                    Run Jobs
+                </Button>
+            );
+        } else if (!this.state.jobsRan) {
+            actionButton = (
+                <Button
+                    bsStyle="primary"
+                    onClick={this.runJobs}>
+                    Confirm
+                </Button>
+            );
         }
         var specForm = null;
         if (this.state.name && this.state.branch && !this.state.apps) {
@@ -67,7 +85,9 @@ export class EnvCreateModal extends React.Component {
                 ];
         }
         var output = null;
-        if (this.state.apps) {
+        if (this.state.jobs) {
+            output = <Jobs jobs={this.state.jobs} />;
+        } else if (this.state.apps) {
             output = <Apps apps={this.state.apps} />;
         } else if (this.state.createdResources) {
             output = <CreatedResources envName={this.state.name} resources={this.state.createdResources} />;
@@ -104,7 +124,7 @@ export class EnvCreateModal extends React.Component {
                 </Modal.Body>
                 <Modal.Footer>
                     <Button onClick={this.hide}>Close</Button>
-                    {createButton}
+                    {actionButton}
                 </Modal.Footer>
             </Modal>
         );
@@ -230,7 +250,59 @@ export class EnvCreateModal extends React.Component {
                 });
             }
         });
-        this.setState({deployed: true});
+        this.setState({appsDeployed: true});
+    }
+
+    loadJobs() {
+        var self = this;
+        var envJobs = window.appconfig.envJobs[window.appconfig.defaultEnv];
+        var jobs = {};
+        _.each(envJobs, function(jobName) {
+            jobs[jobName] = {
+                name: jobName,
+                loading: true,
+            };
+        });
+        this.setState({jobs: jobs});
+        _.each(envJobs, function(jobName) {
+            viliApi.jobs.get(self.state.name, jobName).then(function(job) {
+                var image = _.findWhere(job.repository, {branch: self.state.branch});
+                if (!image && job.repository) {
+                    image = job.repository[0];
+                }
+                var jobs = _.clone(self.state.jobs);
+                jobs[jobName].image = image;
+                jobs[jobName].loading = false;
+                self.setState({jobs: jobs});
+            }, function(error) {
+                var jobs = _.clone(self.state.jobs);
+                jobs[jobName].error = error;
+                jobs[jobName].loading = false;
+                self.setState({jobs: jobs});
+            });
+        });
+    }
+
+    runJobs() {
+        var self = this;
+        _.mapObject(this.state.jobs, function(job, jobName) {
+            if (job.image) {
+                viliApi.runs.create(self.state.name, jobName, {
+                    tag: job.image.tag,
+                    branch: job.image.branch,
+                    trigger: true,
+                }).then(function() {
+                    var jobs = _.clone(self.state.jobs);
+                    jobs[jobName].started = true;
+                    self.setState({jobs: jobs});
+                }, function(error) {
+                    var jobs = _.clone(self.state.jobs);
+                    jobs[jobName].error = error;
+                    self.setState({jobs: jobs});
+                });
+            }
+        });
+        this.setState({jobsRan: true});
     }
 }
 
@@ -287,6 +359,38 @@ class Apps extends React.Component {
         return (
             <ListGroup>
                 {appItems}
+            </ListGroup>
+        );
+    }
+}
+
+class Jobs extends React.Component {
+    render() {
+        var self = this;
+        var jobs = _.mapObject(this.props.jobs, function(job, name) {
+            job = _.clone(job);
+            job.name = name;
+            return job;
+        });
+        jobs = _.sortBy(jobs, 'name');
+        var jobItems = _.map(jobs, function(job) {
+            if (job.loading) {
+                return <ListGroupItem header={job.name}>Loading...</ListGroupItem>;
+            }
+            if (!job.image) {
+                return <ListGroupItem header={job.name} bsStyle='warning'>No runnable image found</ListGroupItem>;
+            }
+            var style = null;
+            if (job.started) {
+                style = 'success';
+            } else if (job.error) {
+                style = 'danger';
+            }
+            return <ListGroupItem header={job.name} bsStyle={style}>{job.image.revision} from {job.image.branch}</ListGroupItem>;
+        });
+        return (
+            <ListGroup>
+                {jobItems}
             </ListGroup>
         );
     }
