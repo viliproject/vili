@@ -7,14 +7,14 @@ import (
 
 	"github.com/airware/vili/api"
 	"github.com/airware/vili/docker"
+	"github.com/airware/vili/environments"
 	"github.com/airware/vili/log"
 	"github.com/airware/vili/redis"
 	"github.com/airware/vili/slack"
-	"github.com/airware/vili/util"
 )
 
 // runDeployBot runs the deploy bot that listens to messages in the slack channel
-func runDeployBot(envs *util.StringSet) {
+func runDeployBot() {
 	mentions := make(chan *slack.Mention)
 	go slack.ListenForMentions(mentions)
 
@@ -31,32 +31,47 @@ func runDeployBot(envs *util.StringSet) {
 		if !locked {
 			continue
 		}
-		err = handleCommand(strings.Fields(mention.Text), mention.Username, envs)
+		err = handleCommand(strings.Fields(mention.Text), mention.Username)
 		if err != nil {
 			log.Error(err)
 		}
 	}
 }
 
-func handleCommand(command []string, username string, envs *util.StringSet) error {
+func handleCommand(command []string, username string) error {
 	if len(command) == 0 {
 		log.Debug("Skipping empty command")
 		return nil
 	}
 	switch command[0] {
 	case "deploy":
-		if len(command) != 5 {
+		if len(command) < 4 || len(command) > 5 {
 			log.Debugf("Skipping invalid command %s", command)
 			return nil
 		}
 		app := command[1]
 		branch := command[2]
 		tag := command[3]
-		env := command[4]
 
-		if !envs.Contains(env) {
-			slack.PostLogMessage(fmt.Sprintf("Invalid environment *%s*", env), "error")
-			return nil
+		var env string
+
+		if len(command) == 5 {
+			env = command[4]
+			if _, err := environments.Get(env); err != nil {
+				log.Debugf("Invalid environment %s", env)
+				return nil
+			}
+		} else {
+			for _, e := range environments.Environments() {
+				if e.Branch == branch {
+					env = e.Name
+					break
+				}
+			}
+			if env == "" {
+				log.Debugf("No environment found for branch %s", branch)
+				return nil
+			}
 		}
 
 		log.Debugf("Deploying app %s, tag %s to env %s, requested by %s", app, tag, env, username)
@@ -76,18 +91,33 @@ func handleCommand(command []string, username string, envs *util.StringSet) erro
 			}
 		}
 	case "run":
-		if len(command) != 5 {
+		if len(command) < 4 || len(command) > 5 {
 			log.Debugf("Skipping invalid command %s", command)
 			return nil
 		}
 		job := command[1]
 		branch := command[2]
 		tag := command[3]
-		env := command[4]
 
-		if !envs.Contains(env) {
-			slack.PostLogMessage(fmt.Sprintf("Invalid environment *%s*", env), "error")
-			return nil
+		var env string
+
+		if len(command) == 5 {
+			env = command[4]
+			if _, err := environments.Get(env); err != nil {
+				log.Debugf("Invalid environment %s", env)
+				return nil
+			}
+		} else {
+			for _, e := range environments.Environments() {
+				if e.Branch == branch {
+					env = e.Name
+					break
+				}
+			}
+			if env == "" {
+				log.Debugf("No environment found for branch %s", branch)
+				return nil
+			}
 		}
 
 		log.Debugf("Running job %s, tag %s in env %s, requested by %s", job, tag, env, username)
