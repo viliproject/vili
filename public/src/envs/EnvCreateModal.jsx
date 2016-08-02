@@ -19,10 +19,10 @@ export class EnvCreateModal extends React.Component {
         this.loadTemplate = _.debounce(this.loadTemplate.bind(this), 200);
         this.onSpecChange = this.onSpecChange.bind(this);
         this.createNewEnvironment = this.createNewEnvironment.bind(this);
-        this.loadApps = this.loadApps.bind(this);
-        this.deployApps = this.deployApps.bind(this);
         this.loadJobs = this.loadJobs.bind(this);
         this.runJobs = this.runJobs.bind(this);
+        this.loadApps = this.loadApps.bind(this);
+        this.deployApps = this.deployApps.bind(this);
     }
 
     render() {
@@ -37,22 +37,6 @@ export class EnvCreateModal extends React.Component {
                     Create
                 </Button>
             );
-        } else if (!this.state.apps) {
-            actionButton = (
-                <Button
-                    bsStyle="primary"
-                    onClick={this.loadApps}>
-                    Deploy Apps
-                </Button>
-            );
-        } else if (!this.state.appsDeployed) {
-            actionButton = (
-                <Button
-                    bsStyle="primary"
-                    onClick={this.deployApps}>
-                    Confirm
-                </Button>
-            );
         } else if (!this.state.jobs) {
             actionButton = (
                 <Button
@@ -61,17 +45,35 @@ export class EnvCreateModal extends React.Component {
                     Run Jobs
                 </Button>
             );
-        } else if (!this.state.jobsRan) {
+        } else if (!this.state.jobsTriggered) {
             actionButton = (
                 <Button
                     bsStyle="primary"
-                    onClick={this.runJobs}>
+                    onClick={this.runJobs}
+                    disabled={_.some(this.state.jobs, function(job) { return job.loading;} )}>
+                    Confirm
+                </Button>
+            );
+        } else if (!this.state.apps) {
+            actionButton = (
+                <Button
+                    bsStyle="primary"
+                    onClick={this.loadApps}>
+                    Deploy Apps
+                </Button>
+            );
+        } else if (!this.state.appsTriggered) {
+            actionButton = (
+                <Button
+                    bsStyle="primary"
+                    onClick={this.deployApps}
+                    disabled={_.some(this.state.apps, function(app) { return app.loading;} )}>
                     Confirm
                 </Button>
             );
         }
         var specForm = null;
-        if (this.state.name && this.state.branch && !this.state.apps) {
+        if (this.state.name && this.state.branch && !this.state.jobs) {
             specForm =
                 [
                     <Label>Environment Spec</Label>,
@@ -85,10 +87,10 @@ export class EnvCreateModal extends React.Component {
                 ];
         }
         var output = null;
-        if (this.state.jobs) {
-            output = <Jobs jobs={this.state.jobs} />;
-        } else if (this.state.apps) {
+        if (this.state.apps) {
             output = <Apps apps={this.state.apps} />;
+        } else if (this.state.jobs) {
+            output = <Jobs jobs={this.state.jobs} />;
         } else if (this.state.createdResources) {
             output = <CreatedResources envName={this.state.name} resources={this.state.createdResources} />;
         } else if (this.state.error) {
@@ -200,62 +202,6 @@ export class EnvCreateModal extends React.Component {
         });
     }
 
-    loadApps() {
-        var self = this;
-        var envApps = window.appconfig.envApps[window.appconfig.defaultEnv];
-        var apps = {};
-        _.each(envApps, function(appName) {
-            apps[appName] = {
-                name: appName,
-                loading: true,
-            };
-        });
-        this.setState({apps: apps});
-        _.each(envApps, function(appName) {
-            viliApi.apps.get(self.state.name, appName).then(function(app) {
-                var image = _.findWhere(app.repository, {branch: self.state.branch});
-                if (!image && app.repository) {
-                    image = app.repository[0];
-                }
-                var apps = _.clone(self.state.apps);
-                apps[appName].image = image;
-                apps[appName].loading = false;
-                self.setState({apps: apps});
-            }, function(error) {
-                var apps = _.clone(self.state.apps);
-                apps[appName].error = error;
-                apps[appName].loading = false;
-                self.setState({apps: apps});
-            });
-        });
-    }
-
-    deployApps() {
-        var self = this;
-        _.mapObject(this.state.apps, function(app) {
-            if (app.image) {
-                var deployApp = function() {
-                    viliApi.deployments.create(self.state.name, app.name, {
-                        tag: app.image.tag,
-                        branch: app.image.branch,
-                        trigger: true,
-                        desiredReplicas: 1,
-                    }).then(function() {
-                        var apps = _.clone(self.state.apps);
-                        apps[app.name].deployed = true;
-                        self.setState({apps: apps});
-                    }, function(error) {
-                        var apps = _.clone(self.state.apps);
-                        apps[app.name].error = error;
-                        self.setState({apps: apps});
-                    });
-                };
-                viliApi.services.create(self.state.name, app.name).then(deployApp, deployApp);
-            }
-        });
-        this.setState({appsDeployed: true});
-    }
-
     loadJobs() {
         var self = this;
         var envJobs = window.appconfig.envJobs[window.appconfig.defaultEnv];
@@ -287,6 +233,7 @@ export class EnvCreateModal extends React.Component {
     }
 
     runJobs() {
+        this.setState({jobsTriggered: true});
         var self = this;
         _.mapObject(this.state.jobs, function(job) {
             if (job.image) {
@@ -305,8 +252,64 @@ export class EnvCreateModal extends React.Component {
                 });
             }
         });
-        this.setState({jobsRan: true});
     }
+
+    loadApps() {
+        var self = this;
+        var envApps = window.appconfig.envApps[window.appconfig.defaultEnv];
+        var apps = {};
+        _.each(envApps, function(appName) {
+            apps[appName] = {
+                name: appName,
+                loading: true,
+            };
+        });
+        this.setState({apps: apps});
+        _.each(envApps, function(appName) {
+            viliApi.apps.get(self.state.name, appName).then(function(app) {
+                var image = _.findWhere(app.repository, {branch: self.state.branch});
+                if (!image && app.repository) {
+                    image = app.repository[0];
+                }
+                var apps = _.clone(self.state.apps);
+                apps[appName].image = image;
+                apps[appName].loading = false;
+                self.setState({apps: apps});
+            }, function(error) {
+                var apps = _.clone(self.state.apps);
+                apps[appName].error = error;
+                apps[appName].loading = false;
+                self.setState({apps: apps});
+            });
+        });
+    }
+
+    deployApps() {
+        this.setState({appsTriggered: true});
+        var self = this;
+        _.mapObject(this.state.apps, function(app) {
+            if (app.image) {
+                var deployApp = function() {
+                    viliApi.deployments.create(self.state.name, app.name, {
+                        tag: app.image.tag,
+                        branch: app.image.branch,
+                        trigger: true,
+                        desiredReplicas: 1,
+                    }).then(function() {
+                        var apps = _.clone(self.state.apps);
+                        apps[app.name].deployed = true;
+                        self.setState({apps: apps});
+                    }, function(error) {
+                        var apps = _.clone(self.state.apps);
+                        apps[app.name].error = error;
+                        self.setState({apps: apps});
+                    });
+                };
+                viliApi.services.create(self.state.name, app.name).then(deployApp, deployApp);
+            }
+        });
+    }
+
 }
 
 class CreatedResources extends React.Component {
@@ -330,38 +333,6 @@ class CreatedResources extends React.Component {
             <ListGroup>
                 {namespaces}
                 {resources}
-            </ListGroup>
-        );
-    }
-}
-
-class Apps extends React.Component {
-    render() {
-        var self = this;
-        var apps = _.mapObject(this.props.apps, function(app, name) {
-            app = _.clone(app);
-            app.name = name;
-            return app;
-        });
-        apps = _.sortBy(apps, 'name');
-        var appItems = _.map(apps, function(app) {
-            if (app.loading) {
-                return <ListGroupItem header={app.name}>Loading...</ListGroupItem>;
-            }
-            if (!app.image) {
-                return <ListGroupItem header={app.name} bsStyle='warning'>No deployable image found</ListGroupItem>;
-            }
-            var style = null;
-            if (app.deployed) {
-                style = 'success';
-            } else if (app.error) {
-                style = 'danger';
-            }
-            return <ListGroupItem header={app.name} bsStyle={style}>{app.image.revision} from {app.image.branch}</ListGroupItem>;
-        });
-        return (
-            <ListGroup>
-                {appItems}
             </ListGroup>
         );
     }
@@ -394,6 +365,38 @@ class Jobs extends React.Component {
         return (
             <ListGroup>
                 {jobItems}
+            </ListGroup>
+        );
+    }
+}
+
+class Apps extends React.Component {
+    render() {
+        var self = this;
+        var apps = _.mapObject(this.props.apps, function(app, name) {
+            app = _.clone(app);
+            app.name = name;
+            return app;
+        });
+        apps = _.sortBy(apps, 'name');
+        var appItems = _.map(apps, function(app) {
+            if (app.loading) {
+                return <ListGroupItem header={app.name}>Loading...</ListGroupItem>;
+            }
+            if (!app.image) {
+                return <ListGroupItem header={app.name} bsStyle='warning'>No deployable image found</ListGroupItem>;
+            }
+            var style = null;
+            if (app.deployed) {
+                style = 'success';
+            } else if (app.error) {
+                style = 'danger';
+            }
+            return <ListGroupItem header={app.name} bsStyle={style}>{app.image.revision} from {app.image.branch}</ListGroupItem>;
+        });
+        return (
+            <ListGroup>
+                {appItems}
             </ListGroup>
         );
     }
