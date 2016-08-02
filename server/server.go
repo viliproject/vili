@@ -11,9 +11,9 @@ import (
 	"github.com/airware/vili/errors"
 	"github.com/airware/vili/log"
 	"github.com/airware/vili/middleware"
-	"github.com/labstack/echo"
-	mw "github.com/labstack/echo/middleware"
 	"github.com/tylerb/graceful"
+	"gopkg.in/labstack/echo.v1"
+	mw "gopkg.in/labstack/echo.v1/middleware"
 )
 
 // Server is an instance of the server

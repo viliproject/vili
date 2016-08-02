@@ -86,7 +86,7 @@ var (
 	whiteBg   = outer(WhtBg)
 
 	reset     = outer(R)
-	bolt      = outer(B)
+	bold      = outer(B)
 	dim       = outer(D)
 	italic    = outer(I)
 	underline = outer(U)
@@ -99,7 +99,7 @@ var (
 
 func outer(n string) inner {
 	return func(msg interface{}, styles []string, c *Color) string {
-		// TODO: May be drop fmt to boost performance
+		// TODO: Drop fmt to boost performance?
 		if c.disabled {
 			return fmt.Sprintf("%v", msg)
 		}
@@ -210,7 +210,7 @@ func (c *Color) Reset(msg interface{}, styles ...string) string {
 }
 
 func (c *Color) Bold(msg interface{}, styles ...string) string {
-	return bolt(msg, styles, c)
+	return bold(msg, styles, c)
 }
 
 func (c *Color) Dim(msg interface{}, styles ...string) string {
@@ -238,11 +238,11 @@ func (c *Color) Strikeout(msg interface{}, styles ...string) string {
 }
 
 func Disable() {
-	global.disabled = true
+	global.Disable()
 }
 
 func Enable() {
-	global.disabled = false
+	global.Enable()
 }
 
 func Black(msg interface{}, styles ...string) string {

@@ -16,7 +16,7 @@ import (
 	"github.com/airware/vili/server"
 	"github.com/airware/vili/session"
 	"github.com/airware/vili/util"
-	"github.com/labstack/echo"
+	"gopkg.in/labstack/echo.v1"
 )
 
 // Deployment represents a single deployment of an image for any app

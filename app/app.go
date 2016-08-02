@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/labstack/echo"
+	"gopkg.in/labstack/echo.v1"
 
 	"github.com/airware/vili/config"
 	"github.com/airware/vili/environments"
@@ -53,9 +53,7 @@ func homeHandler(c *echo.Context) error {
 		staticLiveReload := config.GetBool(config.StaticLiveReload)
 		return c.HTML(
 			http.StatusOK,
-			homeTemplate,
-			"null",
-			fmt.Sprintf("/static/app-%s.js", public.GetHash(staticLiveReload)),
+			fmt.Sprintf(homeTemplate, "null", fmt.Sprintf("/static/app-%s.js", public.GetHash(staticLiveReload))),
 		)
 	}
 	return appHandler(c)
@@ -133,8 +131,6 @@ func appHandler(c *echo.Context) error {
 	staticLiveReload := config.GetBool(config.StaticLiveReload)
 	return c.HTML(
 		http.StatusOK,
-		homeTemplate,
-		string(appConfigBytes),
-		fmt.Sprintf("/static/app-%s.js", public.GetHash(staticLiveReload)),
+		fmt.Sprintf(homeTemplate, appConfigBytes, fmt.Sprintf("/static/app-%s.js", public.GetHash(staticLiveReload))),
 	)
 }

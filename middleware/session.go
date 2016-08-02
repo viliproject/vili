@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/airware/vili/session"
-	"github.com/labstack/echo"
+	"gopkg.in/labstack/echo.v1"
 )
 
 // Session logs the user in using the configured session service

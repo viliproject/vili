@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/asaskevich/govalidator"
-	"github.com/labstack/echo"
+	"gopkg.in/labstack/echo.v1"
 
 	"github.com/airware/vili/firebase"
 	"github.com/airware/vili/session"

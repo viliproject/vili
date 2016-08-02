@@ -2,7 +2,7 @@ package server
 
 import (
 	"github.com/airware/vili/errors"
-	"github.com/labstack/echo"
+	"gopkg.in/labstack/echo.v1"
 )
 
 // ErrorResponse returns a JSON error response

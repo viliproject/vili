@@ -5,7 +5,7 @@ import (
 
 	"github.com/airware/vili/server"
 	"github.com/airware/vili/session"
-	"github.com/labstack/echo"
+	"gopkg.in/labstack/echo.v1"
 )
 
 var service Service
