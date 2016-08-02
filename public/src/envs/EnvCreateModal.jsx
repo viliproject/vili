@@ -232,22 +232,25 @@ export class EnvCreateModal extends React.Component {
 
     deployApps() {
         var self = this;
-        _.mapObject(this.state.apps, function(app, appName) {
+        _.mapObject(this.state.apps, function(app) {
             if (app.image) {
-                viliApi.deployments.create(self.state.name, appName, {
-                    tag: app.image.tag,
-                    branch: app.image.branch,
-                    trigger: true,
-                    desiredReplicas: 1,
-                }).then(function() {
-                    var apps = _.clone(self.state.apps);
-                    apps[appName].deployed = true;
-                    self.setState({apps: apps});
-                }, function(error) {
-                    var apps = _.clone(self.state.apps);
-                    apps[appName].error = error;
-                    self.setState({apps: apps});
-                });
+                var deployApp = function() {
+                    viliApi.deployments.create(self.state.name, app.name, {
+                        tag: app.image.tag,
+                        branch: app.image.branch,
+                        trigger: true,
+                        desiredReplicas: 1,
+                    }).then(function() {
+                        var apps = _.clone(self.state.apps);
+                        apps[app.name].deployed = true;
+                        self.setState({apps: apps});
+                    }, function(error) {
+                        var apps = _.clone(self.state.apps);
+                        apps[app.name].error = error;
+                        self.setState({apps: apps});
+                    });
+                };
+                viliApi.services.create(self.state.name, app.name).then(deployApp, deployApp);
             }
         });
         this.setState({appsDeployed: true});
@@ -285,19 +288,19 @@ export class EnvCreateModal extends React.Component {
 
     runJobs() {
         var self = this;
-        _.mapObject(this.state.jobs, function(job, jobName) {
+        _.mapObject(this.state.jobs, function(job) {
             if (job.image) {
-                viliApi.runs.create(self.state.name, jobName, {
+                viliApi.runs.create(self.state.name, job.name, {
                     tag: job.image.tag,
                     branch: job.image.branch,
                     trigger: true,
                 }).then(function() {
                     var jobs = _.clone(self.state.jobs);
-                    jobs[jobName].started = true;
+                    jobs[job.name].started = true;
                     self.setState({jobs: jobs});
                 }, function(error) {
                     var jobs = _.clone(self.state.jobs);
-                    jobs[jobName].error = error;
+                    jobs[job.name].error = error;
                     self.setState({jobs: jobs});
                 });
             }
