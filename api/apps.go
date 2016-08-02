@@ -17,6 +17,7 @@ import (
 	"github.com/airware/vili/log"
 	"github.com/airware/vili/server"
 	"github.com/airware/vili/templates"
+	"github.com/airware/vili/util"
 	"github.com/labstack/echo"
 )
 
@@ -104,7 +105,7 @@ func appHandler(c *echo.Context) error {
 		go func() {
 			defer waitGroup.Done()
 			branches := []string{"master", "develop"}
-			if environment.Branch != "" {
+			if environment.Branch != "" && !util.NewStringSet(branches).Contains(environment.Branch) {
 				branches = append(branches, environment.Branch)
 			}
 			images, err := docker.GetRepository(app, branches)
