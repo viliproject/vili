@@ -30,7 +30,6 @@ const appName = "vili"
 // App is the wrapper for the tyr app
 type App struct {
 	server *server.Server
-	envs   *util.StringSet
 }
 
 // New returns a new server instance
@@ -240,7 +239,7 @@ func New() *App {
 // Start starts the app
 func (a *App) Start() {
 	go a.monitorEnvs()
-	go runDeployBot(a.envs)
+	go runDeployBot()
 	a.server.Start()
 }
 
