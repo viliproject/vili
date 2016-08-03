@@ -112,7 +112,7 @@ func RefreshEnvs() error {
 		}
 	}
 	for _, namespace := range namespaceList.Items {
-		if namespace.Name != "kube-system" && namespace.Name != "default" {
+		if namespace.Name != "kube-system" && namespace.Name != "default" && namespace.Status.Phase != "Terminating" {
 			if env, ok := newEnvs[namespace.Name]; ok {
 				env.Branch = namespace.Annotations["vili.environment-branch"]
 				newEnvs[namespace.Name] = env
