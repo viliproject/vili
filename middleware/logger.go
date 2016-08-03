@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/airware/vili/log"
-	"github.com/labstack/echo"
+	"gopkg.in/labstack/echo.v1"
 )
 
 // Logger logs relevant information about the request and the response

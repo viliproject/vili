@@ -13,7 +13,7 @@ import (
 	"time"
 
 	saml "github.com/RobotsAndPencils/go-saml"
-	"github.com/labstack/echo"
+	"gopkg.in/labstack/echo.v1"
 
 	"github.com/airware/vili/log"
 	"github.com/airware/vili/server"

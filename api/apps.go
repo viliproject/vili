@@ -18,7 +18,7 @@ import (
 	"github.com/airware/vili/server"
 	"github.com/airware/vili/templates"
 	"github.com/airware/vili/util"
-	"github.com/labstack/echo"
+	"gopkg.in/labstack/echo.v1"
 )
 
 // AppsResponse is the response for the app endpoint

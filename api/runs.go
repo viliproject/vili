@@ -14,7 +14,7 @@ import (
 	"github.com/airware/vili/server"
 	"github.com/airware/vili/session"
 	"github.com/airware/vili/util"
-	"github.com/labstack/echo"
+	"gopkg.in/labstack/echo.v1"
 )
 
 // Run represents a single run of an image for any job

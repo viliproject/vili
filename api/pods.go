@@ -5,7 +5,7 @@ import (
 	"net/url"
 
 	"github.com/airware/vili/kube"
-	"github.com/labstack/echo"
+	"gopkg.in/labstack/echo.v1"
 )
 
 var podsQueryParams = []string{"labelSelector", "fieldSelector"}

@@ -6,7 +6,7 @@ import (
 
 	"github.com/airware/vili/environments"
 	"github.com/airware/vili/templates"
-	"github.com/labstack/echo"
+	"gopkg.in/labstack/echo.v1"
 )
 
 // EnvironmentCreateRequest is a request to create a new environment

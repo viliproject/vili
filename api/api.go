@@ -7,7 +7,7 @@ import (
 	"github.com/airware/vili/errors"
 	"github.com/airware/vili/middleware"
 	"github.com/airware/vili/server"
-	"github.com/labstack/echo"
+	"gopkg.in/labstack/echo.v1"
 )
 
 // WaitGroup is the wait group to synchronize deployments and job runs

@@ -22,7 +22,7 @@ import (
 	"github.com/airware/vili/stats"
 	"github.com/airware/vili/templates"
 	"github.com/airware/vili/util"
-	"github.com/labstack/echo"
+	"gopkg.in/labstack/echo.v1"
 )
 
 const appName = "vili"

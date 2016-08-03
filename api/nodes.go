@@ -8,7 +8,7 @@ import (
 	"github.com/airware/vili/errors"
 	"github.com/airware/vili/kube"
 	"github.com/airware/vili/server"
-	"github.com/labstack/echo"
+	"gopkg.in/labstack/echo.v1"
 )
 
 var nodesQueryParams = []string{"labelSelector", "fieldSelector"}
