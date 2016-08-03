@@ -135,7 +135,11 @@ func (s *githubService) Pod(env, name string) (Template, error) {
 // Environment returns an environment template for the given branch
 func (s *githubService) Environment(branch string) (Template, error) {
 	path := s.resolvePath("", "environment.yaml")
-	fileContent, _, _, err := s.client.Repositories.GetContents(s.config.Owner, s.config.Repo, path, &github.RepositoryContentGetOptions{Ref: branch})
+	var opts *github.RepositoryContentGetOptions
+	if branch != "" {
+		opts = &github.RepositoryContentGetOptions{Ref: branch}
+	}
+	fileContent, _, _, err := s.client.Repositories.GetContents(s.config.Owner, s.config.Repo, path, opts)
 	if err != nil {
 		return "", err
 	}

@@ -52,10 +52,14 @@ func environmentTemplateHandler(c *echo.Context) error {
 
 	templ, err := templates.Environment(branch)
 	if err != nil {
-		return c.JSON(http.StatusOK, map[string]string{
-			"template": defaultTemplate,
-			"details":  err.Error(),
-		})
+		// Fall back to the main branch before returning a basic template
+		templ, err = templates.Environment("")
+		if err != nil {
+			return c.JSON(http.StatusOK, map[string]string{
+				"template": defaultTemplate,
+				"details":  err.Error(),
+			})
+		}
 	}
 	return c.JSON(http.StatusOK, map[string]string{
 		"template": string(templ),
