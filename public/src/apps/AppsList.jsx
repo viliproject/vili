@@ -45,11 +45,11 @@ class Row extends React.Component { // eslint-disable-line no-unused-vars
 
     loadData() {
         var self = this;
-        if (this.props.deployment) {
-            var deployment = this.props.deployment;
-            this.state.tag = deployment.spec.template.spec.containers[0].image.split(':')[1];
-            this.state.deployed_at = displayTime(new Date(deployment.metadata.creationTimestamp));
-            this.state.replicas = deployment.status.replicas + '/' + deployment.spec.replicas;
+        if (this.props.replicaSet) {
+            var replicaSet = this.props.replicaSet;
+            this.state.tag = replicaSet.spec.template.spec.containers[0].image.split(':')[1];
+            this.state.deployed_at = displayTime(new Date(replicaSet.metadata.creationTimestamp));
+            this.state.replicas = replicaSet.status.replicas + '/' + replicaSet.spec.replicas;
             // TODO count running/ready pods
             this.setState(this.state);
         }
@@ -148,7 +148,7 @@ export class AppsList extends React.Component {
             window.appconfig.envApps[this.props.params.env], function(appName) {
                 return {
                     _row: <Row name={appName}
-                               deployment={self.state.deploymentMap[appName]}
+                               replicaSet={self.state.apps.replicaSets[appName]}
                                env={self.state.env}
                                db={self.props.db}
                                ref={'row-' + appName}
@@ -176,10 +176,6 @@ export class AppsList extends React.Component {
         Promise.props({
             apps: viliApi.apps.get(this.props.params.env),
         }).then(function(state) {
-            state.deploymentMap = {};
-            _.each(state.apps.deployments.items, function(rc) {
-                state.deploymentMap[rc.metadata.name] = rc;
-            });
             state.env = _.findWhere(window.appconfig.envs, {name: self.props.params.env});
             self.setState(state);
         });
@@ -205,14 +201,14 @@ export class AppsList extends React.Component {
         }
         var self = this;
         _.each(window.appconfig.envApps[this.props.params.env], function(appName) {
-            var deployment = self.state.deploymentMap[appName];
-            if (!deployment) {
+            var replicaSet = self.state.apps.replicaSets[appName];
+            if (!replicaSet) {
                 return;
             }
             var row = self.refs['row-' + appName];
             if (row && row.state.tag && !row.state.approval) {
-                var app = deployment.metadata.name;
-                var tag = deployment.spec.template.spec.containers[0].image.split(':')[1];
+                var app = replicaSet.metadata.name;
+                var tag = replicaSet.spec.template.spec.containers[0].image.split(':')[1];
                 viliApi.releases.create(app, tag, {
                     url: url,
                 });
@@ -226,14 +222,14 @@ export class AppsList extends React.Component {
         }
         var self = this;
         _.each(window.appconfig.envApps[this.props.params.env], function(appName) {
-            var deployment = self.state.deploymentMap[appName];
-            if (!deployment) {
+            var replicaSet = self.state.apps.replicaSets[appName];
+            if (!replicaSet) {
                 return;
             }
             var row = self.refs['row-' + appName];
             if (row && row.state.tag && row.state.approval) {
-                var app = deployment.metadata.name;
-                var tag = deployment.spec.template.spec.containers[0].image.split(':')[1];
+                var app = replicaSet.metadata.name;
+                var tag = replicaSet.spec.template.spec.containers[0].image.split(':')[1];
                 viliApi.releases.delete(app, tag);
             }
         });

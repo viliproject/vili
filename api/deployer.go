@@ -259,9 +259,7 @@ func (d *deployerSpec) resume() error {
 			}
 		}
 
-		replicaSetList, _, err := kube.ReplicaSets.List(d.env, &url.Values{
-			"labelSelector": []string{"app=" + d.app},
-		})
+		replicaSetList, _, err := kube.ReplicaSets.ListForDeployment(d.env, newDeployment)
 		if err != nil {
 			log.Error(err)
 			return

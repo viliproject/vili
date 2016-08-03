@@ -186,12 +186,12 @@ export class App extends React.Component {
             if (!state.canDeploy) {
                 // TODO show message saying deployment not valid
             }
-            if (!state.app.deployment || state.app.deployment.status === 'Failure') {
+            if (!state.app.replicaSet || state.app.replicaSet.status === 'Failure') {
                 state.currentTag = null;
             } else {
-                state.currentTag = state.app.deployment.spec.template.spec.containers[0].image.split(':')[1];
+                state.currentTag = state.app.replicaSet.spec.template.spec.containers[0].image.split(':')[1];
             }
-            state.deployedAt = state.app.deployment ? displayTime(new Date(state.app.deployment.metadata.creationTimestamp)) : '';
+            state.deployedAt = state.app.replicaSet ? displayTime(new Date(state.app.replicaSet.metadata.creationTimestamp)) : '';
             self.setState(state);
         });
     }

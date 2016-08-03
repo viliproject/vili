@@ -23,15 +23,17 @@ import (
 
 // AppsResponse is the response for the app endpoint
 type AppsResponse struct {
-	Deployments *v1beta1.DeploymentList `json:"deployments,omitempty"`
-	Services    *v1.ServiceList         `json:"services,omitempty"`
+	ReplicaSets map[string]v1beta1.ReplicaSet `json:"replicaSets,omitempty"`
+	Services    *v1.ServiceList               `json:"services,omitempty"`
 }
 
 func appsHandler(c *echo.Context) error {
 	env := c.Param("env")
 	log.Info(env)
 
-	resp := AppsResponse{}
+	resp := AppsResponse{
+		ReplicaSets: make(map[string]v1beta1.ReplicaSet),
+	}
 	failed := false
 
 	// repository
@@ -45,8 +47,24 @@ func appsHandler(c *echo.Context) error {
 		if err != nil {
 			log.Error(err)
 			failed = true
+			return
 		}
-		resp.Deployments = deployments
+		waitGroup.Add(len(deployments.Items))
+		var rsMutex sync.Mutex
+		for _, deployment := range deployments.Items {
+			go func(env string, deployment *v1beta1.Deployment) {
+				defer waitGroup.Done()
+				rs, err := getReplicaSetForDeployment(env, deployment)
+				if err != nil {
+					log.Error(err)
+					failed = true
+					return
+				}
+				rsMutex.Lock()
+				resp.ReplicaSets[deployment.Name] = *rs
+				rsMutex.Unlock()
+			}(env, &deployment)
+		}
 	}()
 
 	// service
@@ -74,7 +92,7 @@ type AppResponse struct {
 	Repository         []*docker.Image     `json:"repository,omitempty"`
 	DeploymentTemplate string              `json:"deploymentTemplate,omitempty"`
 	Variables          map[string]string   `json:"variables,omitempty"`
-	Deployment         *v1beta1.Deployment `json:"deployment,omitempty"`
+	ReplicaSet         *v1beta1.ReplicaSet `json:"replicaSet,omitempty"`
 	Service            *v1.Service         `json:"service,omitempty"`
 }
 
@@ -154,8 +172,18 @@ func appHandler(c *echo.Context) error {
 			if err != nil {
 				log.Error(err)
 				failed = true
+				return
 			}
-			resp.Deployment = deployment
+			if deployment == nil {
+				return
+			}
+			rs, err := getReplicaSetForDeployment(env, deployment)
+			if err != nil {
+				log.Error(err)
+				failed = true
+				return
+			}
+			resp.ReplicaSet = rs
 		}()
 	}
 
@@ -302,4 +330,22 @@ func appScaleHandler(c *echo.Context) error {
 		return err
 	}
 	return c.JSON(http.StatusOK, resp)
+}
+
+func getReplicaSetForDeployment(env string, deployment *v1beta1.Deployment) (*v1beta1.ReplicaSet, error) {
+	replicaSetList, _, err := kube.ReplicaSets.ListForDeployment(env, deployment)
+	if err != nil {
+		return nil, err
+	}
+	if replicaSetList == nil {
+		return nil, fmt.Errorf("No replicaSet found for deployment %v", *deployment)
+	}
+	deploymentRevision := deployment.ObjectMeta.Annotations["deployment.kubernetes.io/revision"]
+	for _, replicaSet := range replicaSetList.Items {
+		rsRevision := replicaSet.ObjectMeta.Annotations["deployment.kubernetes.io/revision"]
+		if deploymentRevision == rsRevision {
+			return &replicaSet, nil
+		}
+	}
+	return nil, fmt.Errorf("No replicaSet found for deployment %v", *deployment)
 }
