@@ -24,7 +24,7 @@ export class SideNav extends React.Component {
         var nav = [];
         if (this.props.env) {
             var activeItem = this.state.activeItem;
-            var apps = window.appconfig.envApps[this.props.env.name];
+            var apps = this.props.env.apps;
             if (!_.isEmpty(apps)) {
                 nav.push(<LinkMenuItem key="apps" to={`/${self.props.env.name}/apps`}
                                        active={activeItem[0]==='apps' && !activeItem[1]}>Apps</LinkMenuItem>);
@@ -33,7 +33,7 @@ export class SideNav extends React.Component {
                                            active={activeItem[0]==='apps' && activeItem[1]===app}>{app}</LinkMenuItem>);
                 });
             }
-            var jobs = window.appconfig.envJobs[this.props.env.name];
+            var jobs = this.props.env.jobs;
             if (!_.isEmpty(jobs)) {
                 nav.push(<LinkMenuItem key="jobs" to={`/${self.props.env.name}/jobs`}
                                        active={activeItem[0]==='jobs' && !activeItem[1]}>Jobs</LinkMenuItem>);

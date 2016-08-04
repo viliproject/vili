@@ -2,6 +2,7 @@ package slack
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -19,6 +20,8 @@ var Exiting = false
 
 var config *Config
 var client *slack.Client
+
+var slackLinkRegexp = regexp.MustCompile(`<.+?\|.+?>`)
 
 // Config is the slack configuration
 type Config struct {
@@ -63,11 +66,32 @@ func PostLogMessage(message, level string) error {
 	return err
 }
 
-// ListenForMentions opens an RTM connection to slack and listens for any mentions of the configured user
-// in the configured channel
-func ListenForMentions(mentions chan<- *Mention) {
-	var waitGroup sync.WaitGroup
+// MentionsRegexp returns a regexp matching messages which mention the configured user
+func MentionsRegexp() (*regexp.Regexp, error) {
 	var botID string
+	users, err := client.GetUsers()
+	if err != nil {
+		return nil, err
+	}
+	for _, user := range users {
+		if user.Name == config.Username {
+			botID = user.ID
+			break
+		}
+	}
+	if botID == "" {
+		return nil, fmt.Errorf("User %s not found", config.Username)
+	}
+
+	return regexp.Compile(fmt.Sprintf("^<@(?:%s|%s)>: (.*)", botID, config.Username))
+
+}
+
+// ListenForMessages opens an RTM connection to slack and listens for any messages
+// in the configured channel which matches any of the regexps and sends the message
+// to the mapped channel
+func ListenForMessages(messageMap map[*regexp.Regexp]chan<- *Message) {
+	var waitGroup sync.WaitGroup
 	var channelID string
 	deployUsers := map[string]string{}
 	failed := false
@@ -85,9 +109,7 @@ func ListenForMentions(mentions chan<- *Mention) {
 			return
 		}
 		for _, user := range users {
-			if user.Name == config.Username {
-				botID = user.ID
-			} else if config.DeployUsernames.Contains(user.Name) {
+			if config.DeployUsernames.Contains(user.Name) {
 				deployUsers[user.ID] = user.Name
 			}
 		}
@@ -134,16 +156,10 @@ func ListenForMentions(mentions chan<- *Mention) {
 		return
 	}
 
-	if botID == "" {
-		log.Errorf("User %s not found", config.Username)
-		return
-	}
 	if channelID == "" {
 		log.Errorf("Channel %s not found", config.Channel)
 		return
 	}
-	botMention := fmt.Sprintf("<@%s>: ", botID)
-	botNameMention := fmt.Sprintf("<@%s>: ", config.Username)
 
 	rtm := client.NewRTM()
 	go rtm.ManageConnection()
@@ -155,17 +171,31 @@ func ListenForMentions(mentions chan<- *Mention) {
 			switch ev := event.Data.(type) {
 
 			case *slack.MessageEvent:
-				username := deployUsers[ev.User]
-				if username != "" && ev.Channel == channelID {
+				username, ok := deployUsers[ev.User]
+				if !ok {
+					continue
+				}
+				if ev.Channel == channelID {
 					log.Debug(ev.User)
 					log.Debug(ev.Text)
-				}
-				if username != "" && ev.Channel == channelID &&
-					(strings.HasPrefix(ev.Text, botMention) || strings.HasPrefix(ev.Text, botNameMention)) {
-					mentions <- &Mention{
-						Timestamp: ev.Timestamp,
-						Text:      strings.TrimPrefix(strings.TrimPrefix(ev.Text, botMention), botNameMention),
-						Username:  username,
+					for re, ch := range messageMap {
+						if match := re.FindStringSubmatch(ev.Text); len(match) > 0 {
+							ch <- &Message{
+								Timestamp: ev.Timestamp,
+								Text:      match[0],
+								Matches:   match[1:],
+								Username:  username,
+							}
+						} else {
+							if match := re.FindStringSubmatch(removeLinks(ev.Text)); len(match) > 0 {
+								ch <- &Message{
+									Timestamp: ev.Timestamp,
+									Text:      match[0],
+									Matches:   match[1:],
+									Username:  username,
+								}
+							}
+						}
 					}
 				}
 
@@ -199,12 +229,22 @@ func ListenForMentions(mentions chan<- *Mention) {
 	if err != nil {
 		log.Error(err)
 	}
-	close(mentions)
+	for _, ch := range messageMap {
+		close(ch)
+	}
 }
 
-// Mention is a mention of the vili bot from the configured channel
-type Mention struct {
+func removeLinks(message string) string {
+	return slackLinkRegexp.ReplaceAllStringFunc(message, func(match string) string {
+		sepIndex := strings.LastIndex(match, "|")
+		return match[sepIndex+1 : len(match)-1]
+	})
+}
+
+// Message is a slack message from the configured channel
+type Message struct {
 	Timestamp string // this is guaranteed to be unique per channel
 	Text      string
+	Matches   []string
 	Username  string
 }
