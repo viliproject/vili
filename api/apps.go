@@ -52,9 +52,9 @@ func appsHandler(c *echo.Context) error {
 		waitGroup.Add(len(deployments.Items))
 		var rsMutex sync.Mutex
 		for _, deployment := range deployments.Items {
-			go func(env string, deployment *v1beta1.Deployment) {
+			go func(env string, deployment v1beta1.Deployment) {
 				defer waitGroup.Done()
-				rs, err := getReplicaSetForDeployment(env, deployment)
+				rs, err := getReplicaSetForDeployment(env, &deployment)
 				if err != nil {
 					log.Error(err)
 					failed = true
@@ -63,7 +63,7 @@ func appsHandler(c *echo.Context) error {
 				rsMutex.Lock()
 				resp.ReplicaSets[deployment.Name] = *rs
 				rsMutex.Unlock()
-			}(env, &deployment)
+			}(env, deployment)
 		}
 	}()
 
