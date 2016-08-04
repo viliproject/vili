@@ -144,8 +144,9 @@ export class AppsList extends React.Component {
             {title: 'Actions', key: 'actions'},
         ] : []);
 
+        var env = _.findWhere(window.appconfig.envs, {name: this.props.params.env});
         var rows = _.map(
-            window.appconfig.envApps[this.props.params.env], function(appName) {
+            env.apps, function(appName) {
                 return {
                     _row: <Row name={appName}
                                replicaSet={self.state.apps.replicaSets[appName]}
@@ -200,7 +201,8 @@ export class AppsList extends React.Component {
             return;
         }
         var self = this;
-        _.each(window.appconfig.envApps[this.props.params.env], function(appName) {
+        var env = _.findWhere(window.appconfig.envs, {name: this.props.params.env});
+        _.each(env.apps, function(appName) {
             var replicaSet = self.state.apps.replicaSets[appName];
             if (!replicaSet) {
                 return;
@@ -221,7 +223,8 @@ export class AppsList extends React.Component {
             return;
         }
         var self = this;
-        _.each(window.appconfig.envApps[this.props.params.env], function(appName) {
+        var env = _.findWhere(window.appconfig.envs, {name: this.props.params.env});
+        _.each(env.apps, function(appName) {
             var replicaSet = self.state.apps.replicaSets[appName];
             if (!replicaSet) {
                 return;

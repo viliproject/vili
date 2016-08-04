@@ -204,7 +204,8 @@ export class EnvCreateModal extends React.Component {
 
     loadJobs() {
         var self = this;
-        var envJobs = window.appconfig.envJobs[window.appconfig.defaultEnv];
+        var defaultEnv = _.findWhere(window.appconfig.envs, {name: window.appconfig.defaultEnv});
+        var envJobs = defaultEnv.jobs;
         var jobs = {};
         _.each(envJobs, function(jobName) {
             jobs[jobName] = {
@@ -256,7 +257,8 @@ export class EnvCreateModal extends React.Component {
 
     loadApps() {
         var self = this;
-        var envApps = window.appconfig.envApps[window.appconfig.defaultEnv];
+        var defaultEnv = _.findWhere(window.appconfig.envs, {name: window.appconfig.defaultEnv});
+        var envApps = defaultEnv.apps;
         var apps = {};
         _.each(envApps, function(appName) {
             apps[appName] = {

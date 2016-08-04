@@ -7,6 +7,8 @@ import (
 	"sync"
 
 	"github.com/airware/vili/kube"
+	"github.com/airware/vili/log"
+	"github.com/airware/vili/templates"
 )
 
 var environments map[string]Environment
@@ -14,11 +16,13 @@ var rwMutex sync.RWMutex
 
 // Environment describes an environment backed by a kubernetes namespace
 type Environment struct {
-	Name      string `json:"name"`
-	Branch    string `json:"branch,omitempty"`
-	Protected bool   `json:"protected,omitempty"`
-	Prod      bool   `json:"prod,omitempty"`
-	Approval  bool   `json:"approval,omitempty"`
+	Name      string   `json:"name"`
+	Branch    string   `json:"branch,omitempty"`
+	Protected bool     `json:"protected,omitempty"`
+	Prod      bool     `json:"prod,omitempty"`
+	Approval  bool     `json:"approval,omitempty"`
+	Apps      []string `json:"apps"`
+	Jobs      []string `json:"jobs"`
 }
 
 // Init initializes the global environments list
@@ -38,7 +42,7 @@ func Environments() (ret []Environment) {
 		ret = append(ret, env)
 	}
 	rwMutex.RUnlock()
-	sort.Sort(byName(ret))
+	sort.Sort(byProtectedAndName(ret))
 	return
 }
 
@@ -63,11 +67,31 @@ func Create(name, branch, spec string) (map[string][]string, error) {
 		return nil, err
 	}
 
-	rwMutex.Lock()
-	environments[name] = Environment{
+	env := Environment{
 		Name:   name,
 		Branch: branch,
 	}
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		deployments, err := templates.Deployments(name)
+		if err != nil {
+			log.Error(err)
+		}
+		env.Apps = deployments
+	}()
+	wg.Add(1)
+	go func() {
+		pods, err := templates.Pods(name)
+		if err != nil {
+			log.Error(err)
+		}
+		env.Jobs = pods
+	}()
+
+	rwMutex.Lock()
+	environments[name] = env
 	rwMutex.Unlock()
 	return resources, nil
 }
@@ -111,36 +135,70 @@ func RefreshEnvs() error {
 			newEnvs[name] = env
 		}
 	}
+
+	var wg sync.WaitGroup
+	var mapLock sync.Mutex
 	for _, namespace := range namespaceList.Items {
 		if namespace.Name != "kube-system" && namespace.Name != "default" && namespace.Status.Phase != "Terminating" {
-			if env, ok := newEnvs[namespace.Name]; ok {
+			env, ok := newEnvs[namespace.Name]
+			if ok {
 				env.Branch = namespace.Annotations["vili.environment-branch"]
-				newEnvs[namespace.Name] = env
 			} else {
-				newEnvs[namespace.Name] = Environment{
+				env = Environment{
 					Name:   namespace.Name,
 					Branch: namespace.Annotations["vili.environment-branch"],
 				}
 			}
+			newEnvs[namespace.Name] = env
+			wg.Add(1)
+			go func(name string) {
+				defer wg.Done()
+				deployments, err := templates.Deployments(name)
+				if err != nil {
+					log.Error(err)
+				}
+				mapLock.Lock()
+				env = newEnvs[name]
+				env.Apps = deployments
+				newEnvs[name] = env
+				mapLock.Unlock()
+			}(namespace.Name)
+			wg.Add(1)
+			go func(name string) {
+				defer wg.Done()
+				pods, err := templates.Pods(name)
+				if err != nil {
+					log.Error(err)
+				}
+				mapLock.Lock()
+				env = newEnvs[name]
+				env.Jobs = pods
+				newEnvs[name] = env
+				mapLock.Unlock()
+			}(namespace.Name)
 		}
 	}
+	wg.Wait()
 	environments = newEnvs
 	return nil
 }
 
-type byName []Environment
+type byProtectedAndName []Environment
 
 // Len implements the sort interface
-func (e byName) Len() int {
+func (e byProtectedAndName) Len() int {
 	return len(e)
 }
 
 // Less implements the sort interface
-func (e byName) Less(i, j int) bool {
+func (e byProtectedAndName) Less(i, j int) bool {
+	if e[i].Protected != e[j].Protected {
+		return e[i].Protected
+	}
 	return e[i].Name < e[j].Name
 }
 
 // Swap implements the sort interface
-func (e byName) Swap(i, j int) {
+func (e byProtectedAndName) Swap(i, j int) {
 	e[i], e[j] = e[j], e[i]
 }
