@@ -164,7 +164,7 @@ func deploymentActionHandler(c *echo.Context) error {
 	if deployment.ID == "" {
 		return server.ErrorResponse(c, errors.NotFoundError("Deployment not found"))
 	}
-	deployer, err := makeDeployer(env, app, deployment)
+	deployer, err := makeDeployer(deployment)
 	if err != nil {
 		return err
 	}
@@ -246,7 +246,7 @@ func (d *Deployment) Init(env, app, username string, trigger bool) error {
 		return err
 	}
 
-	deployer, err := makeDeployer(env, app, d)
+	deployer, err := makeDeployer(d)
 	if err != nil {
 		return err
 	}

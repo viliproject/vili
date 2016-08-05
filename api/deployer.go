@@ -28,8 +28,6 @@ const (
 
 // deployer
 type deployerSpec struct {
-	env        string
-	app        string
 	deployment *Deployment
 	db         *firego.Firebase
 
@@ -43,16 +41,14 @@ type deployerSpec struct {
 	lastPing           time.Time
 }
 
-func makeDeployer(env, app string, deployment *Deployment) (*deployerSpec, error) {
+func makeDeployer(deployment *Deployment) (*deployerSpec, error) {
 	deployer := &deployerSpec{
-		env:        env,
-		app:        app,
 		deployment: deployment,
-		db:         deploymentDB(env, app, deployment.ID),
+		db:         deploymentDB(deployment.Env, deployment.App, deployment.ID),
 		lastPing:   time.Now(),
 	}
-	replicaSetList, _, err := kube.ReplicaSets.List(env, &url.Values{
-		"labelSelector": []string{"app=" + app},
+	replicaSetList, _, err := kube.ReplicaSets.List(deployment.Env, &url.Values{
+		"labelSelector": []string{"app=" + deployment.App},
 	})
 	if err != nil {
 		return nil, err
@@ -106,14 +102,14 @@ func (d *deployerSpec) addMessage(message, level string) error {
 		urlStr := fmt.Sprintf(
 			"%s/%s/apps/%s/deployments/%s",
 			config.GetString(config.URI),
-			d.env,
-			d.app,
+			d.deployment.Env,
+			d.deployment.App,
 			d.deployment.ID,
 		)
 		slackMessage := fmt.Sprintf(
 			"*%s* - *%s* - <%s|%s> - %s",
-			d.env,
-			d.app,
+			d.deployment.Env,
+			d.deployment.App,
 			urlStr,
 			d.deployment.ID,
 			message,
@@ -130,7 +126,7 @@ func (d *deployerSpec) addMessage(message, level string) error {
 }
 
 func (d *deployerSpec) resume() error {
-	log.Infof("Resuming deployment %s for app %s in env %s", d.deployment.ID, d.app, d.env)
+	log.Infof("Resuming deployment %s for app %s in env %s", d.deployment.ID, d.deployment.App, d.deployment.Env)
 	var waitGroup sync.WaitGroup
 	failed := false
 
@@ -138,7 +134,7 @@ func (d *deployerSpec) resume() error {
 	waitGroup.Add(1)
 	go func() {
 		defer waitGroup.Done()
-		body, err := templates.Deployment(d.env, d.app)
+		body, err := templates.Deployment(d.deployment.Env, d.deployment.Branch, d.deployment.App)
 		if err != nil {
 			log.Error(err)
 			failed = true
@@ -151,7 +147,7 @@ func (d *deployerSpec) resume() error {
 	waitGroup.Add(1)
 	go func() {
 		defer waitGroup.Done()
-		variables, err := templates.Variables(d.env)
+		variables, err := templates.Variables(d.deployment.Env, d.deployment.Branch)
 		if err != nil {
 			log.Error(err)
 			failed = true
@@ -179,7 +175,7 @@ func (d *deployerSpec) resume() error {
 
 	deployment.Spec.Template.ObjectMeta.Labels["deployment"] = d.deployment.ID
 
-	imageName, err := docker.FullName(d.app, d.deployment.Branch, d.deployment.Tag)
+	imageName, err := docker.FullName(d.deployment.App, d.deployment.Branch, d.deployment.Tag)
 	if err != nil {
 		return err
 	}
@@ -232,14 +228,14 @@ func (d *deployerSpec) resume() error {
 			}
 		}
 
-		newDeployment, _, err := kube.Deployments.Replace(d.env, d.app, deployment)
+		newDeployment, _, err := kube.Deployments.Replace(d.deployment.Env, d.deployment.App, deployment)
 		if err != nil {
 			log.Error(err)
 			return
 		}
 
 		if newDeployment == nil {
-			newDeployment, _, err = kube.Deployments.Create(d.env, deployment)
+			newDeployment, _, err = kube.Deployments.Create(d.deployment.Env, deployment)
 			if err != nil {
 				log.Error(err)
 				return
@@ -252,14 +248,14 @@ func (d *deployerSpec) resume() error {
 				break
 			}
 			time.Sleep(100 * time.Millisecond)
-			newDeployment, _, err = kube.Deployments.Get(d.env, d.app)
+			newDeployment, _, err = kube.Deployments.Get(d.deployment.Env, d.deployment.App)
 			if err != nil {
 				log.Error(err)
 				return
 			}
 		}
 
-		replicaSetList, _, err := kube.ReplicaSets.ListForDeployment(d.env, newDeployment)
+		replicaSetList, _, err := kube.ReplicaSets.ListForDeployment(d.deployment.Env, newDeployment)
 		if err != nil {
 			log.Error(err)
 			return
@@ -306,14 +302,14 @@ func (d *deployerSpec) resume() error {
 
 		rolloutErr := d.monitorRollout()
 		if rolloutErr != nil {
-			deployment, _, err := kube.Deployments.Get(d.env, d.app)
+			deployment, _, err := kube.Deployments.Get(d.deployment.Env, d.deployment.App)
 			if err != nil {
 				log.Error(err)
 				return
 			}
 			if deployment != nil {
 				deployment.Spec.Paused = true
-				_, _, err = kube.Deployments.Replace(d.env, d.app, deployment)
+				_, _, err = kube.Deployments.Replace(d.deployment.Env, d.deployment.App, deployment)
 				if err != nil {
 					log.Error(err)
 					return
@@ -336,7 +332,7 @@ func (d *deployerSpec) resume() error {
 }
 
 func (d *deployerSpec) pause() error {
-	log.Infof("Pausing deployment %s for app %s in env %s", d.deployment.ID, d.app, d.env)
+	log.Infof("Pausing deployment %s for app %s in env %s", d.deployment.ID, d.deployment.App, d.deployment.Env)
 	var state string
 	var newState string
 	d.db.Child("state").Value(&state)
@@ -357,7 +353,7 @@ func (d *deployerSpec) pause() error {
 }
 
 func (d *deployerSpec) rollback() error {
-	log.Infof("Rolling back deployment %s for app %s in env %s", d.deployment.ID, d.app, d.env)
+	log.Infof("Rolling back deployment %s for app %s in env %s", d.deployment.ID, d.deployment.App, d.deployment.Env)
 	if err := d.acquireLock(); err != nil {
 		return err
 	}
@@ -378,13 +374,13 @@ func (d *deployerSpec) rollback() error {
 	d.deployment.State = newState
 	d.addMessage(message, "warn")
 
-	deployment, _, err := kube.Deployments.Get(d.env, d.app)
+	deployment, _, err := kube.Deployments.Get(d.deployment.Env, d.deployment.App)
 	if err != nil {
 		return err
 	}
 	if deployment.Spec.Paused {
 		deployment.Spec.Paused = false
-		_, _, err := kube.Deployments.Replace(d.env, d.app, deployment)
+		_, _, err := kube.Deployments.Replace(d.deployment.Env, d.deployment.App, deployment)
 		if err != nil {
 			return err
 		}
@@ -400,12 +396,12 @@ func (d *deployerSpec) rollback() error {
 			return err
 		}
 		rollback := v1beta1.DeploymentRollback{
-			Name: d.app,
+			Name: d.deployment.App,
 			RollbackTo: v1beta1.RollbackConfig{
 				Revision: rollbackTo,
 			},
 		}
-		if _, _, err := kube.Deployments.Rollback(d.env, d.app, &rollback); err != nil {
+		if _, _, err := kube.Deployments.Rollback(d.deployment.Env, d.deployment.App, &rollback); err != nil {
 			return err
 		}
 	} else {
@@ -427,7 +423,7 @@ func (d *deployerSpec) monitorRollout() error {
 		if d.fromReplicaSet != nil {
 			_, fromRunningCount, _ = d.refreshReplicaSetPodCount(d.fromReplicaSet)
 		}
-		log.Debugf("%s Replica Count: Ready: %v, Running: %v", d.app, readyCount, runningCount)
+		log.Debugf("%s Replica Count: Ready: %v, Running: %v", d.deployment.App, readyCount, runningCount)
 		if readyCount == d.deployment.DesiredReplicas && fromRunningCount == 0 {
 			d.addMessage(fmt.Sprintf("Successfully completed rollout in %s", d.deployment.Clock.humanize()), "info")
 			d.db.Child("state").Set(deploymentStateCompleted)
@@ -442,7 +438,7 @@ func (d *deployerSpec) monitorRollout() error {
 
 func (d *deployerSpec) acquireLock() error {
 	locked, err := redis.GetClient().SetNX(
-		fmt.Sprintf("deploymentlock:%s:%s", d.env, d.app),
+		fmt.Sprintf("deploymentlock:%s:%s", d.deployment.Env, d.deployment.App),
 		true,
 		1*time.Hour,
 	).Result()
@@ -452,7 +448,7 @@ func (d *deployerSpec) acquireLock() error {
 	if !locked {
 		return errors.ConflictError("Failed to acquire deployment lock")
 	}
-	log.Debugf("Acquired lock for %s in %s", d.app, d.env)
+	log.Debugf("Acquired lock for %s in %s", d.deployment.App, d.deployment.Env)
 	WaitGroup.Add(1)
 	return nil
 }
@@ -460,12 +456,12 @@ func (d *deployerSpec) acquireLock() error {
 func (d *deployerSpec) releaseLock() {
 	WaitGroup.Done()
 	err := redis.GetClient().Del(
-		fmt.Sprintf("deploymentlock:%s:%s", d.env, d.app),
+		fmt.Sprintf("deploymentlock:%s:%s", d.deployment.Env, d.deployment.App),
 	).Err()
 	if err != nil {
 		log.Error(err)
 	} else {
-		log.Debugf("Released lock for %s in %s", d.app, d.env)
+		log.Debugf("Released lock for %s in %s", d.deployment.App, d.deployment.Env)
 	}
 }
 
@@ -493,7 +489,7 @@ func (d *deployerSpec) ping() error {
 }
 
 func (d *deployerSpec) refreshReplicaSetPodCount(replicaSet *v1beta1.ReplicaSet) (int, int, error) {
-	kubePods, status, err := kube.Pods.ListForReplicaSet(d.env, replicaSet)
+	kubePods, status, err := kube.Pods.ListForReplicaSet(d.deployment.Env, replicaSet)
 	if err != nil {
 		return 0, 0, err
 	}

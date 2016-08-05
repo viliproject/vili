@@ -75,7 +75,7 @@ func Create(name, branch, spec string) (map[string][]string, error) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
-		deployments, err := templates.Deployments(name)
+		deployments, err := templates.Deployments(name, branch)
 		if err != nil {
 			log.Error(err)
 		}
@@ -83,7 +83,7 @@ func Create(name, branch, spec string) (map[string][]string, error) {
 	}()
 	wg.Add(1)
 	go func() {
-		pods, err := templates.Pods(name)
+		pods, err := templates.Pods(name, branch)
 		if err != nil {
 			log.Error(err)
 		}
@@ -151,9 +151,9 @@ func RefreshEnvs() error {
 			}
 			newEnvs[namespace.Name] = env
 			wg.Add(1)
-			go func(name string) {
+			go func(name, branch string) {
 				defer wg.Done()
-				deployments, err := templates.Deployments(name)
+				deployments, err := templates.Deployments(name, branch)
 				if err != nil {
 					log.Error(err)
 				}
@@ -162,11 +162,11 @@ func RefreshEnvs() error {
 				env.Apps = deployments
 				newEnvs[name] = env
 				mapLock.Unlock()
-			}(namespace.Name)
+			}(namespace.Name, env.Branch)
 			wg.Add(1)
-			go func(name string) {
+			go func(name, branch string) {
 				defer wg.Done()
-				pods, err := templates.Pods(name)
+				pods, err := templates.Pods(name, branch)
 				if err != nil {
 					log.Error(err)
 				}
@@ -175,7 +175,7 @@ func RefreshEnvs() error {
 				env.Jobs = pods
 				newEnvs[name] = env
 				mapLock.Unlock()
-			}(namespace.Name)
+			}(namespace.Name, env.Branch)
 		}
 	}
 	wg.Wait()
