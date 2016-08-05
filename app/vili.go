@@ -248,7 +248,7 @@ func (a *App) monitorEnvs() {
 		if err := environments.RefreshEnvs(); err != nil {
 			log.Warn("Unable to detect environments: ", err)
 		}
-		time.Sleep(15 * time.Second)
+		time.Sleep(5 * time.Minute)
 	}
 }
 
