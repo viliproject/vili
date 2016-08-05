@@ -17,7 +17,7 @@ import (
 )
 
 var publishedRegexp = regexp.MustCompile(
-	`(?:[Pp]ublish) ([\w, ]+) with tag ([\w-]+) from branch ([\w/-]+)`,
+	`(?:[Pp]ublished) ([\w, ]+) with tag ([\w-]+) from branch ([\w/-]+)`,
 )
 
 // runDeployBot runs the deploy bot that listens to messages in the slack channel
