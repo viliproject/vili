@@ -12,32 +12,32 @@ var service Service
 // Service is a template service that returns controller and pod templates for given
 // environments
 type Service interface {
-	Deployments(env string) ([]string, error)
-	Deployment(env, name string) (Template, error)
-	Pods(env string) ([]string, error)
-	Pod(env, name string) (Template, error)
+	Deployments(env, branch string) ([]string, error)
+	Deployment(env, branch, name string) (Template, error)
+	Pods(env, branch string) ([]string, error)
+	Pod(env, branch, name string) (Template, error)
 	Environment(branch string) (Template, error)
-	Variables(env string) (map[string]string, error)
+	Variables(env, branch string) (map[string]string, error)
 }
 
 // Deployments returns a list of deployments for the given environment
-func Deployments(env string) ([]string, error) {
-	return service.Deployments(env)
+func Deployments(env, branch string) ([]string, error) {
+	return service.Deployments(env, branch)
 }
 
 // Deployment returns a deployment for the given environment
-func Deployment(env, name string) (Template, error) {
-	return service.Deployment(env, name)
+func Deployment(env, branch, name string) (Template, error) {
+	return service.Deployment(env, branch, name)
 }
 
 // Pods returns a list of pods for the given environment
-func Pods(env string) ([]string, error) {
-	return service.Pods(env)
+func Pods(env, branch string) ([]string, error) {
+	return service.Pods(env, branch)
 }
 
 // Pod returns a list of pods for the given environment
-func Pod(env, name string) (Template, error) {
-	return service.Pod(env, name)
+func Pod(env, branch, name string) (Template, error) {
+	return service.Pod(env, branch, name)
 }
 
 // Environment returns an environment template for the given branch
@@ -46,8 +46,8 @@ func Environment(branch string) (Template, error) {
 }
 
 // Variables returns a list of variabless for the given environment
-func Variables(env string) (map[string]string, error) {
-	return service.Variables(env)
+func Variables(env, branch string) (map[string]string, error) {
+	return service.Variables(env, branch)
 }
 
 // Template is a yaml string template of a controller of a pod

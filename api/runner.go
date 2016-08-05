@@ -110,7 +110,7 @@ func (r *runnerSpec) start() error {
 	waitGroup.Add(1)
 	go func() {
 		defer waitGroup.Done()
-		body, err := templates.Pod(r.env, r.job)
+		body, err := templates.Pod(r.env, r.run.Branch, r.job)
 		if err != nil {
 			log.Error(err)
 			failed = true
@@ -123,7 +123,7 @@ func (r *runnerSpec) start() error {
 	waitGroup.Add(1)
 	go func() {
 		defer waitGroup.Done()
-		variables, err := templates.Variables(r.env)
+		variables, err := templates.Variables(r.env, r.run.Branch)
 		if err != nil {
 			log.Error(err)
 			failed = true

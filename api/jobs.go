@@ -64,7 +64,7 @@ func jobHandler(c *echo.Context) error {
 		waitGroup.Add(1)
 		go func() {
 			defer waitGroup.Done()
-			body, err := templates.Pod(env, job)
+			body, err := templates.Pod(environment.Name, environment.Branch, job)
 			if err != nil {
 				log.Error(err)
 				failed = true
@@ -78,7 +78,7 @@ func jobHandler(c *echo.Context) error {
 		waitGroup.Add(1)
 		go func() {
 			defer waitGroup.Done()
-			variables, err := templates.Variables(env)
+			variables, err := templates.Variables(environment.Name, environment.Branch)
 			if err != nil {
 				log.Error(err)
 				failed = true

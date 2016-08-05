@@ -37,18 +37,26 @@ func InitGithub(config *GithubConfig) {
 	}
 }
 
-func (s *githubService) resolvePath(env, subPath string) string {
+func (s *githubService) getContents(env, branch, subPath string) (*github.RepositoryContent, []*github.RepositoryContent, *github.Response, error) {
 	envContentsPath, ok := s.config.EnvContentsPaths[env]
 	if !ok {
 		envContentsPath = s.config.EnvContentsPaths[config.GetString(config.DefaultEnv)]
 	}
-	return fmt.Sprintf(envContentsPath, subPath)
+	var opts *github.RepositoryContentGetOptions
+	if branch != "" {
+		opts = &github.RepositoryContentGetOptions{Ref: branch}
+	}
+	fileContent, directoryContent, response, err := s.client.Repositories.GetContents(s.config.Owner, s.config.Repo, fmt.Sprintf(envContentsPath, subPath), opts)
+	if _, ok := err.(*github.ErrorResponse); ok && branch != "" {
+		// Fall back to the default branch
+		return s.getContents(env, "", subPath)
+	}
+	return fileContent, directoryContent, response, err
 }
 
 // Deployments returns a list of deployments for the given environment
-func (s *githubService) Deployments(env string) ([]string, error) {
-	path := s.resolvePath(env, "deployments")
-	_, directoryContent, _, err := s.client.Repositories.GetContents(s.config.Owner, s.config.Repo, path, nil)
+func (s *githubService) Deployments(env, branch string) ([]string, error) {
+	_, directoryContent, _, err := s.getContents(env, branch, "deployments")
 	if err != nil {
 		return nil, err
 	}
@@ -64,9 +72,8 @@ func (s *githubService) Deployments(env string) ([]string, error) {
 }
 
 // Deployment returns a deployment for the given environment
-func (s *githubService) Deployment(env, name string) (Template, error) {
-	path := s.resolvePath(env, "deployments/"+name+".yaml")
-	fileContent, _, _, err := s.client.Repositories.GetContents(s.config.Owner, s.config.Repo, path, nil)
+func (s *githubService) Deployment(env, branch, name string) (Template, error) {
+	fileContent, _, _, err := s.getContents(env, branch, "deployments/"+name+".yaml")
 	if err != nil {
 		return "", err
 	}
@@ -87,9 +94,8 @@ func (s *githubService) Deployment(env, name string) (Template, error) {
 }
 
 // Pods returns a list of pods for the given environment
-func (s *githubService) Pods(env string) ([]string, error) {
-	path := s.resolvePath(env, "pods")
-	_, directoryContent, _, err := s.client.Repositories.GetContents(s.config.Owner, s.config.Repo, path, nil)
+func (s *githubService) Pods(env, branch string) ([]string, error) {
+	_, directoryContent, _, err := s.getContents(env, branch, "pods")
 	if err != nil {
 		if errResp, ok := err.(*github.ErrorResponse); ok {
 			if errResp.Response.StatusCode == 404 {
@@ -110,9 +116,8 @@ func (s *githubService) Pods(env string) ([]string, error) {
 }
 
 // Pod returns a list of pods for the given environment
-func (s *githubService) Pod(env, name string) (Template, error) {
-	path := s.resolvePath(env, "pods/"+name+".yaml")
-	fileContent, _, _, err := s.client.Repositories.GetContents(s.config.Owner, s.config.Repo, path, nil)
+func (s *githubService) Pod(env, branch, name string) (Template, error) {
+	fileContent, _, _, err := s.getContents(env, branch, "pods/"+name+".yaml")
 	if err != nil {
 		return "", err
 	}
@@ -134,12 +139,7 @@ func (s *githubService) Pod(env, name string) (Template, error) {
 
 // Environment returns an environment template for the given branch
 func (s *githubService) Environment(branch string) (Template, error) {
-	path := s.resolvePath("", "environment.yaml")
-	var opts *github.RepositoryContentGetOptions
-	if branch != "" {
-		opts = &github.RepositoryContentGetOptions{Ref: branch}
-	}
-	fileContent, _, _, err := s.client.Repositories.GetContents(s.config.Owner, s.config.Repo, path, opts)
+	fileContent, _, _, err := s.getContents("", branch, "environment.yaml")
 	if err != nil {
 		return "", err
 	}
@@ -160,13 +160,12 @@ func (s *githubService) Environment(branch string) (Template, error) {
 }
 
 // Variables returns a list of variabless for the given environment
-func (s *githubService) Variables(env string) (map[string]string, error) {
+func (s *githubService) Variables(env, branch string) (map[string]string, error) {
 	varEnv := env
 	if _, ok := s.config.EnvContentsPaths[env]; !ok {
 		varEnv = config.GetString(config.DefaultEnv)
 	}
-	path := s.resolvePath(env, "variables/"+varEnv+".json")
-	fileContent, _, _, err := s.client.Repositories.GetContents(s.config.Owner, s.config.Repo, path, nil)
+	fileContent, _, _, err := s.getContents(env, branch, "variables/"+varEnv+".json")
 	if err != nil {
 		return nil, err
 	}

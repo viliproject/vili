@@ -140,7 +140,7 @@ func appHandler(c *echo.Context) error {
 		waitGroup.Add(1)
 		go func() {
 			defer waitGroup.Done()
-			body, err := templates.Deployment(env, app)
+			body, err := templates.Deployment(environment.Name, environment.Branch, app)
 			if err != nil {
 				log.Error(err)
 				failed = true
@@ -154,7 +154,7 @@ func appHandler(c *echo.Context) error {
 		waitGroup.Add(1)
 		go func() {
 			defer waitGroup.Done()
-			variables, err := templates.Variables(env)
+			variables, err := templates.Variables(environment.Name, environment.Branch)
 			if err != nil {
 				log.Error(err)
 				failed = true
@@ -221,11 +221,16 @@ func appCreateServiceHandler(c *echo.Context) error {
 	var deploymentTemplate templates.Template
 	var currentService *v1.Service
 
+	environment, err := environments.Get(env)
+	if err != nil {
+		return err
+	}
+
 	// deploymentTemplate
 	waitGroup.Add(1)
 	go func() {
 		defer waitGroup.Done()
-		body, err := templates.Deployment(env, app)
+		body, err := templates.Deployment(environment.Name, environment.Branch, app)
 		if err != nil {
 			log.Error(err)
 			failed = true
