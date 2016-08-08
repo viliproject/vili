@@ -169,8 +169,8 @@ class ViliApi {
             delete: function(name) {
                 return makeDeleteRequest('/environments/' + name);
             },
-            template: function(branch) {
-                return makeGetRequest('/envtemplates?branch=' + branch);
+            spec: function(name, branch) {
+                return makeGetRequest('/envSpec?name=' + name + '&branch=' + branch);
             }
         };
 

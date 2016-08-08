@@ -1,7 +1,6 @@
 package templates
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -157,37 +156,4 @@ func (s *githubService) Environment(branch string) (Template, error) {
 		return "", err
 	}
 	return Template(body), nil
-}
-
-// Variables returns a list of variabless for the given environment
-func (s *githubService) Variables(env, branch string) (map[string]string, error) {
-	varEnv := env
-	if _, ok := s.config.EnvContentsPaths[env]; !ok {
-		varEnv = config.GetString(config.DefaultEnv)
-	}
-	fileContent, _, _, err := s.getContents(env, branch, "variables/"+varEnv+".json")
-	if err != nil {
-		return nil, err
-	}
-	if fileContent.DownloadURL == nil {
-		return nil, fmt.Errorf("no download url in github file response")
-	}
-
-	resp, err := http.Get(*fileContent.DownloadURL)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	variables := map[string]string{
-		"ENV": env,
-	}
-	err = json.Unmarshal(body, &variables)
-	if err != nil {
-		return nil, err
-	}
-	return variables, nil
 }

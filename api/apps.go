@@ -89,11 +89,10 @@ func appsHandler(c *echo.Context) error {
 
 // AppResponse is the response for the app endpoint
 type AppResponse struct {
-	Repository         []*docker.Image     `json:"repository,omitempty"`
-	DeploymentTemplate string              `json:"deploymentTemplate,omitempty"`
-	Variables          map[string]string   `json:"variables,omitempty"`
-	ReplicaSet         *v1beta1.ReplicaSet `json:"replicaSet,omitempty"`
-	Service            *v1.Service         `json:"service,omitempty"`
+	Repository     []*docker.Image     `json:"repository,omitempty"`
+	DeploymentSpec string              `json:"deploymentSpec,omitempty"`
+	ReplicaSet     *v1beta1.ReplicaSet `json:"replicaSet,omitempty"`
+	Service        *v1.Service         `json:"service,omitempty"`
 }
 
 func appHandler(c *echo.Context) error {
@@ -135,8 +134,8 @@ func appHandler(c *echo.Context) error {
 		}()
 	}
 
-	// deploymentTemplate
-	if len(queryFields) == 0 || queryFields["deploymentTemplate"] {
+	// deploymentSpec
+	if len(queryFields) == 0 || queryFields["deploymentSpec"] {
 		waitGroup.Add(1)
 		go func() {
 			defer waitGroup.Done()
@@ -145,21 +144,7 @@ func appHandler(c *echo.Context) error {
 				log.Error(err)
 				failed = true
 			}
-			resp.DeploymentTemplate = string(body)
-		}()
-	}
-
-	// variables
-	if len(queryFields) == 0 || queryFields["variables"] {
-		waitGroup.Add(1)
-		go func() {
-			defer waitGroup.Done()
-			variables, err := templates.Variables(environment.Name, environment.Branch)
-			if err != nil {
-				log.Error(err)
-				failed = true
-			}
-			resp.Variables = variables
+			resp.DeploymentSpec = string(body)
 		}()
 	}
 

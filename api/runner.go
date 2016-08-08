@@ -2,7 +2,6 @@ package api
 
 import (
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/CloudCom/firego"
@@ -33,10 +32,9 @@ type runnerSpec struct {
 	pod *v1.Pod
 
 	// for resume
-	podTemplate       templates.Template
-	variables         map[string]string
-	populatedTemplate templates.Template
-	lastPing          time.Time
+	podTemplate templates.Template
+	variables   map[string]string
+	lastPing    time.Time
 }
 
 func makeRunner(env, job string, run *Run) (*runnerSpec, error) {
@@ -103,48 +101,14 @@ func (r *runnerSpec) addMessage(message, level string) error {
 
 func (r *runnerSpec) start() error {
 	log.Infof("Starting run %s for job %s in env %s", r.run.ID, r.job, r.env)
-	var waitGroup sync.WaitGroup
-	failed := false
 
-	// podTemplate
-	waitGroup.Add(1)
-	go func() {
-		defer waitGroup.Done()
-		body, err := templates.Pod(r.env, r.run.Branch, r.job)
-		if err != nil {
-			log.Error(err)
-			failed = true
-			return
-		}
-		r.podTemplate = body
-	}()
-
-	// variables
-	waitGroup.Add(1)
-	go func() {
-		defer waitGroup.Done()
-		variables, err := templates.Variables(r.env, r.run.Branch)
-		if err != nil {
-			log.Error(err)
-			failed = true
-			return
-		}
-		r.variables = variables
-	}()
-
-	waitGroup.Wait()
-	if failed {
-		return fmt.Errorf("Failed one of the service calls")
+	body, err := templates.Pod(r.env, r.run.Branch, r.job)
+	if err != nil {
+		return err
 	}
+	r.podTemplate = body
 
-	// combine the template with the variables to get the populated template
-	populatedTemplate, invalid := r.podTemplate.Populate(r.variables)
-	if invalid {
-		return errors.BadRequestError("Pod template missing variables")
-	}
-	r.populatedTemplate = populatedTemplate
-
-	err := r.acquireLock()
+	err = r.acquireLock()
 	// return any lock errors synchronously
 	if err != nil {
 		return err
@@ -331,7 +295,7 @@ func (r *runnerSpec) ping() error {
 
 func (r *runnerSpec) createNewPod() (*v1.Pod, error) {
 	pod := &v1.Pod{}
-	err := r.populatedTemplate.Parse(pod)
+	err := r.podTemplate.Parse(pod)
 	if err != nil {
 		return nil, err
 	}
