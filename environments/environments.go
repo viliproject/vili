@@ -75,6 +75,7 @@ func Create(name, branch, spec string) (map[string][]string, error) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		deployments, err := templates.Deployments(name, branch)
 		if err != nil {
 			log.Error(err)
@@ -83,12 +84,15 @@ func Create(name, branch, spec string) (map[string][]string, error) {
 	}()
 	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		pods, err := templates.Pods(name, branch)
 		if err != nil {
 			log.Error(err)
 		}
 		env.Jobs = pods
 	}()
+
+	wg.Wait()
 
 	rwMutex.Lock()
 	environments[name] = env
