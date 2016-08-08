@@ -2,6 +2,8 @@ import React from 'react';
 import { Link } from 'react-router'; // eslint-disable-line no-unused-vars
 import { Promise } from 'bluebird';
 import { Table, Loading } from '../shared'; // eslint-disable-line no-unused-vars
+import _ from 'underscore';
+
 
 export class JobsList extends React.Component {
     constructor(props) {
@@ -12,6 +14,10 @@ export class JobsList extends React.Component {
     }
 
     render() {
+        var env = _.findWhere(window.appconfig.envs, {name: this.props.params.env});
+        var links = env.jobs.map(function(job) {
+            return <li><Link key={job} to={`/${env.name}/jobs/${job}`}>{job}</Link></li>;
+        });
         return (
             <div>
                 <div className="view-header">
@@ -20,6 +26,7 @@ export class JobsList extends React.Component {
                         <li className="active">Jobs</li>
                     </ol>
                 </div>
+                <ul className="nav nav-pills nav-stacked">{links}</ul>
             </div>
         );
     }
