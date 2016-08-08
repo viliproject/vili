@@ -10,6 +10,7 @@ import (
 	"github.com/airware/vili/environments"
 	"github.com/airware/vili/log"
 	"github.com/airware/vili/templates"
+	"github.com/airware/vili/util"
 	"gopkg.in/labstack/echo.v1"
 )
 
@@ -47,7 +48,7 @@ func jobHandler(c *echo.Context) error {
 		go func() {
 			defer waitGroup.Done()
 			branches := []string{"master", "develop"}
-			if environment.Branch != "" {
+			if environment.Branch != "" && !util.NewStringSet(branches).Contains(environment.Branch) {
 				branches = append(branches, environment.Branch)
 			}
 			images, err := docker.GetRepository(job, branches)
