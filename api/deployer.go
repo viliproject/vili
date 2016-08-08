@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/CloudCom/firego"
@@ -127,48 +126,15 @@ func (d *deployerSpec) addMessage(message, level string) error {
 
 func (d *deployerSpec) resume() error {
 	log.Infof("Resuming deployment %s for app %s in env %s", d.deployment.ID, d.deployment.App, d.deployment.Env)
-	var waitGroup sync.WaitGroup
-	failed := false
 
-	// deploymentTemplate
-	waitGroup.Add(1)
-	go func() {
-		defer waitGroup.Done()
-		body, err := templates.Deployment(d.deployment.Env, d.deployment.Branch, d.deployment.App)
-		if err != nil {
-			log.Error(err)
-			failed = true
-			return
-		}
-		d.deploymentTemplate = body
-	}()
-
-	// variables
-	waitGroup.Add(1)
-	go func() {
-		defer waitGroup.Done()
-		variables, err := templates.Variables(d.deployment.Env, d.deployment.Branch)
-		if err != nil {
-			log.Error(err)
-			failed = true
-			return
-		}
-		d.variables = variables
-	}()
-
-	waitGroup.Wait()
-	if failed {
-		return fmt.Errorf("Failed one of the service calls")
+	body, err := templates.Deployment(d.deployment.Env, d.deployment.Branch, d.deployment.App)
+	if err != nil {
+		return err
 	}
-
-	// combine the template with the variables to get the populated template
-	populatedTemplate, invalid := d.deploymentTemplate.Populate(d.variables)
-	if invalid {
-		return errors.BadRequestError("Controller template missing variables")
-	}
+	d.deploymentTemplate = body
 
 	deployment := &v1beta1.Deployment{}
-	err := populatedTemplate.Parse(deployment)
+	err = d.deploymentTemplate.Parse(deployment)
 	if err != nil {
 		return err
 	}

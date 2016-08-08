@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router'; // eslint-disable-line no-unused-vars
 import _ from 'underscore';
 import { Promise } from 'bluebird';
-import { viliApi, displayTime, template } from '../lib';
+import { viliApi, displayTime } from '../lib';
 import { Table, Loading } from '../shared'; // eslint-disable-line no-unused-vars
 import router from '../router';
 
@@ -23,7 +23,7 @@ class Row extends React.Component { // eslint-disable-line no-unused-vars
         var date = new Date(data.lastModified);
 
         var actions = [];
-        if (this.props.canRun && (!this.props.env.prod || this.state.approval)) {
+        if (!this.props.env.prod || this.state.approval) {
             actions.push(<button type="button" className="btn btn-xs btn-primary" onClick={this.runTag}>Run</button>);
         }
         if (this.props.env && this.props.env.approval) {
@@ -128,7 +128,6 @@ export class Job extends React.Component {
         _.each(this.state.job.repository, function(data) {
             var date = new Date(data.lastModified);
             var row = <Row data={data} currentTag={self.state.currentTag}
-                           canRun={self.state.canRun}
                            hasApprovalColumn={self.state.hasApprovalColumn}
                            approvalDB={self.state.approvalDB}
                            env={self.state.env}
@@ -156,12 +155,6 @@ export class Job extends React.Component {
             state.hasApprovalColumn = state.env.approval || state.env.prod;
             if (state.hasApprovalColumn) {
                 state.approvalDB = self.props.db.child('releases').child(self.props.params.job);
-            }
-
-            state.basePod = template(state.job.podTemplate, state.job.variables);
-            state.canRun = state.basePod.valid;
-            if (!state.canRun) {
-                // TODO show message saying pod not valid
             }
             self.setState(state);
         });

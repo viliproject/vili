@@ -1,7 +1,7 @@
 import React from 'react';
 import _ from 'underscore';
 import { Promise } from 'bluebird';
-import { viliApi, displayTime, template } from '../lib';
+import { viliApi, displayTime } from '../lib';
 import { Table, Loading } from '../shared'; // eslint-disable-line no-unused-vars
 import router from '../router';
 
@@ -27,7 +27,7 @@ class Row extends React.Component { // eslint-disable-line no-unused-vars
         var date = new Date(data.lastModified);
 
         var actions = [];
-        if (this.props.canDeploy && (!this.props.env.prod || this.state.approval)) {
+        if (!this.props.env.prod || this.state.approval) {
             actions.push(<button type="button" className="btn btn-xs btn-primary" onClick={this.deployTag}>Deploy</button>);
         }
         if (this.props.env && this.props.env.approval) {
@@ -151,7 +151,6 @@ export class App extends React.Component {
             var deployed = data.tag === self.state.currentTag;
             var row = <Row data={data} currentTag={self.state.currentTag}
                            deployedAt={deployed ? self.state.deployedAt : ''}
-                           canDeploy={self.state.canDeploy}
                            hasApprovalColumn={self.state.hasApprovalColumn}
                            approvalDB={self.state.approvalDB}
                            env={self.state.env}
@@ -181,11 +180,6 @@ export class App extends React.Component {
                 state.approvalDB = self.props.db.child('releases').child(self.props.params.app);
             }
 
-            state.baseDeployment = template(state.app.deploymentTemplate, state.app.variables);
-            state.canDeploy = state.baseDeployment.valid;
-            if (!state.canDeploy) {
-                // TODO show message saying deployment not valid
-            }
             if (!state.app.replicaSet || state.app.replicaSet.status === 'Failure') {
                 state.currentTag = null;
             } else {

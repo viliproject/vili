@@ -2,7 +2,7 @@ package templates
 
 import (
 	"bytes"
-	"regexp"
+	"text/template"
 
 	"github.com/airware/vili/kube/yaml"
 )
@@ -17,7 +17,6 @@ type Service interface {
 	Pods(env, branch string) ([]string, error)
 	Pod(env, branch, name string) (Template, error)
 	Environment(branch string) (Template, error)
-	Variables(env, branch string) (map[string]string, error)
 }
 
 // Deployments returns a list of deployments for the given environment
@@ -45,27 +44,20 @@ func Environment(branch string) (Template, error) {
 	return service.Environment(branch)
 }
 
-// Variables returns a list of variabless for the given environment
-func Variables(env, branch string) (map[string]string, error) {
-	return service.Variables(env, branch)
-}
-
 // Template is a yaml string template of a controller of a pod
 type Template string
 
-var templateVariableRegexp = regexp.MustCompile("\\{[a-zA-Z0-9_]+\\}")
-
 // Populate populates the template with variables and returns a new Template instance
-func (t Template) Populate(variables map[string]string) (Template, bool) {
-	invalid := false
-	return Template(templateVariableRegexp.ReplaceAllFunc([]byte(t), func(match []byte) []byte {
-		varname := string(match[1 : len(match)-1])
-		val, ok := variables[varname]
-		if !ok {
-			invalid = true
-		}
-		return []byte(val)
-	})), invalid
+func (t Template) Populate(data interface{}) (Template, error) {
+	temp, err := template.New("").Parse(string(t))
+	if err != nil {
+		return Template(""), err
+	}
+	buf := new(bytes.Buffer)
+	if err := temp.Execute(buf, data); err != nil {
+		return Template(""), err
+	}
+	return Template(buf.String()), nil
 }
 
 // Parse parses template into the given interface

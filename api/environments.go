@@ -44,27 +44,38 @@ func environmentDeleteHandler(c *echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
-func environmentTemplateHandler(c *echo.Context) error {
+func environmentSpecHandler(c *echo.Context) error {
+	namespace := c.Query("name")
 	branch := c.Query("branch")
+	fields := environmentTemplateFields{
+		Namespace: namespace,
+		Branch:    branch,
+	}
 	templ, err := templates.Environment(branch)
 	if err != nil {
-		return c.JSON(http.StatusOK, map[string]string{
-			"template": defaultTemplate,
-			"details":  err.Error(),
-		})
+		templ = defaultTemplate
+	}
+	templ, err = templ.Populate(fields)
+	if err != nil {
+		return err
 	}
 	return c.JSON(http.StatusOK, map[string]string{
-		"template": string(templ),
+		"spec": string(templ),
 	})
 }
 
-const defaultTemplate string = `---
+type environmentTemplateFields struct {
+	Namespace string
+	Branch    string
+}
+
+const defaultTemplate templates.Template = `---
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: {NAMESPACE}
+  name: {{.Namespace}}
   annotations:
-    vili.environment-branch: {BRANCH}
+    vili.environment-branch: {{.Branch}}
 spec:
   finalizers:
   - kubernetes

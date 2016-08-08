@@ -15,9 +15,8 @@ import (
 
 // JobResponse is the response for the job endpoint
 type JobResponse struct {
-	Repository  []*docker.Image   `json:"repository,omitempty"`
-	PodTemplate string            `json:"podTemplate,omitempty"`
-	Variables   map[string]string `json:"variables,omitempty"`
+	Repository []*docker.Image `json:"repository,omitempty"`
+	PodSpec    string          `json:"podSpec,omitempty"`
 }
 
 func jobHandler(c *echo.Context) error {
@@ -59,8 +58,8 @@ func jobHandler(c *echo.Context) error {
 		}()
 	}
 
-	// podTemplate
-	if len(queryFields) == 0 || queryFields["podTemplate"] {
+	// podSpec
+	if len(queryFields) == 0 || queryFields["podSpec"] {
 		waitGroup.Add(1)
 		go func() {
 			defer waitGroup.Done()
@@ -69,21 +68,7 @@ func jobHandler(c *echo.Context) error {
 				log.Error(err)
 				failed = true
 			}
-			resp.PodTemplate = string(body)
-		}()
-	}
-
-	// variables
-	if len(queryFields) == 0 || queryFields["variables"] {
-		waitGroup.Add(1)
-		go func() {
-			defer waitGroup.Done()
-			variables, err := templates.Variables(environment.Name, environment.Branch)
-			if err != nil {
-				log.Error(err)
-				failed = true
-			}
-			resp.Variables = variables
+			resp.PodSpec = string(body)
 		}()
 	}
 

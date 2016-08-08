@@ -1,7 +1,7 @@
 import React from 'react';
 import * as _ from 'underscore';
 import { Promise } from 'bluebird';
-import { viliApi, template } from '../lib';
+import { viliApi } from '../lib';
 import { Modal, Label, Input, Button, ListGroup, ListGroupItem, Panel } from 'react-bootstrap'; // eslint-disable-line no-unused-vars
 import router from '../router';
 
@@ -16,7 +16,7 @@ export class EnvCreateModal extends React.Component {
         this.hide = this.hide.bind(this);
         this.onNameChange = this.onNameChange.bind(this);
         this.onBranchChange = this.onBranchChange.bind(this);
-        this.loadTemplate = _.debounce(this.loadTemplate.bind(this), 200);
+        this.loadSpec = _.debounce(this.loadSpec.bind(this), 200);
         this.onSpecChange = this.onSpecChange.bind(this);
         this.createNewEnvironment = this.createNewEnvironment.bind(this);
         this.loadJobs = this.loadJobs.bind(this);
@@ -154,7 +154,7 @@ export class EnvCreateModal extends React.Component {
             createdResources: null,
             error: null,
         });
-        this.loadTemplate(name, this.state.branch);
+        this.loadSpec(name, this.state.branch);
     }
 
     onBranchChange(event) {
@@ -164,20 +164,16 @@ export class EnvCreateModal extends React.Component {
             createdResources: null,
             error: null,
         });
-        this.loadTemplate(this.state.name, branch);
+        this.loadSpec(this.state.name, branch);
     }
 
-    loadTemplate(name, branch) {
+    loadSpec(name, branch) {
         if (!name || !branch) {
             return;
         }
         var self = this;
-        viliApi.environments.template(branch).then(function(resp) {
-            var templ = template(resp.template, {
-                NAMESPACE: name,
-                BRANCH: branch,
-            });
-            self.setState({spec: templ.populated});
+        viliApi.environments.spec(name, branch).then(function(resp) {
+            self.setState({spec: resp.spec});
         });
     }
 
