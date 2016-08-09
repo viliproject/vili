@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/airware/vili/environments"
+	"github.com/airware/vili/git"
 	"github.com/airware/vili/templates"
 	"gopkg.in/labstack/echo.v1"
 )
@@ -42,6 +43,16 @@ func environmentDeleteHandler(c *echo.Context) error {
 		return err
 	}
 	return c.NoContent(http.StatusNoContent)
+}
+
+func environmentBranchesHandler(c *echo.Context) error {
+	branches, err := git.Branches()
+	if err != nil {
+		return err
+	}
+	return c.JSON(http.StatusOK, map[string][]string{
+		"branches": branches,
+	})
 }
 
 func environmentSpecHandler(c *echo.Context) error {

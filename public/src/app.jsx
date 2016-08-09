@@ -1,4 +1,5 @@
-import React from 'react'
+import React from 'react';
+import ReactDOM from 'react-dom'
 import Firebase from 'firebase';
 import router from './router';
 import style from './less/app.less';
@@ -20,6 +21,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // run router
     router.run(function(Handler) { // eslint-disable-line no-unused-vars
-        React.render(<Handler db={db} />, document.body);
+        ReactDOM.render(<Handler db={db} />, document.body);
     });
 });

@@ -2,7 +2,8 @@ import React from 'react';
 import * as _ from 'underscore';
 import { Promise } from 'bluebird';
 import { viliApi } from '../lib';
-import { Modal, Label, Input, Button, ListGroup, ListGroupItem, Panel } from 'react-bootstrap'; // eslint-disable-line no-unused-vars
+import { Modal, Button, FormGroup, ControlLabel, FormControl, ListGroup, ListGroupItem, Panel } from 'react-bootstrap'; // eslint-disable-line no-unused-vars
+import Typeahead from 'react-bootstrap-typeahead';
 import router from '../router';
 
 
@@ -14,6 +15,7 @@ export class EnvCreateModal extends React.Component {
         };
 
         this.hide = this.hide.bind(this);
+        this.loadBranches = this.loadBranches.bind(this);
         this.onNameChange = this.onNameChange.bind(this);
         this.onBranchChange = this.onBranchChange.bind(this);
         this.loadSpec = _.debounce(this.loadSpec.bind(this), 200);
@@ -33,7 +35,7 @@ export class EnvCreateModal extends React.Component {
                 <Button
                     bsStyle="primary"
                     onClick={this.createNewEnvironment}
-                    disabled={!this.state.spec || this.state.error}>
+                    disabled={!this.state.spec || Boolean(this.state.error)}>
                     Create
                 </Button>
             );
@@ -74,17 +76,17 @@ export class EnvCreateModal extends React.Component {
         }
         var specForm = null;
         if (this.state.name && this.state.branch && !this.state.jobs) {
-            specForm =
-                [
-                    <Label>Environment Spec</Label>,
-                    <Input
-                        type="textarea"
+            specForm = (
+                <FormGroup controlId="environmentSpec">
+                    <ControlLabel>Environment Spec</ControlLabel>
+                    <FormControl
+                        componentClass="textarea"
                         value={this.state.spec}
                         onChange={this.onSpecChange}
                         style={{'height': '400px'}}
-                        disabled={this.state.createdResources}
-                    />,
-                ];
+                        disabled={this.state.createdResources} />
+                </FormGroup>
+            );
         }
         var output = null;
         if (this.state.apps) {
@@ -100,25 +102,27 @@ export class EnvCreateModal extends React.Component {
             output = <Panel header='Error' bsStyle='danger'>{errorMessage}</Panel>;
         }
         return (
-            <Modal show="true" onHide={this.hide}>
+            <Modal show={true} onHide={this.hide}>
                 <Modal.Header closeButton>
                     <Modal.Title>Create New Environment</Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
-                    <Label>Environment Name</Label>
-                    <Input
-                        type="text"
-                        value={this.state.name}
-                        placeholder="my-feature-environment"
-                        onChange={this.onNameChange}
-                        disabled={this.state.createdResources}
-                    />
-                    <Label>Default Branch</Label>
-                    <Input
-                        type="text"
-                        value={this.state.branch}
-                        placeholder="feature/branch"
-                        onChange={this.onBranchChange}
+                    <FormGroup controlId="environmentName">
+                        <ControlLabel>Environment Name</ControlLabel>
+                        <FormControl
+                            componentClass="input"
+                            type="text"
+                            value={this.state.name}
+                            placeholder="my-feature-environment"
+                            onChange={this.onNameChange}
+                            disabled={this.state.createdResources}
+                        />
+                    </FormGroup>
+                    <ControlLabel>Default Branch</ControlLabel>
+                    <Typeahead
+                        options={this.state.branches || []}
+                        labelKey='branch'
+                        onInputChange={this.onBranchChange}
                         disabled={this.state.createdResources}
                     />
                     {specForm}
@@ -130,6 +134,15 @@ export class EnvCreateModal extends React.Component {
                 </Modal.Footer>
             </Modal>
         );
+    }
+
+    loadBranches() {
+        var self = this;
+        viliApi.environments.branches().then(function(resp) {
+            self.setState({branches: _.map(resp.branches, function(branch) {
+                return {branch: branch};
+            })});
+        });
     }
 
     hide() {
@@ -157,8 +170,7 @@ export class EnvCreateModal extends React.Component {
         this.loadSpec(name, this.state.branch);
     }
 
-    onBranchChange(event) {
-        var branch = event.target.value;
+    onBranchChange(branch) {
         this.setState({
             branch: branch,
             createdResources: null,
@@ -308,6 +320,10 @@ export class EnvCreateModal extends React.Component {
         });
     }
 
+    componentWillMount() {
+        this.loadBranches();
+    }
+
 }
 
 class CreatedResources extends React.Component {
@@ -322,11 +338,11 @@ class CreatedResources extends React.Component {
             return <ListGroupItem bsStyle={style}>Created namespace {name}</ListGroupItem>;
         })
         delete(createdResources.namespace)
-        var resources = _.mapObject(createdResources, function(names, type) {
+        var resources = _.flatten(_.map(createdResources, function(names, type) {
             return _.map(names, function(name) {
                 return <ListGroupItem bsStyle="success">Created {type} {name}</ListGroupItem>;
             });
-        });
+        }));
         return (
             <ListGroup>
                 {namespaces}
