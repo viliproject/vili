@@ -140,8 +140,7 @@ func RefreshEnvs() error {
 		}
 	}
 
-	var wg sync.WaitGroup
-	var mapLock sync.Mutex
+	// Load environments from namespaces, add branch metadata
 	for _, namespace := range namespaceList.Items {
 		if namespace.Name != "kube-system" && namespace.Name != "default" && namespace.Status.Phase != "Terminating" {
 			env, ok := newEnvs[namespace.Name]
@@ -154,34 +153,42 @@ func RefreshEnvs() error {
 				}
 			}
 			newEnvs[namespace.Name] = env
-			wg.Add(1)
-			go func(name, branch string) {
-				defer wg.Done()
-				deployments, err := templates.Deployments(name, branch)
-				if err != nil {
-					log.Error(err)
-				}
-				mapLock.Lock()
-				env = newEnvs[name]
-				env.Apps = deployments
-				newEnvs[name] = env
-				mapLock.Unlock()
-			}(namespace.Name, env.Branch)
-			wg.Add(1)
-			go func(name, branch string) {
-				defer wg.Done()
-				pods, err := templates.Pods(name, branch)
-				if err != nil {
-					log.Error(err)
-				}
-				mapLock.Lock()
-				env = newEnvs[name]
-				env.Jobs = pods
-				newEnvs[name] = env
-				mapLock.Unlock()
-			}(namespace.Name, env.Branch)
 		}
 	}
+
+	var wg sync.WaitGroup
+	var mapLock sync.Mutex
+
+	// Load apps and jobs from template files
+	for _, env := range newEnvs {
+		wg.Add(1)
+		go func(name, branch string) {
+			defer wg.Done()
+			deployments, err := templates.Deployments(name, branch)
+			if err != nil {
+				log.Error(err)
+			}
+			mapLock.Lock()
+			e := newEnvs[name]
+			e.Apps = deployments
+			newEnvs[name] = e
+			mapLock.Unlock()
+		}(env.Name, env.Branch)
+		wg.Add(1)
+		go func(name, branch string) {
+			defer wg.Done()
+			pods, err := templates.Pods(name, branch)
+			if err != nil {
+				log.Error(err)
+			}
+			mapLock.Lock()
+			e := newEnvs[name]
+			e.Jobs = pods
+			newEnvs[name] = e
+			mapLock.Unlock()
+		}(env.Name, env.Branch)
+	}
+
 	wg.Wait()
 	environments = newEnvs
 	return nil
