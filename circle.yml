@@ -7,6 +7,7 @@ machine:
     - docker
   environment:
     SHA: $(echo $CIRCLE_SHA1 | cut -c 1-7)
+    TIMESTAMP: $(date +%s)
     BRANCH: $CIRCLE_BRANCH
     BASEVERSION: 20151211-164200
 
@@ -38,7 +39,7 @@ deployment:
     branch: [develop, master]
     commands:
       - docker login -e="$QUAY_EMAIL" -u="$QUAY_USER" -p="$QUAY_PASS" quay.io
-      - docker tag -f vili:$SHA quay.io/airware/vili:$SHA
+      - docker tag -f vili:$SHA quay.io/airware/vili:$TIMESTAMP-$SHA
       - docker tag -f vili:$SHA quay.io/airware/vili:$BRANCH
-      - docker push quay.io/airware/vili:$SHA
+      - docker push quay.io/airware/vili:$TIMESTAMP-$SHA
       - docker push quay.io/airware/vili:$BRANCH
