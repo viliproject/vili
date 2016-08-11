@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router'; // eslint-disable-line no-unused-vars
-import { Alert, ButtonGroup, Button, Input } from 'react-bootstrap'; // eslint-disable-line no-unused-vars
+import { Alert, ButtonGroup, Button, FormControl } from 'react-bootstrap'; // eslint-disable-line no-unused-vars
 import _ from 'underscore';
 import moment from 'moment';
 import 'moment-duration-format';
@@ -83,15 +83,17 @@ class DeploymentHeader extends React.Component { // eslint-disable-line no-unuse
                 {this.state.strategy}
             </p>
           ) : (
-            <Input type="select" value={this.state.strategy} onChange={this.onStrategyChange}>
+            <FormControl
+                componentClass="select"
+                value={this.state.strategy}
+                onChange={this.onStrategyChange}>
                 {strategies}
-            </Input>
+            </FormControl>
         );
         var form = (
             <form className="form-horizontal">
-                <Input label="Rollout Strategy" labelClassName="col-xs-4" wrapperClassName="col-xs-8">
+                <label labelClassName="col-xs-4" wrapperClassName="col-xs-8">Rollout Strategy</label>
                 {strategySelect}
-                </Input>
             </form>
         );
         return (
