@@ -1,5 +1,6 @@
 # Vili
 
+[![CircleCI Status](https://circleci.com/gh/airware/vili.svg?style=shield)](https://circleci.com/gh/airware/vili)
 [![Slack Status](https://vili-slackin.herokuapp.com/badge.svg)](https://vili-slackin.herokuapp.com/)
 
 Vili is an open source dashboard for managing deployments to a [Kubernetes] (http://kubernetes.io/) cluster. It is built to:
