@@ -36,10 +36,7 @@ test:
 
 deployment:
   apps:
-    branch: [develop, master]
+    branch: /.*/
     commands:
       - docker login -e="$QUAY_EMAIL" -u="$QUAY_USER" -p="$QUAY_PASS" quay.io
-      - docker tag -f vili:$SHA quay.io/airware/vili:$TIMESTAMP-$SHA
-      - docker tag -f vili:$SHA quay.io/airware/vili:$BRANCH
-      - docker push quay.io/airware/vili:$TIMESTAMP-$SHA
-      - docker push quay.io/airware/vili:$BRANCH
+      - docker tag -f vili:$SHA quay.io/airware/vili:$TIMESTAMP-$SHA && sleep 1 && docker push quay.io/airware/vili:$TIMESTAMP-$SHA
