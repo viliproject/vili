@@ -11,6 +11,7 @@ import (
 	"github.com/airware/vili/docker"
 	"github.com/airware/vili/environments"
 	"github.com/airware/vili/firebase"
+	"github.com/airware/vili/git"
 	"github.com/airware/vili/kube"
 	"github.com/airware/vili/log"
 	"github.com/airware/vili/middleware"
@@ -124,6 +125,16 @@ func New() *App {
 			}
 		},
 
+		// set up the git service
+		func() {
+			defer wg.Done()
+			git.InitGithub(&git.GithubConfig{
+				Token: config.GetString(config.GithubToken),
+				Owner: config.GetString(config.GithubOwner),
+				Repo:  config.GetString(config.GithubRepo),
+			})
+		},
+
 		// set up the templates service
 		func() {
 			defer wg.Done()
@@ -136,10 +147,7 @@ func New() *App {
 				envContentsPaths[env.Name] = envContentsPath
 			}
 			envContentsPaths[config.GetString(config.DefaultEnv)] = config.GetString(config.GithubContentsPath)
-			templates.InitGithub(&templates.GithubConfig{
-				Token:            config.GetString(config.GithubToken),
-				Owner:            config.GetString(config.GithubOwner),
-				Repo:             config.GetString(config.GithubRepo),
+			templates.InitGit(&templates.GitConfig{
 				EnvContentsPaths: envContentsPaths,
 			})
 		},

@@ -74,7 +74,7 @@ class ViliApi {
                     return makeGetRequest('/envs/' + env + '/jobs/' + name, qs);
                 }
                 return makeGetRequest('/envs/' + env + '/jobs', qs);
-            }
+            },
         };
 
         this.nodes = {
@@ -90,7 +90,7 @@ class ViliApi {
             },
             setSchedulable: function(env, name, onOff) {
                 return makePutRequest('/envs/' + env + '/nodes/' + name + '/' + onOff.toLowerCase());
-            }
+            },
         };
 
         this.pods = {
@@ -112,7 +112,7 @@ class ViliApi {
         this.services = {
             create: function(env, app) {
                 return makePostRequest('/envs/' + env + '/apps/' + app + '/service');
-            }
+            },
         };
 
         this.deployments = {
@@ -134,7 +134,7 @@ class ViliApi {
             },
             rollback: function(env, app, id) {
                 return makePostRequest('/envs/' + env + '/apps/' + app + '/deployments/' + id + '/rollback');
-            }
+            },
         };
 
         this.runs = {
@@ -150,7 +150,7 @@ class ViliApi {
             },
             terminate: function(env, job, id) {
                 return makePostRequest('/envs/' + env + '/jobs/' + job + '/runs/' + id + '/terminate');
-            }
+            },
         };
 
         this.releases = {
@@ -169,9 +169,12 @@ class ViliApi {
             delete: function(name) {
                 return makeDeleteRequest('/environments/' + name);
             },
+            branches: function() {
+                return makeGetRequest('/envBranches');
+            },
             spec: function(name, branch) {
                 return makeGetRequest('/envSpec?name=' + name + '&branch=' + branch);
-            }
+            },
         };
 
     }
