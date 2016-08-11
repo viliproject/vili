@@ -1,5 +1,5 @@
-kind: "ReplicationController"
-apiVersion: "v1"
+kind: "Deployment"
+apiVersion: "extensions/v1beta1"
 metadata:
   name: "vili"
   labels:
@@ -7,7 +7,8 @@ metadata:
 spec:
   replicas: 3
   selector:
-    app: "vili"
+    matchLabels:
+      app: "vili"
   template:
     metadata:
       labels:

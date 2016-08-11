@@ -9,9 +9,10 @@ spec:
     - name: "myjob"
       image: "quay.io/myteam/myjob:master"
       args:
-        - {MYJOB_COMMAND}
+        - ARG1
+        - ARG2
       env:
         - name: "KEY1"
           value: "VALUE"
         - name: "KEY2"
-          value: "{VARIABLE}"
+          value: "VALUE"

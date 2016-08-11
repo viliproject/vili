@@ -1,0 +1,20 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{.Namespace}}
+  annotations:
+    vili.environment-branch: {{.Branch}}
+    other.metadata: Created by an environment template!
+spec:
+  finalizers:
+  - kubernetes
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vili
+  namespace: {{.Namespace}}
+data:
+  environment-branch: {{.Branch}}
+  some-other-data: VALUE
