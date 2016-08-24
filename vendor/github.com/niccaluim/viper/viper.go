@@ -821,12 +821,18 @@ func (v *Viper) ReadConfig(in io.Reader) error {
 func ReadInConfigDir() error { return v.ReadInConfigDir() }
 func (v *Viper) ReadInConfigDir() error {
 	for _, cp := range v.configPaths {
+		jww.DEBUG.Printf("Reading config from path: %s\n", cp)
 		if _, err := os.Stat(cp); err == nil {
 			config, err := v.readDir(cp, "")
-			if err == nil {
-				v.config = config
+			if err != nil {
+				jww.WARN.Printf("Failed to parse config path: %s\n", err)
+				continue
 			}
-			return err
+			if v.config == nil {
+				v.config = config
+			} else {
+				mergeMaps(config, v.config, nil)
+			}
 		}
 	}
 	return nil
@@ -840,6 +846,25 @@ func (v *Viper) readDir(dirname, keyPrefix string) (map[string]interface{}, erro
 
 	node := make(map[string]interface{})
 	for _, entry := range entries {
+		// Ignore paths starting with ..
+		// HACK: Kubernetes configmap volumes are extremely weird
+		/*
+			/app # ls -alh /env/public
+			total 8
+			drwxrwxrwt    3 root     root         960 Jul  7 01:10 .
+			drwxr-xr-x    4 root     root        4.0K Jul  7 01:14 ..
+			drwxr-xr-x    2 root     root         920 Jul  7 01:10 ..7987_07_07_01_10_03.892497686
+			lrwxrwxrwx    1 root     root          31 Jul  7 01:10 ..data -> ..7987_07_07_01_10_03.892497686
+			lrwxrwxrwx    1 root     root          19 Jul  7 01:10 accounts-uri -> ..data/accounts-uri
+			lrwxrwxrwx    1 root     root          14 Jul  7 01:10 api-uri -> ..data/api-uri
+			lrwxrwxrwx    1 root     root          14 Jul  7 01:10 app-uri -> ..data/app-uri
+			lrwxrwxrwx    1 root     root          17 Jul  7 01:10 aws-region -> ..data/aws-region
+		*/
+		// Why? Presumably to troll me
+		if strings.HasPrefix(entry.Name(), "..") {
+			jww.DEBUG.Printf("Ignoring invalid path: %s\n", entry.Name())
+			continue
+		}
 		path := filepath.Join(dirname, entry.Name())
 		if entry.IsDir() {
 			node[entry.Name()], err = v.readDir(path, keyPrefix+v.keyDelim+entry.Name())
@@ -1068,7 +1093,7 @@ func (v *Viper) findAllConfigFiles() []string {
 	for _, cp := range v.configPaths {
 		file := v.searchInPath(cp)
 		if file != "" {
-			jww.TRACE.Println("Found config file in: %s", file)
+			jww.TRACE.Printf("Found config file in: %s", file)
 			validFiles = append(validFiles, file)
 		}
 	}
@@ -1081,6 +1106,87 @@ func (v *Viper) findAllConfigFiles() []string {
 	}
 
 	return validFiles
+}
+
+// Copied from upstream viper 20160712
+func keyExists(k string, m map[string]interface{}) string {
+	lk := strings.ToLower(k)
+	for mk := range m {
+		lmk := strings.ToLower(mk)
+		if lmk == lk {
+			return mk
+		}
+	}
+	return ""
+}
+
+func castToMapStringInterface(
+	src map[interface{}]interface{}) map[string]interface{} {
+	tgt := map[string]interface{}{}
+	for k, v := range src {
+		tgt[fmt.Sprintf("%v", k)] = v
+	}
+	return tgt
+}
+
+// mergeMaps merges two maps. The `itgt` parameter is for handling go-yaml's
+// insistence on parsing nested structures as `map[interface{}]interface{}`
+// instead of using a `string` as the key for nest structures beyond one level
+// deep. Both map types are supported as there is a go-yaml fork that uses
+// `map[string]interface{}` instead.
+func mergeMaps(
+	src, tgt map[string]interface{}, itgt map[interface{}]interface{}) {
+	for sk, sv := range src {
+		tk := keyExists(sk, tgt)
+		if tk == "" {
+			jww.TRACE.Printf("tk=\"\", tgt[%s]=%v", sk, sv)
+			tgt[sk] = sv
+			if itgt != nil {
+				itgt[sk] = sv
+			}
+			continue
+		}
+
+		tv, ok := tgt[tk]
+		if !ok {
+			jww.TRACE.Printf("tgt[%s] != ok, tgt[%s]=%v", tk, sk, sv)
+			tgt[sk] = sv
+			if itgt != nil {
+				itgt[sk] = sv
+			}
+			continue
+		}
+
+		svType := reflect.TypeOf(sv)
+		tvType := reflect.TypeOf(tv)
+		if svType != tvType {
+			jww.ERROR.Printf(
+				"svType != tvType; key=%s, st=%v, tt=%v, sv=%v, tv=%v",
+				sk, svType, tvType, sv, tv)
+			continue
+		}
+
+		jww.TRACE.Printf("processing key=%s, st=%v, tt=%v, sv=%v, tv=%v",
+			sk, svType, tvType, sv, tv)
+
+		switch ttv := tv.(type) {
+		case map[interface{}]interface{}:
+			jww.TRACE.Printf("merging maps (must convert)")
+			tsv := sv.(map[interface{}]interface{})
+			ssv := castToMapStringInterface(tsv)
+			stv := castToMapStringInterface(ttv)
+			mergeMaps(ssv, stv, ttv)
+		case map[string]interface{}:
+			jww.TRACE.Printf("merging maps")
+			mergeMaps(sv.(map[string]interface{}), ttv, nil)
+		default:
+			jww.TRACE.Printf("setting value")
+			tgt[tk] = sv
+			if itgt != nil {
+				itgt[tk] = sv
+			}
+		}
+	}
 }
 
 // Prints all configuration registries for debugging
