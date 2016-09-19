@@ -75,7 +75,7 @@ func runDeployBot() {
 					continue
 				}
 				images := strings.FieldsFunc(publish.Matches[0], func(c rune) bool {
-					return !unicode.IsLetter(c)
+					return !unicode.IsLetter(c) && !unicode.IsDigit(c)
 				})
 				tag := publish.Matches[1]
 				branch := publish.Matches[2]
