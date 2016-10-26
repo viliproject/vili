@@ -220,9 +220,6 @@ func (d *Deployment) Init(env, app, username string, trigger bool) error {
 			return err
 		}
 		pods, _, _ := getPodsFromPodList(kubePods)
-		if d.DesiredReplicas == 0 {
-			d.DesiredReplicas = int(*deployment.Spec.Replicas)
-		}
 		d.OriginalPods = pods
 		d.FromPods = pods
 		d.FromTag = imageTag
