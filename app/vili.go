@@ -194,14 +194,21 @@ func New() *App {
 		// set up the auth service
 		func() {
 			defer wg.Done()
-			err := auth.InitOktaAuthService(&auth.OktaConfig{
-				Entrypoint: config.GetString(config.OktaEntrypoint),
-				Issuer:     config.GetString(config.OktaIssuer),
-				Cert:       config.GetString(config.OktaCert),
-				Domain:     config.GetString(config.OktaDomain),
-			})
-			if err != nil {
-				log.Panic(err)
+			switch config.GetString(config.AuthService) {
+			case "okta":
+				err := auth.InitOktaAuthService(&auth.OktaConfig{
+					Entrypoint: config.GetString(config.OktaEntrypoint),
+					Issuer:     config.GetString(config.OktaIssuer),
+					Cert:       config.GetString(config.OktaCert),
+					Domain:     config.GetString(config.OktaDomain),
+				})
+				if err != nil {
+					log.Fatal(err)
+				}
+			case "null":
+				auth.InitNullAuthService()
+			default:
+				log.Fatalf("Unknown auth service %s", config.GetString(config.AuthService))
 			}
 		},
 		// set up the slack service

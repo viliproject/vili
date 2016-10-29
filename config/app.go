@@ -20,6 +20,7 @@ const (
 	LogJSON                 = "log-json"
 	RedisPort               = "redis-port"
 	RedisDB                 = "redis-db"
+	AuthService             = "auth-service"
 	OktaEntrypoint          = "okta-entrypoint"
 	OktaIssuer              = "okta-issuer"
 	OktaCert                = "okta-cert"
