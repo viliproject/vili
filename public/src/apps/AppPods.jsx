@@ -108,7 +108,7 @@ export class AppPods extends React.Component {
             return;
         }
         replicas = parseInt(replicas);
-        if _.isNaN(replicas) {
+        if (_.isNaN(replicas)) {
             return;
         }
         viliApi.apps.scale(this.props.params.env, this.props.params.app, replicas);
