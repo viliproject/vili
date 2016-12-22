@@ -54,12 +54,12 @@ export class TopNav extends React.Component {
                     <div className="navbar-header pull-left">
                         <Link className="navbar-brand" to="home">Vili</Link>
                     </div>
-                    <Nav key="user" ulClassName="user" pullRight={true}>
+                    <Nav key="user" className="user" pullRight={true}>
                         <NavDropdown id="user-dropdown" title={userText}>
                             <MenuItem title="Logout" href="/logout">Logout</MenuItem>
                         </NavDropdown>
                     </Nav>
-                    <Nav key="env" ulClassName="environment" pullRight={true}>
+                    <Nav key="env" className="environment" pullRight={true}>
                         <NavDropdown id="env-dropdown"
                                      title={(this.props.env && this.props.env.name) || <span className="text-danger">Select Environment</span>}>
                             {envElements}
