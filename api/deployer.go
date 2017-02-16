@@ -148,7 +148,11 @@ func (d *deployerSpec) resume() error {
 	deployment.Spec.Template.Spec.Containers[0].Image = imageName
 
 	if d.deployment.DesiredReplicas == 0 {
-		d.deployment.DesiredReplicas = int(*deployment.Spec.Replicas)
+		if d.fromRepliacSet != nil && d.fromReplicaSet.Spec.Replicas != nil {
+			d.deployment.DesiredReplicas = int(*d.fromReplicaSet.Spec.Replicas)
+		} else {
+			d.deployment.DesiredReplicas = int(*deployment.Spec.Replicas)
+		}
 		d.db.Child("desiredReplicas").Set(d.deployment.DesiredReplicas)
 	} else {
 		*deployment.Spec.Replicas = int32(d.deployment.DesiredReplicas)
