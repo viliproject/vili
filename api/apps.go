@@ -278,7 +278,7 @@ func appCreateServiceHandler(c *echo.Context) error {
 	return c.JSON(http.StatusOK, resp)
 }
 
-// DeploymentScaleRequest is a request to
+// DeploymentScaleRequest is a request to scale a deployment
 type DeploymentScaleRequest struct {
 	Replicas *int `json:"replicas"`
 }
