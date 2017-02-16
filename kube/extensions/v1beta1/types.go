@@ -29,7 +29,7 @@ import (
 // describes the attributes of a scale subresource
 type ScaleSpec struct {
 	// desired number of instances for the scaled object.
-	Replicas int32 `json:"replicas,omitempty" protobuf:"varint,1,opt,name=replicas"`
+	Replicas int32 `json:"replicas" protobuf:"varint,1,opt,name=replicas"`
 }
 
 // represents the current status of a scale subresource.
