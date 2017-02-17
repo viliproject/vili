@@ -20,7 +20,6 @@
     "gulp-mocha": "1.1.2",
     "gulp-watch": "1.2.1",
     "gutil": "1.6.4",
-    "highlight.js": "8.8.0",
     "hoops": "0.2.1",
     "human-size": "1.1.0",
     "json-gate": "0.8.22",
