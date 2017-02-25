@@ -209,9 +209,8 @@ export class AppsList extends React.Component {
             }
             var row = self.refs['row-' + appName];
             if (row && row.state.tag && !row.state.approval) {
-                var app = replicaSet.metadata.name;
                 var tag = replicaSet.spec.template.spec.containers[0].image.split(':')[1];
-                viliApi.releases.create(app, tag, {
+                viliApi.releases.create(appName, tag, {
                     url: url,
                 });
             }
@@ -231,9 +230,8 @@ export class AppsList extends React.Component {
             }
             var row = self.refs['row-' + appName];
             if (row && row.state.tag && row.state.approval) {
-                var app = replicaSet.metadata.name;
                 var tag = replicaSet.spec.template.spec.containers[0].image.split(':')[1];
-                viliApi.releases.delete(app, tag);
+                viliApi.releases.delete(appName, tag);
             }
         });
     }
