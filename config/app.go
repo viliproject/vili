@@ -13,8 +13,8 @@ const (
 	URI                     = "vili-uri"
 	StaticLiveReload        = "static-live-reload"
 	Environments            = "environments"
-	ProdEnvs                = "prod-envs"
-	ApprovalEnvs            = "approval-envs"
+	ApprovalProdEnvs        = "approval-prod-envs"
+	IgnoredEnvs             = "ignored-envs"
 	DefaultEnv              = "default-env"
 	LogDebug                = "log-debug"
 	LogJSON                 = "log-json"
@@ -25,9 +25,11 @@ const (
 	OktaIssuer              = "okta-issuer"
 	OktaCert                = "okta-cert"
 	OktaDomain              = "okta-domain"
+	HardcodedTokenUsers     = "hardcoded-token-users"
 	GithubToken             = "github-token"
 	GithubOwner             = "github-owner"
 	GithubRepo              = "github-repo"
+	GithubDefaultBranch     = "github-default-branch"
 	GithubContentsPath      = "github-contents-path"
 	RegistryURL             = "registry-url"
 	RegistryBranchDelimiter = "registry-branch-delimiter"
@@ -78,8 +80,7 @@ func InitApp() error {
 	SetDefault(ListenAddr, ":80")
 	SetDefault(ServerTimeout, time.Second*30)
 	SetDefault(SlackUsername, "vili")
-	SetDefault(ProdEnvs, "prod")
-	SetDefault(ApprovalEnvs, "preprod")
+	SetDefault(ApprovalProdEnvs, "preprod prod")
 	SetDefault(RegistryBranchDelimiter, "-")
 	SetDefault(DockerMode, "registry")
 	return Require(

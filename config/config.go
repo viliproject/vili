@@ -2,9 +2,10 @@ package config
 
 import (
 	"fmt"
-	"github.com/niccaluim/viper" // upstream pull request pending
 	"strings"
 	"time"
+
+	"github.com/volkangurel/viper"
 )
 
 // Init initializes the config
@@ -65,6 +66,17 @@ func GetDuration(key string) time.Duration { return viper.GetDuration(key) }
 // GetStringSlice is like Get but runs strings.Fields on the value.
 // Returns an empty slice if no value is found.
 func GetStringSlice(key string) []string { return viper.GetStringSlice(key) }
+
+// GetStringSliceMap converts a slice to a string->string map
+// Returns an empty map if no value is found.
+func GetStringSliceMap(key string) map[string]string {
+	slice := viper.GetStringSlice(key)
+	m := map[string]string{}
+	for i := 0; (i + 1) < len(slice); i += 2 {
+		m[slice[i]] = slice[i+1]
+	}
+	return m
+}
 
 // GetStringMap is only useful with JSON, YAML and TOML config files,
 // which we aren't using at the moment.
