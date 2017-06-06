@@ -7,58 +7,77 @@ import (
 	"github.com/airware/vili/errors"
 	"github.com/airware/vili/middleware"
 	"github.com/airware/vili/server"
-	"gopkg.in/labstack/echo.v1"
+	echo "gopkg.in/labstack/echo.v1"
 )
 
-// WaitGroup is the wait group to synchronize deployments and job runs
+// WaitGroup is the wait group to synchronize deployment rollouts
 var WaitGroup sync.WaitGroup
 
-// Exiting is a flag indicating that the server is exiting
-var Exiting = false
+// ExitingChan is a flag indicating that the server is exiting
+var ExitingChan = make(chan struct{})
 
 // AddHandlers adds api handlers to the server
 func AddHandlers(s *server.Server) {
 	envPrefix := "/api/v1/envs/:env/"
-	// apps
-	s.Echo().Get(envPrefix+"apps", envMiddleware(appsHandler))
-	s.Echo().Get(envPrefix+"apps/:app", envMiddleware(appHandler))
-	s.Echo().Post(envPrefix+"apps/:app/service", envMiddleware(appCreateServiceHandler))
-	s.Echo().Put(envPrefix+"apps/:app/scale", envMiddleware(appScaleHandler))
+	// deployments
+	s.Echo().Get(envPrefix+"deployments", envMiddleware(deploymentsGetHandler))
+	s.Echo().Get(envPrefix+"deployments/:deployment/repository", envMiddleware(deploymentRepositoryGetHandler))
+	s.Echo().Get(envPrefix+"deployments/:deployment/spec", envMiddleware(deploymentSpecGetHandler))
+	s.Echo().Get(envPrefix+"deployments/:deployment/service", envMiddleware(deploymentServiceGetHandler))
+	s.Echo().Post(envPrefix+"deployments/:deployment/service", envMiddleware(deploymentServiceCreateHandler))
+	s.Echo().Put(envPrefix+"deployments/:deployment/:action", envMiddleware(deploymentActionHandler))
+
+	// rollouts
+	s.Echo().Post(envPrefix+"deployments/:deployment/rollouts", envMiddleware(rolloutCreateHandler))
+
+	// replica sets
+	s.Echo().Get(envPrefix+"replicasets", envMiddleware(replicaSetsGetHandler))
 
 	// jobs
-	s.Echo().Get(envPrefix+"jobs/:job", envMiddleware(jobHandler))
+	s.Echo().Get(envPrefix+"jobs", envMiddleware(jobsGetHandler))
+	s.Echo().Delete(envPrefix+"jobs/:job", envMiddleware(jobDeleteHandler))
+	s.Echo().Get(envPrefix+"jobs/:job/repository", envMiddleware(jobRepositoryGetHandler))
+	s.Echo().Get(envPrefix+"jobs/:job/spec", envMiddleware(jobSpecGetHandler))
 
-	// nodes
-	s.Echo().Get(envPrefix+"nodes", envMiddleware(nodesHandler))
-	s.Echo().Get(envPrefix+"nodes/:node", envMiddleware(nodeHandler))
-	s.Echo().Put(envPrefix+"nodes/:node/:state", envMiddleware(nodeStateEditHandler))
+	// runs
+	s.Echo().Post(envPrefix+"jobs/:job/runs", envMiddleware(jobRunCreateHandler))
+	// s.Echo().Get(envPrefix+"jobs/:job/runs", envMiddleware(jobRunsGetHandler))
+	// s.Echo().Post(envPrefix+"jobs/:job/runs/:run/:action", envMiddleware(jobRunActionHandler))
+
+	// configmaps
+	s.Echo().Get(envPrefix+"configmaps", envMiddleware(configmapsGetHandler))
+	s.Echo().Get(envPrefix+"configmaps/:configmap/spec", envMiddleware(configmapSpecGetHandler))
+	s.Echo().Post(envPrefix+"configmaps/:configmap", envMiddleware(configmapCreateHandler))
+	s.Echo().Delete(envPrefix+"configmaps/:configmap", envMiddleware(configmapDeleteHandler))
+	s.Echo().Put(envPrefix+"configmaps/:configmap/keys", envMiddleware(configmapSetKeysHandler))
+	s.Echo().Delete(envPrefix+"configmaps/:configmap/:key", envMiddleware(configmapDeleteKeyHandler))
 
 	// pods
 	s.Echo().Get(envPrefix+"pods", envMiddleware(podsHandler))
-	s.Echo().Get(envPrefix+"pods/:pod", envMiddleware(podHandler))
+	s.Echo().Get(envPrefix+"pods/:pod/log", envMiddleware(podLogHandler))
 	s.Echo().Delete(envPrefix+"pods/:pod", envMiddleware(podDeleteHandler))
 
-	// deployments
-	s.Echo().Post(envPrefix+"apps/:app/deployments", envMiddleware(deploymentCreateHandler))
-	s.Echo().Put(envPrefix+"apps/:app/deployments/:deployment/rollout", envMiddleware(deploymentRolloutEditHandler))
-	s.Echo().Post(envPrefix+"apps/:app/deployments/:deployment/:action", envMiddleware(deploymentActionHandler))
-
-	// runs
-	s.Echo().Post(envPrefix+"jobs/:job/runs", envMiddleware(runCreateHandler))
-	s.Echo().Post(envPrefix+"jobs/:job/runs/:run/:action", envMiddleware(runActionHandler))
+	// nodes
+	s.Echo().Get(envPrefix+"nodes", envMiddleware(nodesGetHandler))
+	s.Echo().Put(envPrefix+"nodes/:node/:state", envMiddleware(nodeStateEditHandler))
 
 	// releases
-	s.Echo().Post("/api/v1/releases/:app/:tag", middleware.RequireUser(releaseCreateHandler))
-	s.Echo().Delete("/api/v1/releases/:app/:tag", middleware.RequireUser(releaseDeleteHandler))
+	s.Echo().Get(envPrefix+"releases", envMiddleware(releasesGetHandler))
+	s.Echo().Get(envPrefix+"releases/spec", envMiddleware(releaseSpecGetHandler))
+	s.Echo().Post(envPrefix+"releases", envMiddleware(releaseCreateHandler))
+	s.Echo().Delete(envPrefix+"releases/:release", envMiddleware(releaseDeleteHandler))
+	s.Echo().Put(envPrefix+"releases/:release/deploy", envMiddleware(releaseDeployHandler))
+
+	// branches
+	s.Echo().Get("/api/v1/branches", middleware.RequireUser(branchesGetHandler))
 
 	// environments
-	s.Echo().Get("/api/v1/envBranches", middleware.RequireUser(environmentBranchesHandler))
-	s.Echo().Get("/api/v1/envSpec", middleware.RequireUser(environmentSpecHandler))
 	s.Echo().Post("/api/v1/environments", middleware.RequireUser(environmentCreateHandler))
 	s.Echo().Delete("/api/v1/environments/:env", middleware.RequireUser(environmentDeleteHandler))
+	s.Echo().Get("/api/v1/environments/spec", middleware.RequireUser(environmentSpecHandler))
 
 	// catchall not found handler
-	s.Echo().Get("/api/*", middleware.RequireUser(notFoundHandler))
+	s.Echo().Get("/api/**", middleware.RequireUser(notFoundHandler))
 }
 
 func envMiddleware(h echo.HandlerFunc) echo.HandlerFunc {
@@ -71,5 +90,5 @@ func envMiddleware(h echo.HandlerFunc) echo.HandlerFunc {
 }
 
 func notFoundHandler(c *echo.Context) error {
-	return server.ErrorResponse(c, errors.NotFoundError(""))
+	return server.ErrorResponse(c, errors.NotFound(""))
 }

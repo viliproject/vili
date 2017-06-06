@@ -7,10 +7,11 @@ import (
 
 	"github.com/airware/vili/kube/extensions/v1beta1"
 	"github.com/airware/vili/kube/unversioned"
+	"github.com/airware/vili/log"
 )
 
 // Deployments is the default deployments service instance
-var Deployments = &DeploymentsService{}
+var Deployments = new(DeploymentsService)
 
 // DeploymentsService is the kubernetes service to interace with deployments
 type DeploymentsService struct {
@@ -22,12 +23,8 @@ func (s *DeploymentsService) List(env string, query *url.Values) (*v1beta1.Deplo
 	if err != nil {
 		return nil, nil, invalidEnvError(env)
 	}
-	resp := &v1beta1.DeploymentList{}
-	path := "deployments"
-	if query != nil {
-		path += "?" + query.Encode()
-	}
-	status, err := client.makeRequest("GET", path, nil, resp)
+	resp := new(v1beta1.DeploymentList)
+	status, err := client.unmarshalRequest("GET", "deployments", query, nil, resp)
 	if status != nil || err != nil {
 		return nil, status, err
 	}
@@ -40,8 +37,8 @@ func (s *DeploymentsService) Get(env, name string) (*v1beta1.Deployment, *unvers
 	if err != nil {
 		return nil, nil, invalidEnvError(env)
 	}
-	resp := &v1beta1.Deployment{}
-	status, err := client.makeRequest("GET", "deployments/"+name, nil, resp)
+	resp := new(v1beta1.Deployment)
+	status, err := client.unmarshalRequest("GET", "deployments/"+name, nil, nil, resp)
 	if status != nil || err != nil {
 		return nil, status, err
 	}
@@ -58,10 +55,11 @@ func (s *DeploymentsService) Create(env string, data *v1beta1.Deployment) (*v1be
 	if err != nil {
 		return nil, nil, err
 	}
-	resp := &v1beta1.Deployment{}
-	status, err := client.makeRequest(
+	resp := new(v1beta1.Deployment)
+	status, err := client.unmarshalRequest(
 		"POST",
 		"deployments",
+		nil,
 		bytes.NewReader(dataBytes),
 		resp,
 	)
@@ -81,10 +79,11 @@ func (s *DeploymentsService) Replace(env, name string, data *v1beta1.Deployment)
 	if err != nil {
 		return nil, nil, err
 	}
-	resp := &v1beta1.Deployment{}
-	status, err := client.makeRequest(
+	resp := new(v1beta1.Deployment)
+	status, err := client.unmarshalRequest(
 		"PUT",
 		"deployments/"+name,
+		nil,
 		bytes.NewReader(dataBytes),
 		resp,
 	)
@@ -104,10 +103,11 @@ func (s *DeploymentsService) Scale(env, name string, data *v1beta1.Scale) (*v1be
 	if err != nil {
 		return nil, nil, err
 	}
-	resp := &v1beta1.Scale{}
-	status, err := client.makeRequest(
+	resp := new(v1beta1.Scale)
+	status, err := client.unmarshalRequest(
 		"PATCH",
 		"deployments/"+name+"/scale",
+		nil,
 		bytes.NewReader(dataBytes),
 		resp,
 	)
@@ -127,10 +127,12 @@ func (s *DeploymentsService) Rollback(env, name string, data *v1beta1.Deployment
 	if err != nil {
 		return nil, nil, err
 	}
-	resp := &v1beta1.DeploymentRollback{}
-	status, err := client.makeRequest(
+	log.Warn(string(dataBytes))
+	resp := new(v1beta1.DeploymentRollback)
+	status, err := client.unmarshalRequest(
 		"POST",
 		"deployments/"+name+"/rollback",
+		nil,
 		bytes.NewReader(dataBytes),
 		resp,
 	)
@@ -146,9 +148,34 @@ func (s *DeploymentsService) Delete(env, name string) (*unversioned.Status, erro
 	if err != nil {
 		return nil, invalidEnvError(env)
 	}
-	status, err := client.makeRequest("DELETE", "deployments/"+name, nil, nil)
+	status, err := client.unmarshalRequest("DELETE", "deployments/"+name, nil, nil, nil)
 	if status != nil || err != nil {
 		return status, err
 	}
 	return nil, nil
+}
+
+// DeploymentEvent describes an event on a deployment
+type DeploymentEvent struct {
+	Type   WatchEventType          `json:"type"`
+	Object *v1beta1.Deployment     `json:"object"`
+	List   *v1beta1.DeploymentList `json:"list"`
+}
+
+// Watch watches deployments in `env`
+func (s *DeploymentsService) Watch(env string, query *url.Values) (watcher *Watcher, err error) {
+	return watchObjectStream(env, "deployments", query, func(eventType WatchEventType, body json.RawMessage) (interface{}, error) {
+		if eventType == WatchEventInit {
+			event := &DeploymentEvent{
+				Type: eventType,
+				List: new(v1beta1.DeploymentList),
+			}
+			return event, json.Unmarshal(body, event.List)
+		}
+		event := &DeploymentEvent{
+			Type:   eventType,
+			Object: new(v1beta1.Deployment),
+		}
+		return event, json.Unmarshal(body, event.Object)
+	})
 }

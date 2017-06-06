@@ -31,8 +31,8 @@ func InternalServerError() *ErrorResponse {
 	}
 }
 
-// UnauthorizedError returns an unauthorized error response
-func UnauthorizedError(message string) *ErrorResponse {
+// Unauthorized returns an unauthorized error response
+func Unauthorized(message string) *ErrorResponse {
 	if message == "" {
 		message = "Unauthorized"
 	}
@@ -43,8 +43,8 @@ func UnauthorizedError(message string) *ErrorResponse {
 	}
 }
 
-// ForbiddenError returns a forbidden error response
-func ForbiddenError(message string) *ErrorResponse {
+// Forbidden returns a forbidden error response
+func Forbidden(message string) *ErrorResponse {
 	if message == "" {
 		message = "Forbidden"
 	}
@@ -55,8 +55,8 @@ func ForbiddenError(message string) *ErrorResponse {
 	}
 }
 
-// BadRequestError returns a bad request error response
-func BadRequestError(message string) *ErrorResponse {
+// BadRequest returns a bad request error response
+func BadRequest(message string) *ErrorResponse {
 	if message == "" {
 		message = "Bad request"
 	}
@@ -67,8 +67,8 @@ func BadRequestError(message string) *ErrorResponse {
 	}
 }
 
-// NotFoundError returns a not found error response
-func NotFoundError(message string) *ErrorResponse {
+// NotFound returns a not found error response
+func NotFound(message string) *ErrorResponse {
 	if message == "" {
 		message = "Not found"
 	}
@@ -79,8 +79,20 @@ func NotFoundError(message string) *ErrorResponse {
 	}
 }
 
-// ValidationError returns a validation error response
-func ValidationError(message string, params map[string][]string) *ErrorResponse {
+// MethodNotAllowed returns a method not allowed error response
+func MethodNotAllowed(message string) *ErrorResponse {
+	if message == "" {
+		message = "Method not allowed"
+	}
+	return &ErrorResponse{
+		Status:    http.StatusMethodNotAllowed,
+		ErrorType: "method_not_allowed",
+		Message:   message,
+	}
+}
+
+// Validation returns a validation error response
+func Validation(message string, params map[string][]string) *ErrorResponse {
 	if message == "" {
 		message = "Validation error"
 	}
@@ -92,26 +104,14 @@ func ValidationError(message string, params map[string][]string) *ErrorResponse 
 	}
 }
 
-// ConflictError returns a not found error response
-func ConflictError(message string) *ErrorResponse {
+// Conflict returns a not found error response
+func Conflict(message string) *ErrorResponse {
 	if message == "" {
 		message = "Conflict"
 	}
 	return &ErrorResponse{
 		Status:    http.StatusConflict,
 		ErrorType: "conflict",
-		Message:   message,
-	}
-}
-
-// RequestTooLargeError returns a request too large error response
-func RequestTooLargeError(message string) *ErrorResponse {
-	if message == "" {
-		message = "Request entity too large"
-	}
-	return &ErrorResponse{
-		Status:    http.StatusRequestEntityTooLarge,
-		ErrorType: "request_entity_too_large",
 		Message:   message,
 	}
 }

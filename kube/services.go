@@ -9,7 +9,7 @@ import (
 )
 
 // Services is the default services service instance
-var Services = &ServicesService{}
+var Services = new(ServicesService)
 
 // ServicesService is the kubernetes service to interace with services
 type ServicesService struct {
@@ -21,8 +21,8 @@ func (s *ServicesService) List(env string) (*v1.ServiceList, error) {
 	if err != nil {
 		return nil, invalidEnvError(env)
 	}
-	resp := &v1.ServiceList{}
-	_, err = client.makeRequest("GET", "replicationservices", nil, resp)
+	resp := new(v1.ServiceList)
+	_, err = client.unmarshalRequest("GET", "replicationservices", nil, nil, resp)
 	if err != nil {
 		return nil, err
 	}
@@ -35,8 +35,8 @@ func (s *ServicesService) Get(env, name string) (*v1.Service, *unversioned.Statu
 	if err != nil {
 		return nil, nil, invalidEnvError(env)
 	}
-	resp := &v1.Service{}
-	status, err := client.makeRequest("GET", "services/"+name, nil, resp)
+	resp := new(v1.Service)
+	status, err := client.unmarshalRequest("GET", "services/"+name, nil, nil, resp)
 	if status != nil || err != nil {
 		return nil, status, err
 	}
@@ -53,10 +53,11 @@ func (s *ServicesService) Create(env, name string, data *v1.Service) (*v1.Servic
 	if err != nil {
 		return nil, err
 	}
-	resp := &v1.Service{}
-	_, err = client.makeRequest(
+	resp := new(v1.Service)
+	_, err = client.unmarshalRequest(
 		"POST",
 		"services",
+		nil,
 		bytes.NewReader(dataBytes),
 		resp,
 	)

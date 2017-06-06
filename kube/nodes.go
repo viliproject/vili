@@ -10,28 +10,24 @@ import (
 )
 
 // Nodes is the default nodes service instance
-var Nodes = &NodesService{}
+var Nodes = new(NodesService)
 
 // NodesService is the kubernetes service to interace with nodes
 type NodesService struct {
 }
 
 // List fetches the list of nodes in `env`
-func (s *NodesService) List(env string, query *url.Values) (*v1.NodeList, error) {
+func (s *NodesService) List(env string, query *url.Values) (*v1.NodeList, *unversioned.Status, error) {
 	client, err := getClient(env)
 	if err != nil {
-		return nil, invalidEnvError(env)
+		return nil, nil, invalidEnvError(env)
 	}
-	resp := &v1.NodeList{}
-	path := "nodes"
-	if query != nil {
-		path += "?" + query.Encode()
-	}
-	_, err = client.makeRequest("GET", path, nil, resp)
+	resp := new(v1.NodeList)
+	_, err = client.unmarshalRequest("GET", "nodes", query, nil, resp)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return resp, nil
+	return resp, nil, nil
 }
 
 // Get fetches the node in `env` with `name`
@@ -40,8 +36,8 @@ func (s *NodesService) Get(env, name string) (*v1.Node, *unversioned.Status, err
 	if err != nil {
 		return nil, nil, invalidEnvError(env)
 	}
-	resp := &v1.Node{}
-	status, err := client.makeRequest("GET", "nodes/"+name, nil, resp)
+	resp := new(v1.Node)
+	status, err := client.unmarshalRequest("GET", "nodes/"+name, nil, nil, resp)
 	if status != nil || err != nil {
 		return nil, status, err
 	}
@@ -58,10 +54,11 @@ func (s *NodesService) Patch(env, name string, data *v1.Node) (*v1.Node, error) 
 	if err != nil {
 		return nil, err
 	}
-	resp := &v1.Node{}
-	_, err = client.makeRequest(
+	resp := new(v1.Node)
+	_, err = client.unmarshalRequest(
 		"PATCH",
 		"nodes/"+name,
+		nil,
 		bytes.NewReader(dataBytes),
 		resp,
 	)
@@ -88,10 +85,11 @@ func (s *NodesService) PatchUnschedulable(env, name string, unschedulable bool) 
 	if err != nil {
 		return nil, err
 	}
-	resp := &v1.Node{}
-	_, err = client.makeRequest(
+	resp := new(v1.Node)
+	_, err = client.unmarshalRequest(
 		"PATCH",
 		"nodes/"+name,
+		nil,
 		bytes.NewReader(dataBytes),
 		resp,
 	)
@@ -109,4 +107,29 @@ type Node struct {
 // NodeSpec is a custom struct representing a kubernetes NodeSpec
 type NodeSpec struct {
 	Unschedulable bool `json:"unschedulable"`
+}
+
+// NodeEvent describes an event on a node
+type NodeEvent struct {
+	Type   WatchEventType `json:"type"`
+	Object *v1.Node       `json:"object"`
+	List   *v1.NodeList   `json:"list"`
+}
+
+// Watch watches nodes in `env`
+func (s *NodesService) Watch(env string, query *url.Values) (watcher *Watcher, err error) {
+	return watchObjectStream(env, "nodes", query, func(eventType WatchEventType, body json.RawMessage) (interface{}, error) {
+		if eventType == WatchEventInit {
+			event := &NodeEvent{
+				Type: eventType,
+				List: new(v1.NodeList),
+			}
+			return event, json.Unmarshal(body, event.List)
+		}
+		event := &NodeEvent{
+			Type:   eventType,
+			Object: new(v1.Node),
+		}
+		return event, json.Unmarshal(body, event.Object)
+	})
 }

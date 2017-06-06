@@ -5,43 +5,42 @@ import (
 	"net/http"
 	"net/url"
 
+	"golang.org/x/net/websocket"
+
 	"github.com/airware/vili/errors"
 	"github.com/airware/vili/kube"
 	"github.com/airware/vili/server"
-	"gopkg.in/labstack/echo.v1"
+	echo "gopkg.in/labstack/echo.v1"
 )
 
-var nodesQueryParams = []string{"labelSelector", "fieldSelector"}
+var (
+	nodesQueryParams = []string{"labelSelector", "fieldSelector", "resourceVersion"}
+)
 
-func nodesHandler(c *echo.Context) error {
+func nodesGetHandler(c *echo.Context) error {
 	env := c.Param("env")
+	query := filterQueryFields(c, nodesQueryParams)
 
-	query := &url.Values{}
-	for _, param := range nodesQueryParams {
-		val := c.Request().URL.Query().Get(param)
-		if val != "" {
-			query.Add(param, val)
-		}
+	if c.Request().URL.Query().Get("watch") != "" {
+		// watch nodes and return over websocket
+		var err error
+		websocket.Handler(func(ws *websocket.Conn) {
+			err = nodesWatchHandler(ws, env, query)
+			ws.Close()
+		}).ServeHTTP(c.Response(), c.Request())
+		return err
 	}
-	resp, err := kube.Nodes.List(env, query)
+
+	// otherwise, return the nodes list
+	resp, _, err := kube.Nodes.List(env, query)
 	if err != nil {
 		return err
 	}
 	return c.JSON(http.StatusOK, resp)
 }
 
-func nodeHandler(c *echo.Context) error {
-	env := c.Param("env")
-	node := c.Param("node")
-
-	resp, status, err := kube.Nodes.Get(env, node)
-	if err != nil {
-		return err
-	}
-	if status != nil {
-		return c.JSON(http.StatusOK, status)
-	}
-	return c.JSON(http.StatusOK, resp)
+func nodesWatchHandler(ws *websocket.Conn, env string, query *url.Values) error {
+	return apiWatchHandler(ws, env, query, kube.Nodes.Watch)
 }
 
 func nodeStateEditHandler(c *echo.Context) error {
@@ -55,7 +54,7 @@ func nodeStateEditHandler(c *echo.Context) error {
 	} else if state == "disable" {
 		unschedulable = true
 	} else {
-		return server.ErrorResponse(c, errors.BadRequestError(fmt.Sprintf("Invalid state for node: %s", state)))
+		return server.ErrorResponse(c, errors.BadRequest(fmt.Sprintf("Invalid state for node: %s", state)))
 	}
 
 	resp, err := kube.Nodes.PatchUnschedulable(env, node, unschedulable)

@@ -91,11 +91,23 @@ func (s *Server) StopTest() {
 
 // httpErrorHandler is identical to echo.DefaultHTTPErrorHandler except for using the right logger
 func (s *Server) httpErrorHandler(err error, c *echo.Context) {
-	if er, ok := err.(*errors.ErrorResponse); ok {
-		ErrorResponse(c, er)
-		return
-	}
 	code := http.StatusInternalServerError
+	switch e := err.(type) {
+	case *errors.ErrorResponse:
+		ErrorResponse(c, e)
+		return
+	case *echo.HTTPError:
+		code = e.Code()
+		if code == http.StatusNotFound {
+			c.JSON(code, errors.NotFound(""))
+			return
+		} else if code == http.StatusMethodNotAllowed {
+			c.JSON(code, errors.MethodNotAllowed(""))
+			return
+		}
+	default:
+		log.Error(e)
+	}
 	msg := http.StatusText(code)
 	if he, ok := err.(*echo.HTTPError); ok {
 		code = he.Code()
@@ -107,7 +119,6 @@ func (s *Server) httpErrorHandler(err error, c *echo.Context) {
 	if !c.Response().Committed() {
 		http.Error(c.Response(), msg, code)
 	}
-	log.Error(err)
 }
 
 // Echo returns the echo instance for this server

@@ -4,7 +4,6 @@ RUN apk add --update curl ca-certificates && update-ca-certificates
 RUN apk add xmlsec --update-cache --repository http://dl-3.alpinelinux.org/alpine/edge/testing/
 RUN ln -s libxmlsec1-openssl.so.1 /usr/lib/libxmlsec1-openssl.so
 
-
 ENV HOME=/app
 ENV GO15VENDOREXPERIMENT 1
 ENV BUILD_DIR=/app/build

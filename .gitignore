@@ -3,3 +3,4 @@ coverage
 *.test
 devenv.sh
 node_modules/
+secrets/

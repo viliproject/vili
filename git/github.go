@@ -1,6 +1,7 @@
 package git
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -10,9 +11,10 @@ import (
 
 // GithubConfig is the configuration for the github client
 type GithubConfig struct {
-	Token string
-	Owner string
-	Repo  string
+	Token         string
+	Owner         string
+	Repo          string
+	DefaultBranch string
 }
 
 type githubService struct {
@@ -33,11 +35,11 @@ func InitGithub(config *GithubConfig) {
 }
 
 func (s *githubService) getContents(branch, path string) (*github.RepositoryContent, []*github.RepositoryContent, *github.Response, error) {
-	var opts *github.RepositoryContentGetOptions
-	if branch != "" {
-		opts = &github.RepositoryContentGetOptions{Ref: branch}
+	if branch == "" {
+		branch = s.config.DefaultBranch
 	}
-	return s.client.Repositories.GetContents(s.config.Owner, s.config.Repo, path, opts)
+	opts := &github.RepositoryContentGetOptions{Ref: branch}
+	return s.client.Repositories.GetContents(context.TODO(), s.config.Owner, s.config.Repo, path, opts)
 }
 
 // Branches returns a list of branches for the repository
@@ -45,7 +47,7 @@ func (s *githubService) Branches() ([]string, error) {
 	var opts *github.ListOptions
 	var ret []string
 	for {
-		branches, resp, err := s.client.Repositories.ListBranches(s.config.Owner, s.config.Repo, opts)
+		branches, resp, err := s.client.Repositories.ListBranches(context.TODO(), s.config.Owner, s.config.Repo, opts)
 		if err != nil {
 			return nil, err
 		}
@@ -63,20 +65,20 @@ func (s *githubService) Branches() ([]string, error) {
 }
 
 // Contents returns the contents of the file at the given path
-func (s *githubService) Contents(branch, path string) ([]byte, error) {
+func (s *githubService) Contents(branch, path string) (string, error) {
 	file, _, _, err := s.getContents(branch, path)
 	if err != nil {
 		if errResp, ok := err.(*github.ErrorResponse); ok {
 			if errResp.Response.StatusCode == 404 {
-				return nil, nil
+				return "", nil
 			}
 		}
-		return nil, err
+		return "", err
 	}
 	if file == nil {
-		return nil, fmt.Errorf("%s is a directory", path)
+		return "", fmt.Errorf("%s is a directory", path)
 	}
-	return file.Decode()
+	return file.GetContent()
 }
 
 // List returns a list of subpaths of the given directory path
@@ -94,8 +96,9 @@ func (s *githubService) List(branch, path string) ([]string, error) {
 		return nil, fmt.Errorf("%s is a file", path)
 	}
 	var paths []string
+	prefix := strings.Split(path, "?")[0]
 	for _, file := range directory {
-		paths = append(paths, strings.TrimPrefix(strings.TrimPrefix(*file.Path, path), "/"))
+		paths = append(paths, strings.TrimPrefix(strings.TrimPrefix(*file.Path, prefix), "/"))
 	}
 	return paths, nil
 }

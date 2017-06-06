@@ -5,8 +5,8 @@ export BUILD_DIR=$HOME/go/src/github.com/airware/vili/public/build
 export STATIC_LIVE_RELOAD=1
 
 export ENVIRONMENTS="tools staging preprod prodtools prod"
-export PROD_ENVS="prod prodtools"
-export APPROVAL_ENVS="preprod tools"
+export APPROVAL_PROD_ENVS="preprod prod tools prodtools"
+export IGNORED_ENVS="myenv"
 export DEFAULT_ENV="staging"
 
 export LOG_DEBUG=1
@@ -18,6 +18,8 @@ export OKTA_ENTRYPOINT=https://airware.okta.com/app/entrypoint
 export OKTA_ISSUER=http://www.okta.com/issuer
 export OKTA_CERT="cert"
 export OKTA_DOMAIN=airware.com
+
+export HARDCODED_TOKEN_USERS="mytoken myusername"
 
 export GITHUB_TOKEN=token
 export GITHUB_OWNER=airware

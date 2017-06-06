@@ -10,7 +10,7 @@ import (
 )
 
 // Namespaces is the default namespaces service instance
-var Namespaces = &NamespacesService{}
+var Namespaces = new(NamespacesService)
 
 // NamespacesService is the kubernetes service to interace with namespaces
 type NamespacesService struct {
@@ -22,12 +22,8 @@ func (s *NamespacesService) List(query *url.Values) (*v1.NamespaceList, *unversi
 	if err != nil {
 		return nil, nil, err
 	}
-	resp := &v1.NamespaceList{}
-	path := "namespaces"
-	if query != nil {
-		path += "?" + query.Encode()
-	}
-	status, err := client.makeRequest("GET", path, nil, resp)
+	resp := new(v1.NamespaceList)
+	status, err := client.unmarshalRequest("GET", "namespaces", query, nil, resp)
 	if status != nil || err != nil {
 		return nil, status, err
 	}
@@ -40,8 +36,8 @@ func (s *NamespacesService) Get(name string) (*v1.Namespace, *unversioned.Status
 	if err != nil {
 		return nil, nil, err
 	}
-	resp := &v1.Namespace{}
-	status, err := client.makeRequest("GET", "namespaces/"+name, nil, resp)
+	resp := new(v1.Namespace)
+	status, err := client.unmarshalRequest("GET", "namespaces/"+name, nil, nil, resp)
 	if status != nil || err != nil {
 		return nil, status, err
 	}
@@ -58,10 +54,11 @@ func (s *NamespacesService) Create(data *v1.Namespace) (*v1.Namespace, *unversio
 	if err != nil {
 		return nil, nil, err
 	}
-	resp := &v1.Namespace{}
-	status, err := client.makeRequest(
+	resp := new(v1.Namespace)
+	status, err := client.unmarshalRequest(
 		"POST",
 		"namespaces",
+		nil,
 		bytes.NewReader(dataBytes),
 		resp,
 	)
@@ -77,7 +74,7 @@ func (s *NamespacesService) Delete(name string) (*unversioned.Status, error) {
 	if err != nil {
 		return nil, err
 	}
-	status, err := client.makeRequest("DELETE", "namespaces/"+name, nil, nil)
+	status, err := client.unmarshalRequest("DELETE", "namespaces/"+name, nil, nil, nil)
 	if status != nil || err != nil {
 		return status, err
 	}

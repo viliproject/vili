@@ -50,27 +50,33 @@ const (
 	SlackDeployUsernames    = "slack-deploy-usernames"
 )
 
-// KubernetesURL returns the config variable name for robot tokens
+// KubernetesURL returns the config variable name for the kube url
 func KubernetesURL(env string) string {
 	return fmt.Sprintf("kube-%s-url", env)
 }
 
-// KubernetesNamespace returns the config variable name for robot tokens
+// KubernetesNamespace returns the config variable name for the kube namespace
 func KubernetesNamespace(env string) string {
 	return fmt.Sprintf("kube-%s-namespace", env)
 }
 
-// KubernetesClientCert returns the config variable name for robot tokens
+// KubernetesClientCert returns the config variable name for kube certs
 func KubernetesClientCert(env string) string {
 	return fmt.Sprintf("kube-%s-client-cert", env)
 }
 
-// KubernetesClientKey returns the config variable name for robot tokens
+// KubernetesClientCACert returns the config variable name for kube CA certs
+func KubernetesClientCACert(env string) string {
+	return fmt.Sprintf("kube-%s-client-ca-cert", env)
+}
+
+// KubernetesClientKey returns the config variable name for kube private keys
 func KubernetesClientKey(env string) string {
 	return fmt.Sprintf("kube-%s-client-key", env)
 }
 
-// GithubEnvContentsPath returns the config variable name for robot tokens
+// GithubEnvContentsPath returns the config variable name for the contents path for
+// a given environment
 func GithubEnvContentsPath(env string) string {
 	return fmt.Sprintf("github-envs-%s-contents-path", env)
 }

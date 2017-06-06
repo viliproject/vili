@@ -2,7 +2,7 @@ package templates
 
 import (
 	"bytes"
-	"text/template"
+	"html/template"
 
 	"github.com/airware/vili/kube/yaml"
 )
@@ -12,11 +12,24 @@ var service Service
 // Service is a template service that returns controller and pod templates for given
 // environments
 type Service interface {
+	Jobs(env, branch string) ([]string, error)
+	Job(env, branch, name string) (Template, error)
 	Deployments(env, branch string) ([]string, error)
 	Deployment(env, branch, name string) (Template, error)
-	Pods(env, branch string) ([]string, error)
-	Pod(env, branch, name string) (Template, error)
+	ConfigMaps(env, branch string) ([]string, error)
+	ConfigMap(env, branch, name string) (Template, error)
+	Release(env string) (Template, error)
 	Environment(branch string) (Template, error)
+}
+
+// Jobs returns a list of jobs for the given environment
+func Jobs(env, branch string) ([]string, error) {
+	return service.Jobs(env, branch)
+}
+
+// Job returns a job for the given environment
+func Job(env, branch, name string) (Template, error) {
+	return service.Job(env, branch, name)
 }
 
 // Deployments returns a list of deployments for the given environment
@@ -29,14 +42,19 @@ func Deployment(env, branch, name string) (Template, error) {
 	return service.Deployment(env, branch, name)
 }
 
-// Pods returns a list of pods for the given environment
-func Pods(env, branch string) ([]string, error) {
-	return service.Pods(env, branch)
+// ConfigMaps returns a list of configMaps for the given environment
+func ConfigMaps(env, branch string) ([]string, error) {
+	return service.ConfigMaps(env, branch)
 }
 
-// Pod returns a list of pods for the given environment
-func Pod(env, branch, name string) (Template, error) {
-	return service.Pod(env, branch, name)
+// ConfigMap returns a configMap for the given environment
+func ConfigMap(env, branch, name string) (Template, error) {
+	return service.ConfigMap(env, branch, name)
+}
+
+// Release returns a release template for the given environment
+func Release(env string) (Template, error) {
+	return service.Release(env)
 }
 
 // Environment returns an environment template for the given branch
@@ -44,7 +62,7 @@ func Environment(branch string) (Template, error) {
 	return service.Environment(branch)
 }
 
-// Template is a yaml string template of a controller of a pod
+// Template is a yaml string template
 type Template string
 
 // Populate populates the template with variables and returns a new Template instance

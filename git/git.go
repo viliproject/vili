@@ -6,7 +6,7 @@ var service Service
 // from a repository
 type Service interface {
 	Branches() ([]string, error)
-	Contents(branch, path string) ([]byte, error)
+	Contents(branch, path string) (string, error)
 	List(branch, path string) ([]string, error)
 }
 
@@ -16,7 +16,7 @@ func Branches() ([]string, error) {
 }
 
 // Contents returns the contents of the file at the given path
-func Contents(branch, path string) ([]byte, error) {
+func Contents(branch, path string) (string, error) {
 	return service.Contents(branch, path)
 }
 

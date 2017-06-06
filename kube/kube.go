@@ -9,14 +9,20 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"strings"
 	"time"
 
 	"github.com/airware/vili/config"
+	"github.com/airware/vili/errors"
 	"github.com/airware/vili/kube/unversioned"
+	"github.com/airware/vili/log"
 )
+
+// ExitingChan is a flag indicating that the server is exiting
+var ExitingChan = make(chan struct{})
 
 var kubeconfig *Config
 var defaultClient *client
@@ -28,11 +34,12 @@ type Config struct {
 
 // EnvConfig is an environment's kubernetes configuration
 type EnvConfig struct {
-	URL        string
-	Namespace  string
-	Token      string
-	ClientCert string
-	ClientKey  string
+	URL          string
+	Namespace    string
+	Token        string
+	ClientCert   string
+	ClientCACert string
+	ClientKey    string
 
 	client *client
 }
@@ -138,6 +145,13 @@ func getDefaultClient() (*client, error) {
 				},
 				Timeout: 5 * time.Second,
 			},
+			httpClientNoTimeout: &http.Client{
+				Transport: &http.Transport{
+					TLSClientConfig: &tls.Config{
+						RootCAs: caCertPool,
+					},
+				},
+			},
 			url:   "https://kubernetes.default.svc.cluster.local",
 			token: string(token),
 		}
@@ -159,6 +173,9 @@ func Init(c *Config) error {
 			envConfig.Token = string(token)
 
 			caCert, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/ca.crt")
+			if err != nil {
+				return err
+			}
 			caCertPool := x509.NewCertPool()
 			caCertPool.AppendCertsFromPEM(caCert)
 			tr = &http.Transport{
@@ -177,7 +194,14 @@ func Init(c *Config) error {
 			if err != nil {
 				return err
 			}
+			caCert, err := ioutil.ReadFile(envConfig.ClientCACert)
+			if err != nil {
+				return err
+			}
+			caCertPool := x509.NewCertPool()
+			caCertPool.AppendCertsFromPEM(caCert)
 			tr.TLSClientConfig = &tls.Config{
+				RootCAs:      caCertPool,
 				Certificates: []tls.Certificate{cert},
 			}
 		}
@@ -186,6 +210,9 @@ func Init(c *Config) error {
 			httpClient: &http.Client{
 				Transport: tr,
 				Timeout:   5 * time.Second,
+			},
+			httpClientNoTimeout: &http.Client{
+				Transport: tr,
 			},
 			url:       envConfig.URL,
 			namespace: envConfig.Namespace,
@@ -196,24 +223,39 @@ func Init(c *Config) error {
 }
 
 type client struct {
-	httpClient *http.Client
-	url        string
-	token      string
-	namespace  string
+	httpClient          *http.Client
+	httpClientNoTimeout *http.Client
+	url                 string
+	token               string
+	namespace           string
 }
 
-func (c *client) makeRequestRaw(method, path string, body io.Reader) ([]byte, *unversioned.Status, error) {
+func (c *client) createRequest(method, path string, query *url.Values, body io.Reader, watch bool) (*http.Request, error) {
+	// get url string
 	apiBase := fmt.Sprintf("%s/api/v1/", c.url)
-	if strings.HasPrefix(path, "deployments") || strings.HasPrefix(path, "replicasets") {
+	if strings.HasPrefix(path, "deployments") ||
+		strings.HasPrefix(path, "replicasets") {
 		apiBase = fmt.Sprintf("%s/apis/extensions/v1beta1/", c.url)
+	}
+	if strings.HasPrefix(path, "jobs") {
+		apiBase = fmt.Sprintf("%s/apis/batch/v1/", c.url)
 	}
 	if !strings.HasPrefix(path, "namespace") && !strings.HasPrefix(path, "node") {
 		path = fmt.Sprintf("namespaces/%s/%s", c.namespace, path)
 	}
+	if watch && !strings.HasSuffix(path, "/log") {
+		path = "watch/" + path
+	}
 	urlStr := apiBase + path
+	if query != nil {
+		urlStr += "?" + query.Encode()
+	}
+	log.WithField("url", urlStr).Debug("making kubernetes request")
+
+	// create request
 	req, err := http.NewRequest(method, urlStr, body)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	if method == "PATCH" {
 		req.Header.Add("Content-Type", "application/merge-patch+json")
@@ -221,44 +263,56 @@ func (c *client) makeRequestRaw(method, path string, body io.Reader) ([]byte, *u
 	if c.token != "" {
 		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", c.token))
 	}
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, nil, err
-	}
-	defer resp.Body.Close()
-	respBody, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, nil, err
-	}
-	if resp.Header.Get("Content-Type") == "application/json" {
-		typeMeta := &unversioned.TypeMeta{}
-		err = json.Unmarshal(respBody, typeMeta)
-		if err != nil {
-			return nil, nil, err
-		}
-		if typeMeta.Kind == "Status" {
-			respStatus := &unversioned.Status{}
-			err = json.Unmarshal(respBody, respStatus)
-			if err != nil {
-				return nil, nil, err
-			}
-			return nil, respStatus, nil
-		}
-	}
-	return respBody, nil, nil
+	return req, nil
 }
 
-func (c *client) makeRequest(method, path string, body io.Reader, dest interface{}) (*unversioned.Status, error) {
-	respBody, status, err := c.makeRequestRaw(method, path, body)
-	if status != nil || err != nil {
-		return status, err
+func (c *client) getRequestBytes(method, path string, query *url.Values, body io.Reader) (respBody []byte, respStatus *unversioned.Status, err error) {
+	// create request
+	req, err := c.createRequest(method, path, query, body, false)
+	if err != nil {
+		return
 	}
-	if dest == nil {
-		return nil, nil
+
+	// send request
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return
 	}
-	return nil, json.Unmarshal(respBody, dest)
+	defer resp.Body.Close()
+
+	// read response body
+	respBody, err = ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return
+	}
+
+	// parse status
+	if resp.Header.Get("Content-Type") == "application/json" {
+		typeMeta := new(unversioned.TypeMeta)
+		err = json.Unmarshal(respBody, typeMeta)
+		if err != nil {
+			return
+		}
+		if typeMeta.Kind == "Status" {
+			respStatus = new(unversioned.Status)
+			err = json.Unmarshal(respBody, respStatus)
+			return
+		}
+	}
+	return
+}
+
+func (c *client) unmarshalRequest(method, path string, query *url.Values, body io.Reader, dest interface{}) (respStatus *unversioned.Status, err error) {
+	respBody, respStatus, err := c.getRequestBytes(method, path, query, body)
+	if respStatus != nil || err != nil {
+		return
+	}
+	if dest != nil {
+		err = json.Unmarshal(respBody, dest)
+	}
+	return
 }
 
 func invalidEnvError(env string) error {
-	return fmt.Errorf("Invalid environment %s", env)
+	return errors.BadRequest(fmt.Sprintf("Invalid environment %s", env))
 }
