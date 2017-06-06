@@ -1,12 +1,28 @@
 {
-  "env": {
-    "node": true,
-    "es6": true
-  },
+  "extends": ["standard", "standard-react"],
+  "parser": "babel-eslint",
+  "plugins": ["react", "import"],
   "rules": {
-    "comma-dangle": [0, "never"],
-    "quotes": [1, "single"],
-    "no-multi-spaces": [2, { "exceptions": { "VariableDeclarator": true }}],
-    "semi": [2, "always"]
+    "import/no-unresolved": ["error"],
+    "import/named": ["error"],
+    "import/default": ["error"],
+    "import/order": ["warn", {
+      //      "newlines-between": "always-and-inside-groups",
+      "groups": ["builtin", "external", "internal", "parent", "sibling", "index"]
+    }],
+    "import/extensions": ["warn"],
+    "import/newline-after-import": ["warn"],
+    "react/prop-types": ["warn"],
+    "react/sort-comp": ["warn"],
+    "react/jsx-closing-bracket-location": ["warn"],
+    "react/jsx-pascal-case": ["warn"],
+    "react/jsx-curly-spacing": ["warn", "never"],
+    "react/no-string-refs": ["warn"],
+    "react/jsx-wrap-multilines": ["warn"],
+    "react/self-closing-comp": ["warn"],
+    "react/jsx-no-bind": ["warn"],
+    "react/require-render-return": ["warn"],
+    "react/no-multi-comp": ["warn", { "ignoreStateless": true }],
+    "react/prefer-es6-class": ["warn"]
   }
 }
