@@ -1,7 +1,4 @@
-FROM mhart/alpine-node:4.2.2
-
-RUN echo http://dl-3.alpinelinux.org/alpine/edge/community >> /etc/apk/repositories
-RUN echo http://dl-3.alpinelinux.org/alpine/edge/testing >> /etc/apk/repositories
+FROM mhart/alpine-node:7.10.0
 
 RUN apk add --update go \
                      musl-dev \

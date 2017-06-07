@@ -9,7 +9,7 @@ machine:
     SHA: $(echo $CIRCLE_SHA1 | cut -c 1-7)
     TIMESTAMP: $(date +%s)
     BRANCH: $CIRCLE_BRANCH
-    BASEVERSION: 20160630-160722
+    BASEVERSION: 20170606-173659
 
 dependencies:
   cache_directories:
