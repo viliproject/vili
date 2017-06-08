@@ -72,6 +72,7 @@ func AddHandlers(s *server.Server) {
 	s.Echo().Get("/api/v1/branches", middleware.RequireUser(branchesGetHandler))
 
 	// environments
+	s.Echo().Get("/api/v1/environments", middleware.RequireUser(environmentsGetHandler))
 	s.Echo().Post("/api/v1/environments", middleware.RequireUser(environmentCreateHandler))
 	s.Echo().Delete("/api/v1/environments/:env", middleware.RequireUser(environmentDeleteHandler))
 	s.Echo().Get("/api/v1/environments/spec", middleware.RequireUser(environmentSpecHandler))

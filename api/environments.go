@@ -13,6 +13,27 @@ import (
 	echo "gopkg.in/labstack/echo.v1"
 )
 
+// EnvironmentsGetResponse is a response to the get environments request
+type EnvironmentsGetResponse struct {
+	Environments []*environments.Environment `json:"environments"`
+}
+
+func environmentsGetHandler(c *echo.Context) error {
+	envs := environments.Environments()
+	if c.Query("branch") != "" {
+		allEnvs := envs
+		envs = []*environments.Environment{}
+		for _, env := range allEnvs {
+			if env.Branch == c.Query("branch") {
+				envs = append(envs, env)
+			}
+		}
+	}
+	return c.JSON(http.StatusOK, &EnvironmentsGetResponse{
+		Environments: envs,
+	})
+}
+
 // EnvironmentCreateRequest is a request to create a new environment
 type EnvironmentCreateRequest struct {
 	Name   string `json:"name"`
