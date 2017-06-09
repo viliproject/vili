@@ -213,13 +213,15 @@ func RefreshEnvs() error {
 
 // RepositoryBranches returns the list of repository branches for this environment
 func (e Environment) RepositoryBranches() (branches []string) {
+	branches = append(branches, e.Branch)
+	var defaultBranch string
 	if e.ApprovedFromEnv != "" || e.DeployedToEnv != "" {
-		branches = append(branches, "master")
+		defaultBranch = "master"
 	} else {
-		branches = append(branches, "develop")
-		if e.Branch != "" && !util.NewStringSet(branches).Contains(e.Branch) {
-			branches = append(branches, e.Branch)
-		}
+		defaultBranch = "develop"
+	}
+	if !util.NewStringSet(branches).Contains(defaultBranch) {
+		branches = append(branches, defaultBranch)
 	}
 	return
 }
