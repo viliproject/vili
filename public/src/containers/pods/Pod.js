@@ -1,4 +1,5 @@
-import React, { PropTypes } from 'react'
+import PropTypes from 'prop-types'
+import React from 'react'
 import { connect } from 'react-redux'
 import { Link } from 'react-router'
 
@@ -96,9 +97,9 @@ export default class Pod extends React.Component {
         <Link to={`/${this.props.params.env}/jobs/${pod.object.metadata.labels.job}`}>{pod.object.metadata.labels.job}</Link>
       </dd>)
     }
-    if (pod.object.metadata.labels.deployedBy) {
+    if (pod.object.metadata.annotations['vili/deployedBy']) {
       metadata.push(<dt key='title-deployedBy'>Deployed By</dt>)
-      metadata.push(<dd key='data-deployedBy'>{pod.object.metadata.labels.deployedBy}</dd>)
+      metadata.push(<dd key='data-deployedBy'>{pod.object.metadata.annotations['vili/deployedBy']}</dd>)
     }
     return (
       <div>

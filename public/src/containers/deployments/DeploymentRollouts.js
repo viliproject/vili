@@ -1,4 +1,5 @@
-import React, { PropTypes } from 'react'
+import PropTypes from 'prop-types'
+import React from 'react'
 import { connect } from 'react-redux'
 import { Link } from 'react-router'
 import { Panel, ButtonToolbar, Button, Badge } from 'react-bootstrap'
@@ -113,7 +114,9 @@ export default class DeploymentRollouts extends React.Component {
     const columns = [
       {title: 'Revision', key: 'revision', style: {width: '90px'}},
       {title: 'Tag', key: 'tag', style: {width: '180px'}},
+      {title: 'Branch', key: 'branch'},
       {title: 'Rollout Time', key: 'time', style: {textAlign: 'right'}},
+      {title: 'Deployed By', key: 'deployedBy', style: {textAlign: 'right'}},
       {title: 'Actions', key: 'actions', style: {textAlign: 'right'}}
     ]
 
@@ -174,11 +177,23 @@ class RolloutPanel extends React.Component {
 
   renderReplicaSetMetadata () {
     const { replicaSet } = this.props
+    const metadata = []
+    metadata.push(<dt key='t-tag'>Tag</dt>)
+    metadata.push(<dd key='d-tag'>{replicaSet.imageTag}</dd>)
+    if (replicaSet.imageBranch) {
+      metadata.push(<dt key='t-branch'>Branch</dt>)
+      metadata.push(<dd key='d-branch'>{replicaSet.imageBranch}</dd>)
+    }
+    metadata.push(<dt key='t-time'>Time</dt>)
+    metadata.push(<dd key='d-time'>{replicaSet.deployedAt}</dd>)
+    if (replicaSet.deployedBy) {
+      metadata.push(<dt key='t-deployedBy'>Deployed By</dt>)
+      metadata.push(<dd key='d-deployedBy'>{replicaSet.deployedBy}</dd>)
+    }
     return (
       <div>
         <dl>
-          <dt>Tag</dt><dd>{replicaSet.imageTag}</dd>
-          <dt>Time</dt><dd>{replicaSet.deployedAt}</dd>
+          {metadata}
         </dl>
       </div>
     )
@@ -276,7 +291,9 @@ class HistoryRow extends React.Component {
       <tr>
         <td>{replicaSet.revision}</td>
         <td>{replicaSet.imageTag}</td>
+        <td>{replicaSet.metadata.annotations['vili/branch']}</td>
         <td style={{textAlign: 'right'}}>{replicaSet.deployedAt}</td>
+        <td style={{textAlign: 'right'}}>{replicaSet.metadata.annotations['vili/deployedBy']}</td>
         <td style={{textAlign: 'right'}}>
           <Button bsStyle='danger' bsSize='xs' onClick={this.rollbackTo}>Rollback To</Button>
         </td>

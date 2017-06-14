@@ -88,12 +88,6 @@ func kubectl(stdin io.Reader, args ...string) (string, error) {
 	if _, err := os.Stat("/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"); !os.IsNotExist(err) {
 		kubeArgs = append(kubeArgs, "--certificate-authority", "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt")
 	}
-	if envConfig.ClientCert != "" {
-		kubeArgs = append(kubeArgs, "--client-certificate", envConfig.ClientCert)
-	}
-	if envConfig.ClientKey != "" {
-		kubeArgs = append(kubeArgs, "--client-key", envConfig.ClientKey)
-	}
 	kubeArgs = append(kubeArgs, args...)
 
 	cmd := exec.Command("kubectl", kubeArgs...)
@@ -250,7 +244,7 @@ func (c *client) createRequest(method, path string, query *url.Values, body io.R
 	if query != nil {
 		urlStr += "?" + query.Encode()
 	}
-	log.WithField("url", urlStr).Debug("making kubernetes request")
+	log.WithField("method", method).WithField("url", urlStr).Debug("making kubernetes request")
 
 	// create request
 	req, err := http.NewRequest(method, urlStr, body)

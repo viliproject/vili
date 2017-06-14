@@ -4,12 +4,30 @@ import BaseModel from './BaseModel'
 
 export default class JobRunModel extends BaseModel {
 
+  getAnnotation (key) {
+    if (!this.metadata || !this.metadata.annotations) {
+      return null
+    }
+    return this.metadata.annotations[key]
+  }
+
+  getLabel (key) {
+    if (!this.metadata || !this.metadata.labels) {
+      return null
+    }
+    return this.metadata.labels[key]
+  }
+
   get imageTag () {
     return this.spec.template.spec.containers[0].image.split(':')[1]
   }
 
   get imageBranch () {
-    return this.metadata.labels['branch']
+    return this.getAnnotation('vili/branch')
+  }
+
+  get startedBy () {
+    return this.getAnnotation('vili/startedBy')
   }
 
   get statusName () {

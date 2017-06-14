@@ -1,4 +1,5 @@
-import React, { PropTypes } from 'react'
+import PropTypes from 'prop-types'
+import React from 'react'
 import { connect } from 'react-redux'
 import { Modal, Button, FormGroup, ControlLabel, FormControl, Panel } from 'react-bootstrap'
 import Typeahead from 'react-bootstrap-typeahead'
@@ -154,8 +155,9 @@ export default class EnvCreateModal extends React.Component {
 
     let output = null
     if (this.state.error) {
-      var errorMessage = _.map(this.state.error.split('\n'), function (text) {
-        return <div>{text}</div>
+      console.log(this.state.error)
+      var errorMessage = _.map(this.state.error.split('\n'), function (text, ix) {
+        return <div key={ix}>{text}</div>
       })
       output = <Panel header='Error' bsStyle='danger'>{errorMessage}</Panel>
     }

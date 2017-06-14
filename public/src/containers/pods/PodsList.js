@@ -1,10 +1,10 @@
-import React, { PropTypes } from 'react'
+import PropTypes from 'prop-types'
+import React from 'react'
 import { connect } from 'react-redux'
 import { Link } from 'react-router'
 import { Button } from 'react-bootstrap'
 import _ from 'underscore'
 
-import displayTime from '../../lib/displayTime'
 import Table from '../../components/Table'
 import { activateNav } from '../../actions/app'
 import { deletePod } from '../../actions/pods'

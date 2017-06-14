@@ -1,11 +1,26 @@
 import React from 'react'
+import PropTypes from 'prop-types'
 import { Link } from 'react-router'
 
 export default class LinkMenuItem extends React.Component {
+  static propTypes = {
+    active: PropTypes.bool,
+    subitem: PropTypes.bool,
+    onRemove: PropTypes.func,
+    to: PropTypes.string,
+    children: PropTypes.node
+  }
+
   constructor (props) {
     super(props)
 
     this.onRemove = this.onRemove.bind(this)
+  }
+
+  onRemove (event) {
+    this.props.onRemove(event)
+    event.preventDefault()
+    event.stopPropagation()
   }
 
   render () {
@@ -28,11 +43,5 @@ export default class LinkMenuItem extends React.Component {
         </Link>
       </li>
     )
-  }
-
-  onRemove (event) {
-    this.props.onRemove(event)
-    event.preventDefault()
-    event.stopPropagation()
   }
 }

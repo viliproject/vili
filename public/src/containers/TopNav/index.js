@@ -1,4 +1,5 @@
-import React, { PropTypes } from 'react'
+import PropTypes from 'prop-types'
+import React from 'react'
 import { connect } from 'react-redux'
 import { Link } from 'react-router'
 import { Navbar, Nav, NavDropdown, MenuItem } from 'react-bootstrap'
@@ -98,7 +99,7 @@ export default class TopNav extends React.Component {
         <div className='navbar-header pull-left'>
           <Link className='navbar-brand' to='/'>Vili</Link>
         </div>
-        <Nav key='user' ulClassName='user' pullRight>
+        <Nav className='user' pullRight>
           <MenuItem title='Login' href='/login'>Login</MenuItem>
         </Nav>
       </Navbar>

@@ -159,14 +159,26 @@ func (r *JobRun) createNewJob() (err error) {
 	containers[0].Image = imageName
 
 	job.ObjectMeta.Name = r.JobName + "-" + r.ID
+
+	// add labels
 	labels := map[string]string{
-		"job":       r.JobName,
-		"branch":    r.Branch,
-		"run":       job.ObjectMeta.Name,
-		"startedBy": r.Username,
+		"job": r.JobName,
+		"run": job.ObjectMeta.Name,
 	}
 	job.ObjectMeta.Labels = labels
 	job.Spec.Template.ObjectMeta.Labels = labels
+
+	// add annotations
+	if job.ObjectMeta.Annotations == nil {
+		job.ObjectMeta.Annotations = map[string]string{}
+	}
+	if job.Spec.Template.ObjectMeta.Annotations == nil {
+		job.Spec.Template.ObjectMeta.Annotations = map[string]string{}
+	}
+	job.ObjectMeta.Annotations["vili/branch"] = r.Branch
+	job.Spec.Template.ObjectMeta.Annotations["vili/branch"] = r.Branch
+	job.ObjectMeta.Annotations["vili/startedBy"] = r.Username
+	job.Spec.Template.ObjectMeta.Annotations["vili/startedBy"] = r.Username
 
 	newJob, status, err := kube.Jobs.Create(r.Env, job)
 	if err != nil {

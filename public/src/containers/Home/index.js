@@ -1,4 +1,5 @@
-import React, { PropTypes } from 'react'
+import PropTypes from 'prop-types'
+import React from 'react'
 import { connect } from 'react-redux'
 import { Link } from 'react-router'
 
@@ -22,10 +23,6 @@ export default class Home extends React.Component {
   }
 
   componentDidMount () {
-    this.props.activateNav('home')
-  }
-
-  componentDidUpdate () {
     this.props.activateNav('home')
   }
 
@@ -54,7 +51,8 @@ export default class Home extends React.Component {
   }
 
   render () {
-    if (!this.props.envs) {
+    const { envs } = this.props
+    if (!envs || envs.length === 0) {
       return this.renderLoggedOut
     }
     return this.renderEnvs

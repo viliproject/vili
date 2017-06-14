@@ -1,4 +1,5 @@
-import React, { PropTypes } from 'react'
+import PropTypes from 'prop-types'
+import React from 'react'
 import { connect } from 'react-redux'
 import { Alert } from 'react-bootstrap'
 import _ from 'underscore'
@@ -48,14 +49,21 @@ export default class JobRun extends React.Component {
 
   renderMetadata () {
     const { jobRun } = this.props
-    const metadata = [
-      <dt key='title-tag'>Tag</dt>,
-      <dd key='data-tag'>{jobRun.imageTag}</dd>,
-      <dt key='title-start-time'>Start Time</dt>,
-      <dd key='data-start-time'>{jobRun.startedAt}</dd>,
-      <dt key='title-completion-time'>Completion Time</dt>,
-      <dd key='data-completion-time'>{jobRun.completedAt}</dd>
-    ]
+    const metadata = []
+    metadata.push(<dt key='t-tag'>Tag</dt>)
+    metadata.push(<dd key='d-tag'>{jobRun.imageTag}</dd>)
+    if (jobRun.imageBranch) {
+      metadata.push(<dt key='t-branch'>Branch</dt>)
+      metadata.push(<dd key='d-branch'>{jobRun.imageBranch}</dd>)
+    }
+    metadata.push(<dt key='t-start-time'>Start Time</dt>)
+    metadata.push(<dd key='d-start-time'>{jobRun.startedAt}</dd>)
+    metadata.push(<dt key='t-completion-time'>Completion Time</dt>)
+    metadata.push(<dd key='d-completion-time'>{jobRun.completedAt}</dd>)
+    if (jobRun.startedBy) {
+      metadata.push(<dt key='t-startedBy'>Started By</dt>)
+      metadata.push(<dd key='d-startedBy'>{jobRun.startedBy}</dd>)
+    }
     return metadata
   }
 

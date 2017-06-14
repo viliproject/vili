@@ -1,4 +1,5 @@
-import React, { PropTypes } from 'react'
+import PropTypes from 'prop-types'
+import React from 'react'
 import { Table } from 'react-bootstrap'
 import _ from 'underscore'
 
@@ -56,7 +57,7 @@ export default class ViliTable extends React.Component {
         return <td key={key.key} data-column={key.key} style={key.col.style}>{row[key.key]}</td>
       })
       var className = row._className || ''
-      return <tr key={row.key || 'row-' + ix} className={className} bsStyle={row._bsStyle}>{cells}</tr>
+      return <tr key={row.key || 'row-' + ix} className={className}>{cells}</tr>
     })
     return (
       <Table hover={this.props.hover} fill={this.props.fill} striped={this.props.striped}>

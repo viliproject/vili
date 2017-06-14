@@ -1,4 +1,5 @@
-import React, { PropTypes } from 'react'
+import PropTypes from 'prop-types'
+import React from 'react'
 import { connect } from 'react-redux'
 import { Button, ButtonToolbar, Label } from 'react-bootstrap'
 import { browserHistory, Link } from 'react-router'

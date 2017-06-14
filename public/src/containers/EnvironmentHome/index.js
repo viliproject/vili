@@ -1,4 +1,5 @@
-import React, { PropTypes } from 'react'
+import PropTypes from 'prop-types'
+import React from 'react'
 import { connect } from 'react-redux'
 import { Link } from 'react-router'
 import _ from 'underscore'
@@ -6,7 +7,7 @@ import _ from 'underscore'
 import { activateNav } from '../../actions/app'
 
 function mapStateToProps (state, ownProps) {
-  const env = _.findWhere(state.envs, {name: ownProps.params.env})
+  const env = _.findWhere(state.envs.toJS().envs, {name: ownProps.params.env})
   return {
     env
   }
@@ -36,10 +37,8 @@ export default class EnvironmentHome extends React.Component {
     }
     const items = []
 
-    if (env.approvedFromEnv || env.deployedToEnv) {
-      items.push(
-        <li key='releases'><Link to={`/${this.props.params.env}/releases`}>Releases</Link></li>)
-    }
+    items.push(
+      <li key='releases'><Link to={`/${this.props.params.env}/releases`}>Releases</Link></li>)
 
     if (!_.isEmpty(env.deployments)) {
       items.push(
@@ -49,12 +48,14 @@ export default class EnvironmentHome extends React.Component {
       items.push(
         <li key='jobs'><Link to={`/${this.props.params.env}/jobs`}>Jobs</Link></li>)
     }
-    items.push(
-      <li key='configmaps'><Link to={`/${this.props.params.env}/configmaps`}>Config Maps</Link></li>)
-    items.push(
-      <li key='pods'><Link to={`/${this.props.params.env}/pods`}>Pods</Link></li>)
+    if (!_.isEmpty(env.configmaps)) {
+      items.push(
+        <li key='configmaps'><Link to={`/${this.props.params.env}/configmaps`}>Config Maps</Link></li>)
+    }
     items.push(
       <li key='nodes'><Link to={`/${this.props.params.env}/nodes`}>Nodes</Link></li>)
+    items.push(
+      <li key='pods'><Link to={`/${this.props.params.env}/pods`}>Pods</Link></li>)
     return (
       <div>
         <div key='header' className='view-header'>

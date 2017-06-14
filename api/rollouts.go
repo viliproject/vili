@@ -12,6 +12,7 @@ import (
 	"github.com/airware/vili/errors"
 	"github.com/airware/vili/kube"
 	"github.com/airware/vili/kube/extensions/v1beta1"
+	"github.com/airware/vili/kube/unversioned"
 	"github.com/airware/vili/log"
 	"github.com/airware/vili/server"
 	"github.com/airware/vili/session"
@@ -117,16 +118,28 @@ func (r *Rollout) createNewDeployment() (err error) {
 		return
 	}
 
+	// add labels
 	labels := map[string]string{
-		"app":        r.DeploymentName,
-		"branch":     r.Branch,
-		"deployedBy": r.Username,
-	}
-	if r.FromRevision != "" {
-		labels["fromRevision"] = r.FromRevision
+		"app": r.DeploymentName,
 	}
 	deployment.ObjectMeta.Labels = labels
 	deployment.Spec.Template.ObjectMeta.Labels = labels
+
+	// add annotations
+	if deployment.ObjectMeta.Annotations == nil {
+		deployment.ObjectMeta.Annotations = map[string]string{}
+	}
+	if deployment.Spec.Template.ObjectMeta.Annotations == nil {
+		deployment.Spec.Template.ObjectMeta.Annotations = map[string]string{}
+	}
+	deployment.ObjectMeta.Annotations["vili/branch"] = r.Branch
+	deployment.Spec.Template.ObjectMeta.Annotations["vili/branch"] = r.Branch
+	deployment.ObjectMeta.Annotations["vili/deployedBy"] = r.Username
+	deployment.Spec.Template.ObjectMeta.Annotations["vili/deployedBy"] = r.Username
+	if r.FromRevision != "" {
+		deployment.ObjectMeta.Annotations["vili/fromRevision"] = r.FromRevision
+		deployment.Spec.Template.ObjectMeta.Annotations["vili/fromRevision"] = r.FromRevision
+	}
 
 	imageName, err := docker.FullName(r.DeploymentName, r.Branch, r.Tag)
 	if err != nil {
@@ -141,9 +154,13 @@ func (r *Rollout) createNewDeployment() (err error) {
 	deployment.Spec.Strategy.Type = v1beta1.RollingUpdateDeploymentStrategyType
 
 	// create/update deployment
-	r.ToDeployment, _, err = kube.Deployments.Replace(r.Env, r.DeploymentName, deployment)
+	var status *unversioned.Status
+	r.ToDeployment, status, err = kube.Deployments.Replace(r.Env, r.DeploymentName, deployment)
 	if err != nil {
 		return
+	}
+	if status != nil {
+		return fmt.Errorf(status.Message)
 	}
 	if r.ToDeployment == nil {
 		r.ToDeployment, _, err = kube.Deployments.Create(r.Env, deployment)

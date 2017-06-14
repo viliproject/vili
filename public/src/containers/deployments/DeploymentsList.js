@@ -1,5 +1,6 @@
+import PropTypes from 'prop-types'
 /* global prompt */
-import React, { PropTypes } from 'react'
+import React from 'react'
 import { connect } from 'react-redux'
 import { Link } from 'react-router'
 import _ from 'underscore'

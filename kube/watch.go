@@ -100,7 +100,6 @@ func (c *client) streamWatchRequest(path string, query *url.Values, watcher *Wat
 			break
 		}
 
-		log.Debugf("closing response body for path %s?%s", path, query.Encode())
 		if err := resp.Body.Close(); err != nil {
 			log.WithError(err).Error("error closing response body")
 		}
