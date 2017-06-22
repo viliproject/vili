@@ -80,3 +80,28 @@ func (s *NamespacesService) Delete(name string) (*unversioned.Status, error) {
 	}
 	return nil, nil
 }
+
+// NamespaceEvent describes an event on a namespace
+type NamespaceEvent struct {
+	Type   WatchEventType    `json:"type"`
+	Object *v1.Namespace     `json:"object"`
+	List   *v1.NamespaceList `json:"list"`
+}
+
+// Watch watches namespaces
+func (s *NamespacesService) Watch(query *url.Values) (watcher *Watcher, err error) {
+	return watchObjectStream("default", "namespaces", query, func(eventType WatchEventType, body json.RawMessage) (interface{}, error) {
+		if eventType == WatchEventInit {
+			event := &NamespaceEvent{
+				Type: eventType,
+				List: new(v1.NamespaceList),
+			}
+			return event, json.Unmarshal(body, event.List)
+		}
+		event := &NamespaceEvent{
+			Type:   eventType,
+			Object: new(v1.Namespace),
+		}
+		return event, json.Unmarshal(body, event.Object)
+	})
+}

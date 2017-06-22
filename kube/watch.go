@@ -128,6 +128,7 @@ func watchObjectStream(env, path string, query *url.Values, makeEvent func(Watch
 	// get env client
 	client, err := getClient(env)
 	if err != nil {
+		log.WithError(err).Error("failed getting kubernetes client for env")
 		err = invalidEnvError(env)
 		return
 	}

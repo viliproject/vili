@@ -3,7 +3,6 @@ package vili
 import (
 	"net/url"
 	"sync"
-	"time"
 
 	"github.com/airware/vili/api"
 	"github.com/airware/vili/auth"
@@ -252,18 +251,9 @@ func New() *App {
 
 // Start starts the app
 func (a *App) Start() {
-	go a.monitorEnvs()
 	go runDeployBot()
+	go environments.WatchEnvs()
 	a.server.Start()
-}
-
-func (a *App) monitorEnvs() {
-	for {
-		if err := environments.RefreshEnvs(); err != nil {
-			log.Warn("Unable to detect environments: ", err)
-		}
-		time.Sleep(5 * time.Minute)
-	}
 }
 
 // StartTest starts the test app

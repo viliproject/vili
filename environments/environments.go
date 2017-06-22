@@ -2,12 +2,14 @@ package environments
 
 import (
 	"errors"
+	"net/url"
 	"os/exec"
 	"sort"
 	"sync"
 
 	"github.com/airware/vili/config"
 	"github.com/airware/vili/kube"
+	"github.com/airware/vili/kube/v1"
 	"github.com/airware/vili/log"
 	"github.com/airware/vili/templates"
 	"github.com/airware/vili/util"
@@ -73,8 +75,8 @@ func Environments() (ret []*Environment) {
 // Get returns the environment with `name`
 func Get(name string) (*Environment, error) {
 	rwMutex.RLock()
-	defer rwMutex.RUnlock()
 	env, ok := environments[name]
+	rwMutex.RUnlock()
 	if !ok {
 		return nil, errors.New(name + " not found")
 	}
@@ -134,31 +136,49 @@ func Delete(name string) error {
 	if status != nil {
 		return errors.New(status.Message)
 	}
-
-	delete(environments, name)
 	return nil
 }
 
-// RefreshEnvs refreshes the list of environments as detected from the kubernetes cluster
-func RefreshEnvs() error {
-	namespaceList, _, err := kube.Namespaces.List(nil)
+// WatchEnvs watches the namespaces on the kubernetes cluster and updates the list of environments
+func WatchEnvs() {
+	watcher, err := kube.Namespaces.Watch(&url.Values{})
 	if err != nil {
-		return err
+		log.WithError(err).Error("error watching namespaces")
+		return
 	}
+	for event := range watcher.EventChan {
+		namespaceEvent := event.(*kube.NamespaceEvent)
+		var wg sync.WaitGroup
+		switch namespaceEvent.Type {
+		case kube.WatchEventInit:
+			for _, item := range namespaceEvent.List.Items {
+				ns := item
+				wg.Add(1)
+				go func(ns *v1.Namespace) {
+					updateEnv(ns)
+					wg.Done()
+				}(&ns)
+			}
+		case kube.WatchEventAdded, kube.WatchEventModified:
+			updateEnv(namespaceEvent.Object)
+		case kube.WatchEventDeleted:
+			rwMutex.Lock()
+			delete(environments, namespaceEvent.Object.Name)
+			rwMutex.Unlock()
 
-	newEnvs := make(map[string]*Environment)
-	rwMutex.Lock()
-	defer rwMutex.Unlock()
-	for name, env := range environments {
-		if env.Protected {
-			newEnvs[name] = env
 		}
+		wg.Wait()
 	}
+}
 
-	// Load environments from namespaces, add branch metadata
-	for _, namespace := range namespaceList.Items {
-		if !ignoredEnvs.Contains(namespace.Name) && namespace.Status.Phase != "Terminating" {
-			env, ok := newEnvs[namespace.Name]
+func updateEnv(namespace *v1.Namespace) {
+	if !ignoredEnvs.Contains(namespace.Name) {
+		rwMutex.Lock()
+		if namespace.Status.Phase == "Terminating" {
+			delete(environments, namespace.Name)
+			rwMutex.Unlock()
+		} else {
+			env, ok := environments[namespace.Name]
 			if ok {
 				env.Branch = namespace.Annotations["vili.environment-branch"]
 			} else {
@@ -174,17 +194,8 @@ func RefreshEnvs() error {
 					env.Branch = "develop"
 				}
 			}
-			newEnvs[namespace.Name] = env
-		}
-	}
-
-	var wg sync.WaitGroup
-
-	// Load deployments and jobs from template files
-	for _, env := range newEnvs {
-		wg.Add(1)
-		go func(env *Environment) {
-			defer wg.Done()
+			environments[namespace.Name] = env
+			rwMutex.Unlock()
 			jobs, err := templates.Jobs(env.Name, env.Branch)
 			if err != nil {
 				log.Error(err)
@@ -203,12 +214,8 @@ func RefreshEnvs() error {
 			env.Jobs = jobs
 			env.Deployments = deployments
 			env.ConfigMaps = configMaps
-		}(env)
+		}
 	}
-
-	wg.Wait()
-	environments = newEnvs
-	return nil
 }
 
 // RepositoryBranches returns the list of repository branches for this environment
