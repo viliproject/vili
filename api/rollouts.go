@@ -160,12 +160,13 @@ func (r *Rollout) createNewDeployment() (err error) {
 		return
 	}
 	if status != nil {
-		return fmt.Errorf(status.Message)
-	}
-	if r.ToDeployment == nil {
-		r.ToDeployment, _, err = kube.Deployments.Create(r.Env, deployment)
-		if err != nil {
-			return
+		if status.Code == http.StatusNotFound {
+			r.ToDeployment, _, err = kube.Deployments.Create(r.Env, deployment)
+			if err != nil {
+				return
+			}
+		} else {
+			return fmt.Errorf(status.Message)
 		}
 	}
 

@@ -137,7 +137,7 @@ func getDefaultClient() (*client, error) {
 						RootCAs: caCertPool,
 					},
 				},
-				Timeout: 5 * time.Second,
+				Timeout: 15 * time.Second,
 			},
 			httpClientNoTimeout: &http.Client{
 				Transport: &http.Transport{
