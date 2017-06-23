@@ -20,10 +20,6 @@ import (
 	echo "gopkg.in/labstack/echo.v1"
 )
 
-const (
-	rolloutTimeout = 5 * time.Minute
-)
-
 func rolloutCreateHandler(c *echo.Context) error {
 	env := c.Param("env")
 	deploymentName := c.Param("deployment")
@@ -216,7 +212,7 @@ eventLoop:
 				watcher.Stop()
 				break
 			}
-		case <-time.After(rolloutTimeout):
+		case <-time.After(config.GetDuration(config.RolloutTimeout)):
 			elapsed := time.Now().Sub(startTime)
 			r.logMessage(fmt.Sprintf("Deployment timed out after %s", humanizeDuration(elapsed)), log.WarnLevel)
 			watcher.Stop()
@@ -269,7 +265,7 @@ eventLoop:
 					}
 				}
 			}
-		case <-time.After(rolloutTimeout):
+		case <-time.After(config.GetDuration(config.RolloutTimeout)):
 			elapsed := time.Now().Sub(startTime)
 			r.logMessage(fmt.Sprintf("Deployment timed out after %s", humanizeDuration(elapsed)), log.WarnLevel)
 			watcher.Stop()

@@ -48,6 +48,8 @@ const (
 	SlackUsername           = "slack-username"
 	SlackEmoji              = "slack-emoji"
 	SlackDeployUsernames    = "slack-deploy-usernames"
+	RolloutTimeout          = "rollout-timeout"
+	JobRunTimeout           = "job-run-timeout"
 )
 
 // KubernetesURL returns the config variable name for the kube url
@@ -89,6 +91,8 @@ func InitApp() error {
 	SetDefault(ApprovalProdEnvs, "preprod prod")
 	SetDefault(RegistryBranchDelimiter, "-")
 	SetDefault(DockerMode, "registry")
+	SetDefault(RolloutTimeout, 10*time.Minute)
+	SetDefault(JobRunTimeout, 10*time.Minute)
 	return Require(
 		BuildDir,
 		URI,

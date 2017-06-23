@@ -22,10 +22,6 @@ import (
 	echo "gopkg.in/labstack/echo.v1"
 )
 
-const (
-	jobRunTimeout = 5 * time.Minute
-)
-
 var (
 	jobRunsQueryParams = []string{"labelSelector", "fieldSelector", "resourceVersion"}
 )
@@ -242,7 +238,7 @@ eventLoop:
 					break
 				}
 			}
-		case <-time.After(jobRunTimeout):
+		case <-time.After(config.GetDuration(config.JobRunTimeout)):
 			elapsed := time.Now().Sub(startTime)
 			r.logMessage(fmt.Sprintf("Job timed out after %s", humanizeDuration(elapsed)), log.WarnLevel)
 			watcher.Stop()
