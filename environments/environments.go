@@ -23,14 +23,58 @@ var (
 
 // Environment describes an environment backed by a kubernetes namespace
 type Environment struct {
-	Name            string   `json:"name"`
-	Branch          string   `json:"branch,omitempty"`
-	Protected       bool     `json:"protected,omitempty"`
-	DeployedToEnv   string   `json:"deployedToEnv,omitempty"`
-	ApprovedFromEnv string   `json:"approvedFromEnv,omitempty"`
-	Jobs            []string `json:"jobs"`
-	Deployments     []string `json:"deployments"`
-	ConfigMaps      []string `json:"configmaps"`
+	Name               string   `json:"name"`
+	Branch             string   `json:"branch,omitempty"`
+	RepositoryBranches []string `json:"repositoryBranches,omitempty"`
+	AutodeployBranches []string `json:"autodeployBranches,omitempty"`
+	Protected          bool     `json:"protected,omitempty"`
+	DeployedToEnv      string   `json:"deployedToEnv,omitempty"`
+	ApprovedFromEnv    string   `json:"approvedFromEnv,omitempty"`
+	Jobs               []string `json:"jobs"`
+	Deployments        []string `json:"deployments"`
+	ConfigMaps         []string `json:"configmaps"`
+}
+
+func (e *Environment) fillBranches() {
+	defaultBranch := "develop"
+	if e.ApprovedFromEnv != "" || e.DeployedToEnv != "" {
+		defaultBranch = "master"
+	}
+	if e.Branch == "" {
+		e.Branch = defaultBranch
+	}
+	e.RepositoryBranches = config.GetStringSlice(config.EnvRepositoryBranches(e.Name))
+	if !util.NewStringSet(e.RepositoryBranches).Contains(e.Branch) {
+		e.RepositoryBranches = append(e.RepositoryBranches, e.Branch)
+	}
+	if !util.NewStringSet(e.RepositoryBranches).Contains(defaultBranch) {
+		e.RepositoryBranches = append(e.RepositoryBranches, defaultBranch)
+	}
+	e.AutodeployBranches = []string{e.Branch}
+	if defaultBranch == "master" && !util.NewStringSet(e.RepositoryBranches).Contains(defaultBranch) {
+		e.AutodeployBranches = append(e.AutodeployBranches, defaultBranch)
+	}
+}
+
+func (e *Environment) fillSpecs() {
+	jobs, err := templates.Jobs(e.Name, e.Branch)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+	deployments, err := templates.Deployments(e.Name, e.Branch)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+	configMaps, err := templates.ConfigMaps(e.Name, e.Branch)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+	e.Jobs = jobs
+	e.Deployments = deployments
+	e.ConfigMaps = configMaps
 }
 
 // Init initializes the global environments list
@@ -51,11 +95,7 @@ func Init() {
 			DeployedToEnv:   deployedToEnvs[envName],
 			ApprovedFromEnv: approvedFromEnvs[envName],
 		}
-		if env.ApprovedFromEnv != "" || env.DeployedToEnv != "" {
-			env.Branch = "master"
-		} else {
-			env.Branch = "develop"
-		}
+		env.fillBranches()
 		environments[env.Name] = env
 	}
 	rwMutex.Unlock()
@@ -97,20 +137,8 @@ func Create(name, branch, spec string) (map[string][]string, error) {
 		Name:   name,
 		Branch: branch,
 	}
-
-	env.Jobs, err = templates.Jobs(name, branch)
-	if err != nil {
-		return nil, err
-	}
-	env.Deployments, err = templates.Deployments(name, branch)
-	if err != nil {
-		return nil, err
-	}
-	env.ConfigMaps, err = templates.ConfigMaps(name, branch)
-	if err != nil {
-		return nil, err
-	}
-
+	env.fillBranches()
+	env.fillSpecs()
 	rwMutex.Lock()
 	environments[name] = env
 	rwMutex.Unlock()
@@ -165,7 +193,6 @@ func WatchEnvs() {
 			rwMutex.Lock()
 			delete(environments, namespaceEvent.Object.Name)
 			rwMutex.Unlock()
-
 		}
 		wg.Wait()
 	}
@@ -173,8 +200,8 @@ func WatchEnvs() {
 
 func updateEnv(namespace *v1.Namespace) {
 	if !ignoredEnvs.Contains(namespace.Name) {
-		rwMutex.Lock()
 		if namespace.Status.Phase == "Terminating" {
+			rwMutex.Lock()
 			delete(environments, namespace.Name)
 			rwMutex.Unlock()
 		} else {
@@ -187,50 +214,13 @@ func updateEnv(namespace *v1.Namespace) {
 					Branch: namespace.Annotations["vili.environment-branch"],
 				}
 			}
-			if env.Branch == "" {
-				if env.ApprovedFromEnv != "" || env.DeployedToEnv != "" {
-					env.Branch = "master"
-				} else {
-					env.Branch = "develop"
-				}
-			}
+			env.fillBranches()
+			env.fillSpecs()
+			rwMutex.Lock()
 			environments[namespace.Name] = env
 			rwMutex.Unlock()
-			jobs, err := templates.Jobs(env.Name, env.Branch)
-			if err != nil {
-				log.Error(err)
-				return
-			}
-			deployments, err := templates.Deployments(env.Name, env.Branch)
-			if err != nil {
-				log.Error(err)
-				return
-			}
-			configMaps, err := templates.ConfigMaps(env.Name, env.Branch)
-			if err != nil {
-				log.Error(err)
-				return
-			}
-			env.Jobs = jobs
-			env.Deployments = deployments
-			env.ConfigMaps = configMaps
 		}
 	}
-}
-
-// RepositoryBranches returns the list of repository branches for this environment
-func (e Environment) RepositoryBranches() (branches []string) {
-	branches = append(branches, e.Branch)
-	var defaultBranch string
-	if e.ApprovedFromEnv != "" || e.DeployedToEnv != "" {
-		defaultBranch = "master"
-	} else {
-		defaultBranch = "develop"
-	}
-	if !util.NewStringSet(branches).Contains(defaultBranch) {
-		branches = append(branches, defaultBranch)
-	}
-	return
 }
 
 type byProtectedAndName []*Environment

@@ -52,6 +52,12 @@ const (
 	JobRunTimeout           = "job-run-timeout"
 )
 
+// EnvRepositoryBranches returns the config variable name for the
+// repository branches for the given env
+func EnvRepositoryBranches(env string) string {
+	return fmt.Sprintf("env-%s-repository-branches", env)
+}
+
 // KubernetesURL returns the config variable name for the kube url
 func KubernetesURL(env string) string {
 	return fmt.Sprintf("kube-%s-url", env)

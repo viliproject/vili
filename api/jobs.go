@@ -68,7 +68,7 @@ func jobRepositoryGetHandler(c *echo.Context) error {
 	}
 
 	resp := new(jobRepositoryResponse)
-	images, err := docker.GetRepository(job, environment.RepositoryBranches())
+	images, err := docker.GetRepository(job, environment.RepositoryBranches)
 	if err != nil {
 		return err
 	}

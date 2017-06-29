@@ -68,7 +68,7 @@ func deploymentRepositoryGetHandler(c *echo.Context) error {
 	}
 
 	resp := new(deploymentRepositoryResponse)
-	images, err := docker.GetRepository(deployment, environment.RepositoryBranches())
+	images, err := docker.GetRepository(deployment, environment.RepositoryBranches)
 	if err != nil {
 		return err
 	}

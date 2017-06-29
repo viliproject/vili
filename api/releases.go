@@ -315,7 +315,7 @@ func populateReleaseTargetLatestVersion(environment *environments.Environment, t
 		target.Branch = environment.Branch
 		return nil
 	case types.ReleaseTargetTypeApp, types.ReleaseTargetTypeJob:
-		images, err := docker.GetRepository(target.Name, environment.RepositoryBranches())
+		images, err := docker.GetRepository(target.Name, environment.RepositoryBranches)
 		if err != nil {
 			return err
 		}

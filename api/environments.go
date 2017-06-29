@@ -10,6 +10,7 @@ import (
 	"github.com/airware/vili/session"
 	"github.com/airware/vili/templates"
 	"github.com/airware/vili/types"
+	"github.com/airware/vili/util"
 	echo "gopkg.in/labstack/echo.v1"
 )
 
@@ -24,7 +25,7 @@ func environmentsGetHandler(c *echo.Context) error {
 		allEnvs := envs
 		envs = []*environments.Environment{}
 		for _, env := range allEnvs {
-			if env.Branch == c.Query("branch") {
+			if util.NewStringSet(env.AutodeployBranches).Contains(c.Query("branch")) {
 				envs = append(envs, env)
 			}
 		}
