@@ -16,6 +16,7 @@ const (
 	ApprovalProdEnvs        = "approval-prod-envs"
 	IgnoredEnvs             = "ignored-envs"
 	DefaultEnv              = "default-env"
+	EnvKubernetesNamespaces = "env-kube-namespaces"
 	LogDebug                = "log-debug"
 	LogJSON                 = "log-json"
 	RedisPort               = "redis-port"
@@ -61,11 +62,6 @@ func EnvRepositoryBranches(env string) string {
 // KubernetesURL returns the config variable name for the kube url
 func KubernetesURL(env string) string {
 	return fmt.Sprintf("kube-%s-url", env)
-}
-
-// KubernetesNamespace returns the config variable name for the kube namespace
-func KubernetesNamespace(env string) string {
-	return fmt.Sprintf("kube-%s-namespace", env)
 }
 
 // KubernetesClientCert returns the config variable name for kube certs

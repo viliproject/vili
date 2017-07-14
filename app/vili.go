@@ -57,7 +57,7 @@ func New() *App {
 			defer wg.Done()
 			err := public.LoadStats(config.GetString(config.BuildDir))
 			if err != nil {
-				log.Panic(err)
+				log.Fatal(err)
 			}
 		},
 
@@ -65,10 +65,11 @@ func New() *App {
 		func() {
 			defer wg.Done()
 			envConfigs := make(map[string]*kube.EnvConfig)
+			envKubeNamespaces := config.GetStringSliceMap(config.EnvKubernetesNamespaces)
 			for _, env := range environments.Environments() {
 				envConfigs[env.Name] = &kube.EnvConfig{
 					URL:          config.GetString(config.KubernetesURL(env.Name)),
-					Namespace:    config.GetString(config.KubernetesNamespace(env.Name)),
+					Namespace:    envKubeNamespaces[env.Name],
 					ClientCert:   config.GetString(config.KubernetesClientCert(env.Name)),
 					ClientCACert: config.GetString(config.KubernetesClientCACert(env.Name)),
 					ClientKey:    config.GetString(config.KubernetesClientKey(env.Name)),
@@ -78,7 +79,7 @@ func New() *App {
 				EnvConfigs: envConfigs,
 			})
 			if err != nil {
-				log.Panic(err)
+				log.Fatal(err)
 			}
 		},
 
@@ -90,7 +91,7 @@ func New() *App {
 				Secret: config.GetString(config.FirebaseSecret),
 			})
 			if err != nil {
-				log.Panic(err)
+				log.Fatal(err)
 			}
 		},
 
@@ -99,14 +100,14 @@ func New() *App {
 			defer wg.Done()
 			urlp, err := url.Parse(config.GetString(config.RedisPort))
 			if err != nil {
-				log.Panic(err)
+				log.Fatal(err)
 			}
 			err = redis.Init(&redis.Config{
 				Addr: urlp.Host,
 				DB:   config.GetInt(config.RedisDB),
 			})
 			if err != nil {
-				log.Panic(err)
+				log.Fatal(err)
 			}
 		},
 
@@ -151,7 +152,7 @@ func New() *App {
 					BranchDelimiter: config.GetString(config.RegistryBranchDelimiter),
 				})
 				if err != nil {
-					log.Panic(err)
+					log.Fatal(err)
 				}
 			case "ecr":
 				ecrAccountID := config.GetString(config.ECRAccountID)
@@ -168,10 +169,10 @@ func New() *App {
 					RegistryID:      registryID,
 				})
 				if err != nil {
-					log.Panic(err)
+					log.Fatal(err)
 				}
 			default:
-				log.Panic("invalid docker mode provided")
+				log.Fatal("invalid docker mode provided")
 			}
 		},
 

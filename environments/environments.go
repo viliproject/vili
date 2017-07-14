@@ -16,9 +16,10 @@ import (
 )
 
 var (
-	environments map[string]*Environment
-	ignoredEnvs  *util.StringSet
-	rwMutex      sync.RWMutex
+	environments  map[string]*Environment
+	namespaceEnvs map[string]string
+	ignoredEnvs   *util.StringSet
+	rwMutex       sync.RWMutex
 )
 
 // Environment describes an environment backed by a kubernetes namespace
@@ -82,6 +83,11 @@ func Init() {
 	rwMutex.Lock()
 	environments = make(map[string]*Environment)
 	ignoredEnvs = util.NewStringSet(append(config.GetStringSlice(config.IgnoredEnvs), "kube-system", "default"))
+	envKubeNamespaces := config.GetStringSliceMap(config.EnvKubernetesNamespaces)
+	namespaceEnvs = map[string]string{}
+	for env, namespace := range envKubeNamespaces {
+		namespaceEnvs[namespace] = env
+	}
 
 	deployedToEnvs := config.GetStringSliceMap(config.ApprovalProdEnvs)
 	approvedFromEnvs := map[string]string{}
@@ -199,25 +205,29 @@ func WatchEnvs() {
 }
 
 func updateEnv(namespace *v1.Namespace) {
-	if !ignoredEnvs.Contains(namespace.Name) {
+	envName := namespace.Name
+	if namespaceEnvs[envName] != "" {
+		envName = namespaceEnvs[envName]
+	}
+	if !ignoredEnvs.Contains(envName) {
 		if namespace.Status.Phase == "Terminating" {
 			rwMutex.Lock()
-			delete(environments, namespace.Name)
+			delete(environments, envName)
 			rwMutex.Unlock()
 		} else {
-			env, ok := environments[namespace.Name]
+			env, ok := environments[envName]
 			if ok {
 				env.Branch = namespace.Annotations["vili.environment-branch"]
 			} else {
 				env = &Environment{
-					Name:   namespace.Name,
+					Name:   envName,
 					Branch: namespace.Annotations["vili.environment-branch"],
 				}
 			}
 			env.fillBranches()
 			env.fillSpecs()
 			rwMutex.Lock()
-			environments[namespace.Name] = env
+			environments[envName] = env
 			rwMutex.Unlock()
 		}
 	}
