@@ -150,7 +150,7 @@ func releaseSpecGetHandler(c *echo.Context) error {
 	}
 
 	release := new(types.Release)
-	spec, err := templates.Release(environment.Name)
+	spec, err := templates.Release(environment.Name, environment.Branch)
 	if err != nil {
 		return err
 	}
@@ -182,7 +182,7 @@ func releaseCreateHandler(c *echo.Context) error {
 		}
 	} else {
 		// get spec for this environment
-		spec, err := templates.Release(environment.Name)
+		spec, err := templates.Release(environment.Name, environment.Branch)
 		if err != nil {
 			return err
 		}

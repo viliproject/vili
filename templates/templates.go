@@ -18,7 +18,7 @@ type Service interface {
 	Deployment(env, branch, name string) (Template, error)
 	ConfigMaps(env, branch string) ([]string, error)
 	ConfigMap(env, branch, name string) (Template, error)
-	Release(env string) (Template, error)
+	Release(env, branch string) (Template, error)
 	Environment(branch string) (Template, error)
 }
 
@@ -53,8 +53,8 @@ func ConfigMap(env, branch, name string) (Template, error) {
 }
 
 // Release returns a release template for the given environment
-func Release(env string) (Template, error) {
-	return service.Release(env)
+func Release(env, branch string) (Template, error) {
+	return service.Release(env, branch)
 }
 
 // Environment returns an environment template for the given branch

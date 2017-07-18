@@ -137,8 +137,8 @@ func (s *gitService) ConfigMap(env, branch, name string) (Template, error) {
 }
 
 // Release returns a release template for the given environment
-func (s *gitService) Release(env string) (Template, error) {
-	fileContent, err := s.getContents(env, "", "release.yaml")
+func (s *gitService) Release(env, branch string) (Template, error) {
+	fileContent, err := s.getContents(env, branch, "release.yaml")
 	if err != nil {
 		return "", err
 	}
