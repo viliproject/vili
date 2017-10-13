@@ -18,11 +18,10 @@ import (
 
 // RegistryConfig is the registry service configuration
 type RegistryConfig struct {
-	BaseURL         string
-	Username        string
-	Password        string
-	Namespace       string
-	BranchDelimiter string
+	BaseURL   string
+	Username  string
+	Password  string
+	Namespace string
 }
 
 // RegistryService is an implementation of the docker Service interface
@@ -74,8 +73,8 @@ func (s *RegistryService) GetRepository(repo string, branches []string) ([]*Imag
 }
 
 // GetTag implements the Service interface
-func (s *RegistryService) GetTag(repo, branch, tag string) (string, error) {
-	repository, err := s.getRepositoryForBranch(repo, branch)
+func (s *RegistryService) GetTag(repo, tag string) (string, error) {
+	repository, err := s.getRepository(repo)
 	if err != nil {
 		return "", err
 	}
@@ -89,18 +88,15 @@ func (s *RegistryService) GetTag(repo, branch, tag string) (string, error) {
 }
 
 // FullName implements the Service interface
-func (s *RegistryService) FullName(repo, branch, tag string) (string, error) {
+func (s *RegistryService) FullName(repo, tag string) (string, error) {
 	if s.config.Namespace != "" {
 		repo = s.config.Namespace + "/" + repo
-	}
-	if branch != "master" {
-		repo += s.config.BranchDelimiter + strings.ToLower(branch)
 	}
 	return s.config.BaseURL + "/" + repo + ":" + tag, nil
 }
 
 func (s *RegistryService) getImagesForBranch(repoName, branchName string) ([]*Image, error) {
-	repo, err := s.getRepositoryForBranch(repoName, branchName)
+	repo, err := s.getRepository(repoName)
 	if err != nil {
 		return nil, err
 	}
@@ -131,12 +127,9 @@ func (s *RegistryService) getImagesForBranch(repoName, branchName string) ([]*Im
 	return images, nil
 }
 
-func (s *RegistryService) getRepositoryForBranch(repoName, branchName string) (distribution.Repository, error) {
+func (s *RegistryService) getRepository(repoName string) (distribution.Repository, error) {
 	if s.config.Namespace != "" {
 		repoName = s.config.Namespace + "/" + repoName
-	}
-	if branchName != "master" {
-		repoName += s.config.BranchDelimiter + strings.ToLower(branchName)
 	}
 	repoNameRef, err := reference.ParseNamed(repoName)
 	if err != nil {

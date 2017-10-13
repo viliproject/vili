@@ -69,7 +69,7 @@ type Rollout struct {
 
 // Run initializes a deployment, checks to make sure it is valid, and runs it
 func (r *Rollout) Run(async bool) error {
-	digest, err := docker.GetTag(r.DeploymentName, r.Branch, r.Tag)
+	digest, err := docker.GetTag(r.DeploymentName, r.Tag)
 	if err != nil {
 		return err
 	}
@@ -143,7 +143,7 @@ func (r *Rollout) createNewDeployment() (err error) {
 		deployment.Spec.Template.ObjectMeta.Annotations["vili/fromRevision"] = r.FromRevision
 	}
 
-	imageName, err := docker.FullName(r.DeploymentName, r.Branch, r.Tag)
+	imageName, err := docker.FullName(r.DeploymentName, r.Tag)
 	if err != nil {
 		return
 	}

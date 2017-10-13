@@ -143,11 +143,10 @@ func New() *App {
 			switch config.GetString(config.DockerMode) {
 			case "registry":
 				err := docker.InitRegistry(&docker.RegistryConfig{
-					BaseURL:         config.GetString(config.RegistryURL),
-					Username:        config.GetString(config.RegistryUsername),
-					Password:        config.GetString(config.RegistryPassword),
-					Namespace:       config.GetString(config.RegistryNamespace),
-					BranchDelimiter: config.GetString(config.RegistryBranchDelimiter),
+					BaseURL:   config.GetString(config.RegistryURL),
+					Username:  config.GetString(config.RegistryUsername),
+					Password:  config.GetString(config.RegistryPassword),
+					Namespace: config.GetString(config.RegistryNamespace),
 				})
 				if err != nil {
 					log.Fatal(err)
@@ -163,7 +162,6 @@ func New() *App {
 					AccessKeyID:     config.GetString(config.AWSAccessKeyID),
 					SecretAccessKey: config.GetString(config.AWSSecretAccessKey),
 					Namespace:       config.GetString(config.RegistryNamespace),
-					BranchDelimiter: config.GetString(config.RegistryBranchDelimiter),
 					RegistryID:      registryID,
 				})
 				if err != nil {

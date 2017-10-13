@@ -13,7 +13,6 @@ func TestECRGetRepository(t *testing.T) {
 		AccessKeyID:     os.Getenv("AWS_ACCESS_KEY_ID"),
 		SecretAccessKey: os.Getenv("AWS_SECRET_ACCESS_KEY"),
 		Namespace:       os.Getenv("REGISTRY_NAMESPACE"),
-		BranchDelimiter: os.Getenv("REGISTRY_BRANCH_DELIMITER"),
 	})
 	images, err := testService.GetRepository("vili", []string{"master", "develop"})
 	if err != nil {
@@ -30,9 +29,8 @@ func TestECRGetTag(t *testing.T) {
 		AccessKeyID:     os.Getenv("AWS_ACCESS_KEY_ID"),
 		SecretAccessKey: os.Getenv("AWS_SECRET_ACCESS_KEY"),
 		Namespace:       os.Getenv("REGISTRY_NAMESPACE"),
-		BranchDelimiter: os.Getenv("REGISTRY_BRANCH_DELIMITER"),
 	})
-	digest, err := testService.GetTag("vili", "master", "latest")
+	digest, err := testService.GetTag("vili", "latest")
 	if err != nil {
 		log.Error(err)
 	}
@@ -61,8 +59,7 @@ func TestECRFullName(t *testing.T) {
 		},
 		{
 			ECRConfig{
-				Region:          os.Getenv("AWS_REGION"),
-				BranchDelimiter: "/",
+				Region: os.Getenv("AWS_REGION"),
 			},
 			"busybox",
 			"feature/cld-9999",
