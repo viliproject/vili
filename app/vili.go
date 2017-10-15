@@ -68,15 +68,13 @@ func New() *App {
 			envKubeNamespaces := config.GetStringSliceMap(config.EnvKubernetesNamespaces)
 			for _, env := range environments.Environments() {
 				envConfigs[env.Name] = &kube.EnvConfig{
-					URL:          config.GetString(config.KubernetesURL(env.Name)),
-					Namespace:    envKubeNamespaces[env.Name],
-					ClientCert:   config.GetString(config.KubernetesClientCert(env.Name)),
-					ClientCACert: config.GetString(config.KubernetesClientCACert(env.Name)),
-					ClientKey:    config.GetString(config.KubernetesClientKey(env.Name)),
+					Namespace:      envKubeNamespaces[env.Name],
+					KubeConfigPath: config.GetString(config.KubeConfigPath(env.Name)),
 				}
 			}
 			err := kube.Init(&kube.Config{
-				EnvConfigs: envConfigs,
+				EnvConfigs:            envConfigs,
+				DefaultKubeConfigPath: config.GetString(config.KubeConfigPath(config.GetString(config.DefaultEnv))),
 			})
 			if err != nil {
 				log.Fatal(err)
@@ -274,6 +272,7 @@ func healthCheck() error {
 func shutdown() {
 	auth.Cleanup()
 	log.Info("waiting for deployments and slack bot")
+	close(environments.ExitingChan)
 	close(api.ExitingChan)
 	close(kube.ExitingChan)
 	close(slack.ExitingChan)

@@ -3,16 +3,16 @@ package api
 import (
 	"fmt"
 	"io"
-	"net/url"
 	"strings"
 	"time"
 
-	"golang.org/x/net/websocket"
-
-	"github.com/airware/vili/kube"
-	"github.com/airware/vili/kube/extensions/v1beta1"
 	"github.com/airware/vili/log"
+	"golang.org/x/net/websocket"
 	echo "gopkg.in/labstack/echo.v1"
+	extv1beta1 "k8s.io/api/extensions/v1beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/watch"
 )
 
 var (
@@ -32,18 +32,25 @@ func parseQueryFields(c *echo.Context) map[string]bool {
 	return queryFields
 }
 
-func filterQueryFields(c *echo.Context, params []string) *url.Values {
-	query := &url.Values{}
-	for _, param := range params {
-		val := c.Request().URL.Query().Get(param)
-		if val != "" {
-			query.Add(param, val)
-		}
+func getListOptionsFromRequest(c *echo.Context) metav1.ListOptions {
+	return metav1.ListOptions{
+		LabelSelector:   c.Request().URL.Query().Get("labelSelector"),
+		FieldSelector:   c.Request().URL.Query().Get("fieldSelector"),
+		ResourceVersion: c.Request().URL.Query().Get("resourceVersion"),
 	}
-	return query
 }
 
-func getPortFromDeployment(deployment *v1beta1.Deployment) (int32, error) {
+func getListOptionsForDeployment(deployment *extv1beta1.Deployment) metav1.ListOptions {
+	var selector []string
+	for k, v := range deployment.Spec.Selector.MatchLabels {
+		selector = append(selector, fmt.Sprintf("%s=%s", k, v))
+	}
+	return metav1.ListOptions{
+		LabelSelector: strings.Join(selector, ","),
+	}
+}
+
+func getPortFromDeployment(deployment *extv1beta1.Deployment) (int32, error) {
 	containers := deployment.Spec.Template.Spec.Containers
 	if len(containers) == 0 {
 		return 0, fmt.Errorf("no containers in controller")
@@ -55,7 +62,7 @@ func getPortFromDeployment(deployment *v1beta1.Deployment) (int32, error) {
 	return ports[0].ContainerPort, nil
 }
 
-func getImageTagFromDeployment(deployment *v1beta1.Deployment) (string, error) {
+func getImageTagFromDeployment(deployment *extv1beta1.Deployment) (string, error) {
 	containers := deployment.Spec.Template.Spec.Containers
 	if len(containers) == 0 {
 		return "", fmt.Errorf("no containers in deployment")
@@ -72,11 +79,28 @@ func humanizeDuration(d time.Duration) string {
 	return ((d / time.Second) * time.Second).String()
 }
 
-func apiWatchHandler(ws *websocket.Conn, env string, query *url.Values, watchFunc func(env string, query *url.Values) (*kube.Watcher, error)) error {
-	watcher, err := watchFunc(env, query)
+type apiWatcher func(opts metav1.ListOptions) (watch.Interface, error)
+
+// apiEvent is used for json serialization of kubernetes watch events
+type apiEvent struct {
+	Type   watch.EventType `json:"type"`
+	Object runtime.Object  `json:"object"`
+}
+
+func apiWatchWebsocket(c *echo.Context, query metav1.ListOptions, watchFunc apiWatcher) (err error) {
+	websocket.Handler(func(ws *websocket.Conn) {
+		err = apiWatchHandler(ws, query, watchFunc)
+		ws.Close()
+	}).ServeHTTP(c.Response(), c.Request())
+	return
+}
+
+func apiWatchHandler(ws *websocket.Conn, query metav1.ListOptions, watchFunc apiWatcher) error {
+	watcher, err := watchFunc(query)
 	if err != nil {
 		return err
 	}
+	stoppedChan := make(chan struct{})
 
 	go func() {
 		var cmd interface{}
@@ -89,16 +113,22 @@ func apiWatchHandler(ws *websocket.Conn, env string, query *url.Values, watchFun
 		}
 	}()
 
-	for event := range watcher.EventChan {
-		err := websocket.JSON.Send(ws, event)
-		if err != nil {
-			log.WithError(err).Warn("error writing to websocket stream")
-			watcher.Stop()
+	go func() {
+		for event := range watcher.ResultChan() {
+			err := websocket.JSON.Send(ws, apiEvent(event))
+			if err != nil {
+				log.WithError(err).Warn("error writing to websocket stream")
+				watcher.Stop()
+			}
 		}
-	}
-	if !watcher.Stopped() {
+		close(stoppedChan)
+	}()
+
+	select {
+	case <-ExitingChan:
 		watcher.Stop()
-		websocket.JSON.Send(ws, webSocketCloseMessage)
+	case <-stoppedChan:
 	}
-	return watcher.Err()
+	websocket.JSON.Send(ws, webSocketCloseMessage)
+	return nil
 }

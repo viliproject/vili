@@ -4,20 +4,21 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"time"
 
 	"github.com/airware/vili/config"
 	"github.com/airware/vili/docker"
 	"github.com/airware/vili/errors"
 	"github.com/airware/vili/kube"
-	"github.com/airware/vili/kube/extensions/v1beta1"
-	"github.com/airware/vili/kube/unversioned"
 	"github.com/airware/vili/log"
 	"github.com/airware/vili/server"
 	"github.com/airware/vili/session"
 	"github.com/airware/vili/templates"
 	echo "gopkg.in/labstack/echo.v1"
+	extv1beta1 "k8s.io/api/extensions/v1beta1"
+	kubeErrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/watch"
 )
 
 func rolloutCreateHandler(c *echo.Context) error {
@@ -60,10 +61,10 @@ type Rollout struct {
 	Username       string `json:"username"`
 	State          string `json:"state"`
 
-	FromDeployment *v1beta1.Deployment `json:"fromDeployment"`
-	FromRevision   string              `json:"fromRevision"`
-	ToDeployment   *v1beta1.Deployment `json:"toDeployment"`
-	ToRevision     string              `json:"toRevision"`
+	FromDeployment *extv1beta1.Deployment `json:"fromDeployment"`
+	FromRevision   string                 `json:"fromRevision"`
+	ToDeployment   *extv1beta1.Deployment `json:"toDeployment"`
+	ToRevision     string                 `json:"toRevision"`
 }
 
 // Run initializes a deployment, checks to make sure it is valid, and runs it
@@ -78,11 +79,14 @@ func (r *Rollout) Run(async bool) error {
 		}
 	}
 
-	r.FromDeployment, _, err = kube.Deployments.Get(r.Env, r.DeploymentName)
+	fromDeployment, err := kube.GetClient(r.Env).Deployments().Get(r.DeploymentName, metav1.GetOptions{})
 	if err != nil {
-		return err
-	}
-	if r.FromDeployment != nil {
+		if statusError, ok := err.(*kubeErrors.StatusError); !ok || statusError.Status().Code != http.StatusNotFound {
+			// only return error if the error is something other than NotFound
+			return err
+		}
+	} else {
+		r.FromDeployment = fromDeployment
 		if revision, ok := r.FromDeployment.ObjectMeta.Annotations["deployment.kubernetes.io/revision"]; ok {
 			r.FromRevision = revision
 		}
@@ -102,13 +106,14 @@ func (r *Rollout) Run(async bool) error {
 }
 
 func (r *Rollout) createNewDeployment() (err error) {
+	endpoint := kube.GetClient(r.Env).Deployments()
 	// get the spec
 	deploymentTemplate, err := templates.Deployment(r.Env, r.Branch, r.DeploymentName)
 	if err != nil {
 		return
 	}
 
-	deployment := new(v1beta1.Deployment)
+	deployment := new(extv1beta1.Deployment)
 	err = deploymentTemplate.Parse(deployment)
 	if err != nil {
 		return
@@ -118,6 +123,7 @@ func (r *Rollout) createNewDeployment() (err error) {
 	labels := map[string]string{
 		"app": r.DeploymentName,
 	}
+	deployment.ObjectMeta.Name = r.DeploymentName
 	deployment.ObjectMeta.Labels = labels
 	deployment.Spec.Template.ObjectMeta.Labels = labels
 
@@ -147,22 +153,18 @@ func (r *Rollout) createNewDeployment() (err error) {
 		*deployment.Spec.Replicas = *r.FromDeployment.Spec.Replicas
 	}
 
-	deployment.Spec.Strategy.Type = v1beta1.RollingUpdateDeploymentStrategyType
+	deployment.Spec.Strategy.Type = extv1beta1.RollingUpdateDeploymentStrategyType
 
 	// create/update deployment
-	var status *unversioned.Status
-	r.ToDeployment, status, err = kube.Deployments.Replace(r.Env, r.DeploymentName, deployment)
+	r.ToDeployment, err = endpoint.Update(deployment)
 	if err != nil {
-		return
-	}
-	if status != nil {
-		if status.Code == http.StatusNotFound {
-			r.ToDeployment, _, err = kube.Deployments.Create(r.Env, deployment)
+		if statusError, ok := err.(*kubeErrors.StatusError); ok && statusError.Status().Code == http.StatusNotFound {
+			r.ToDeployment, err = endpoint.Create(deployment)
 			if err != nil {
 				return
 			}
 		} else {
-			return fmt.Errorf(status.Message)
+			return
 		}
 	}
 
@@ -174,8 +176,8 @@ func (r *Rollout) createNewDeployment() (err error) {
 }
 
 func (r *Rollout) waitRolloutInit() (err error) {
-	watcher, err := kube.Deployments.Watch(r.Env, &url.Values{
-		"fieldSelector": {"metadata.name=" + r.DeploymentName},
+	watcher, err := kube.GetClient(r.Env).Deployments().Watch(metav1.ListOptions{
+		FieldSelector: "metadata.name=" + r.DeploymentName,
 	})
 	if err != nil {
 		return err
@@ -185,24 +187,16 @@ func (r *Rollout) waitRolloutInit() (err error) {
 eventLoop:
 	for {
 		select {
-		case event, ok := <-watcher.EventChan:
+		case event, ok := <-watcher.ResultChan():
 			if !ok {
 				break eventLoop
 			}
-			if watcher.Stopped() {
-				// empty the channel
-				continue
-			}
-			deploymentEvent := event.(*kube.DeploymentEvent)
+			r.ToDeployment = event.Object.(*extv1beta1.Deployment)
 			finished := false
-			r.ToDeployment = deploymentEvent.Object
-			if deploymentEvent.List != nil && len(deploymentEvent.List.Items) > 0 {
-				r.ToDeployment = &deploymentEvent.List.Items[0]
-			}
-			switch deploymentEvent.Type {
-			case kube.WatchEventDeleted:
+			switch event.Type {
+			case watch.Deleted:
 				finished = true
-			case kube.WatchEventInit, kube.WatchEventAdded, kube.WatchEventModified:
+			case watch.Added, watch.Modified:
 				if revision, ok := r.ToDeployment.ObjectMeta.Annotations["deployment.kubernetes.io/revision"]; ok {
 					r.ToRevision = revision
 					finished = true
@@ -210,22 +204,22 @@ eventLoop:
 			}
 			if finished {
 				watcher.Stop()
-				break
+				break eventLoop
 			}
 		case <-time.After(config.GetDuration(config.RolloutTimeout)):
 			elapsed := time.Now().Sub(startTime)
 			r.logMessage(fmt.Sprintf("Deployment timed out after %s", humanizeDuration(elapsed)), log.WarnLevel)
 			watcher.Stop()
 			err = fmt.Errorf("timeout")
-			break
+			break eventLoop
 		}
 	}
 	return
 }
 
 func (r *Rollout) watchRollout() (err error) {
-	watcher, err := kube.Deployments.Watch(r.Env, &url.Values{
-		"fieldSelector": {"metadata.name=" + r.DeploymentName},
+	watcher, err := kube.GetClient(r.Env).Deployments().Watch(metav1.ListOptions{
+		FieldSelector: "metadata.name=" + r.DeploymentName,
 	})
 	if err != nil {
 		return err
@@ -235,33 +229,25 @@ func (r *Rollout) watchRollout() (err error) {
 eventLoop:
 	for {
 		select {
-		case event, ok := <-watcher.EventChan:
+		case event, ok := <-watcher.ResultChan():
 			if !ok {
 				break eventLoop
 			}
-			if watcher.Stopped() {
-				// empty the channel
-				continue eventLoop
-			}
 			elapsed := time.Now().Sub(startTime)
-			deploymentEvent := event.(*kube.DeploymentEvent)
-			deployment := deploymentEvent.Object
-			if deploymentEvent.List != nil && len(deploymentEvent.List.Items) > 0 {
-				deployment = &deploymentEvent.List.Items[0]
-			}
-			switch deploymentEvent.Type {
-			case kube.WatchEventDeleted:
+			deployment := event.Object.(*extv1beta1.Deployment)
+			switch event.Type {
+			case watch.Deleted:
 				r.logMessage(fmt.Sprintf("Deleted deployment after %s", humanizeDuration(elapsed)), log.WarnLevel)
 				watcher.Stop()
 				err = fmt.Errorf("deleted")
-				break
-			case kube.WatchEventInit, kube.WatchEventAdded, kube.WatchEventModified:
+				break eventLoop
+			case watch.Added, watch.Modified:
 				if deployment.Generation <= deployment.Status.ObservedGeneration {
 					replicas := *deployment.Spec.Replicas
 					if deployment.Status.UpdatedReplicas >= replicas && deployment.Status.AvailableReplicas >= replicas {
 						r.logMessage(fmt.Sprintf("Successfully completed rollout in %s", humanizeDuration(elapsed)), log.InfoLevel)
 						watcher.Stop()
-						break
+						break eventLoop
 					}
 				}
 			}
@@ -270,7 +256,7 @@ eventLoop:
 			r.logMessage(fmt.Sprintf("Deployment timed out after %s", humanizeDuration(elapsed)), log.WarnLevel)
 			watcher.Stop()
 			err = fmt.Errorf("timeout")
-			break
+			break eventLoop
 		}
 	}
 

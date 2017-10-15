@@ -1,52 +1,42 @@
 package api
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
-
-	"golang.org/x/net/websocket"
 
 	"github.com/airware/vili/errors"
 	"github.com/airware/vili/kube"
 	"github.com/airware/vili/server"
 	echo "gopkg.in/labstack/echo.v1"
-)
-
-var (
-	nodesQueryParams = []string{"labelSelector", "fieldSelector", "resourceVersion"}
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 func nodesGetHandler(c *echo.Context) error {
 	env := c.Param("env")
-	query := filterQueryFields(c, nodesQueryParams)
+
+	endpoint := kube.GetClient(env).Nodes()
+	query := getListOptionsFromRequest(c)
 
 	if c.Request().URL.Query().Get("watch") != "" {
-		// watch nodes and return over websocket
-		var err error
-		websocket.Handler(func(ws *websocket.Conn) {
-			err = nodesWatchHandler(ws, env, query)
-			ws.Close()
-		}).ServeHTTP(c.Response(), c.Request())
-		return err
+		return apiWatchWebsocket(c, query, endpoint.Watch)
 	}
 
 	// otherwise, return the nodes list
-	resp, _, err := kube.Nodes.List(env, query)
+	resp, err := endpoint.List(query)
 	if err != nil {
 		return err
 	}
 	return c.JSON(http.StatusOK, resp)
 }
 
-func nodesWatchHandler(ws *websocket.Conn, env string, query *url.Values) error {
-	return apiWatchHandler(ws, env, query, kube.Nodes.Watch)
-}
-
 func nodeStateEditHandler(c *echo.Context) error {
 	env := c.Param("env")
 	node := c.Param("node")
 	state := c.Param("state")
+
+	endpoint := kube.GetClient(env).Nodes()
 
 	var unschedulable bool
 	if state == "enable" {
@@ -57,7 +47,16 @@ func nodeStateEditHandler(c *echo.Context) error {
 		return server.ErrorResponse(c, errors.BadRequest(fmt.Sprintf("Invalid state for node: %s", state)))
 	}
 
-	resp, err := kube.Nodes.PatchUnschedulable(env, node, unschedulable)
+	data := &corev1.Node{
+		Spec: corev1.NodeSpec{
+			Unschedulable: unschedulable,
+		},
+	}
+	dataBytes, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+	resp, err := endpoint.Patch(node, types.MergePatchType, dataBytes)
 	if err != nil {
 		return err
 	}

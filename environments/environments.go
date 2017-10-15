@@ -2,20 +2,23 @@ package environments
 
 import (
 	"errors"
-	"net/url"
 	"os/exec"
 	"sort"
 	"sync"
 
 	"github.com/airware/vili/config"
 	"github.com/airware/vili/kube"
-	"github.com/airware/vili/kube/v1"
 	"github.com/airware/vili/log"
 	"github.com/airware/vili/templates"
 	"github.com/airware/vili/util"
+	apiv1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/watch"
 )
 
 var (
+	// ExitingChan is a flag indicating that the server is exiting
+	ExitingChan   = make(chan struct{})
 	environments  map[string]*Environment
 	namespaceEnvs map[string]string
 	ignoredEnvs   *util.StringSet
@@ -163,48 +166,35 @@ func Delete(name string) error {
 		return errors.New(name + " is a protected environment")
 	}
 
-	status, err := kube.Namespaces.Delete(name)
-	if err != nil {
-		return err
-	}
-	if status != nil {
-		return errors.New(status.Message)
-	}
-	return nil
+	return kube.GetClient("").Core().Namespaces().Delete(name, nil)
 }
 
 // WatchEnvs watches the namespaces on the kubernetes cluster and updates the list of environments
 func WatchEnvs() {
-	watcher, err := kube.Namespaces.Watch(&url.Values{})
+	watcher, err := kube.GetClient("").Core().Namespaces().Watch(metav1.ListOptions{})
 	if err != nil {
 		log.WithError(err).Error("error watching namespaces")
 		return
 	}
-	for event := range watcher.EventChan {
-		namespaceEvent := event.(*kube.NamespaceEvent)
-		var wg sync.WaitGroup
-		switch namespaceEvent.Type {
-		case kube.WatchEventInit:
-			for _, item := range namespaceEvent.List.Items {
-				ns := item
-				wg.Add(1)
-				go func(ns *v1.Namespace) {
-					updateEnv(ns)
-					wg.Done()
-				}(&ns)
+	go func() {
+		for event := range watcher.ResultChan() {
+			namespace := event.Object.(*apiv1.Namespace)
+			switch event.Type {
+			case watch.Added, watch.Modified:
+				updateEnv(namespace)
+			case watch.Deleted:
+				rwMutex.Lock()
+				delete(environments, namespace.Name)
+				rwMutex.Unlock()
 			}
-		case kube.WatchEventAdded, kube.WatchEventModified:
-			updateEnv(namespaceEvent.Object)
-		case kube.WatchEventDeleted:
-			rwMutex.Lock()
-			delete(environments, namespaceEvent.Object.Name)
-			rwMutex.Unlock()
 		}
-		wg.Wait()
-	}
+	}()
+	<-ExitingChan
+	log.Info("stopping namespace watcher")
+	watcher.Stop()
 }
 
-func updateEnv(namespace *v1.Namespace) {
+func updateEnv(namespace *apiv1.Namespace) {
 	envName := namespace.Name
 	if namespaceEnvs[envName] != "" {
 		envName = namespaceEnvs[envName]

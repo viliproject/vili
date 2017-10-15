@@ -63,8 +63,3 @@ const (
 	ReleaseTargetTypeJob    ReleaseTargetType = "job"
 	ReleaseTargetTypeApp    ReleaseTargetType = "app"
 )
-
-// ReleaseList is an object representing a list of releases
-type ReleaseList struct {
-	Items []Release `json:"items"`
-}

@@ -11,20 +11,20 @@ import (
 
 	"golang.org/x/net/websocket"
 
-	"github.com/asaskevich/govalidator"
-	echo "gopkg.in/labstack/echo.v1"
-
 	"github.com/airware/vili/docker"
 	"github.com/airware/vili/environments"
 	"github.com/airware/vili/errors"
 	"github.com/airware/vili/firebase"
 	"github.com/airware/vili/kube"
-	"github.com/airware/vili/kube/v1"
 	"github.com/airware/vili/log"
 	"github.com/airware/vili/session"
 	"github.com/airware/vili/slack"
 	"github.com/airware/vili/templates"
 	"github.com/airware/vili/types"
+	"github.com/asaskevich/govalidator"
+	echo "gopkg.in/labstack/echo.v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func releasesGetHandler(c *echo.Context) error {
@@ -86,9 +86,9 @@ func releasesWatchHandler(ws *websocket.Conn, env string) error {
 
 // ReleaseEvent represents a change to a release
 type ReleaseEvent struct {
-	Type   string             `json:"type"`
-	Object *types.Release     `json:"object"`
-	List   *types.ReleaseList `json:"list"`
+	Type   string           `json:"type"`
+	Object *types.Release   `json:"object"`
+	List   []*types.Release `json:"list"`
 }
 
 func getReleaseEvent(firebaseEvent firebase.Event) *ReleaseEvent {
@@ -96,17 +96,18 @@ func getReleaseEvent(firebaseEvent firebase.Event) *ReleaseEvent {
 	case "put":
 		data, _ := json.Marshal(firebaseEvent.Data)
 		if firebaseEvent.Path == "/" {
-			releases := map[string]types.Release{}
+			releases := map[string]*types.Release{}
 			err := json.Unmarshal(data, &releases)
 			if err != nil {
 				log.WithError(err).Warn("error parsing releases json")
 				return nil
 			}
-			releaseList := &types.ReleaseList{
-				Items: []types.Release{},
-			}
+			releaseList := []*types.Release{}
 			for _, release := range releases {
-				releaseList.Items = append(releaseList.Items, release)
+				if len(release.Rollouts) == 0 {
+					release.Rollouts = []*types.ReleaseRollout{}
+				}
+				releaseList = append(releaseList, release)
 			}
 			return &ReleaseEvent{
 				Type: "INIT",
@@ -126,7 +127,8 @@ func getReleaseEvent(firebaseEvent firebase.Event) *ReleaseEvent {
 			}
 		}
 		release := &types.Release{
-			Name: pathSlice[0],
+			Name:     pathSlice[0],
+			Rollouts: []*types.ReleaseRollout{},
 		}
 		err := json.Unmarshal(data, release)
 		if err != nil {
@@ -437,30 +439,28 @@ func syncConfigMaps(target *types.ReleaseTarget, releaseRollout *types.ReleaseRo
 	if err != nil {
 		return err
 	}
+	endpoint := kube.GetClient(releaseRollout.Env).ConfigMaps()
 	for _, configmapName := range configmapNames {
 		configmapTemplate, err := templates.ConfigMap(releaseRollout.Env, target.Branch, configmapName)
 		if err != nil {
 			return err
 		}
-		configmap := new(v1.ConfigMap)
+		configmap := new(corev1.ConfigMap)
 		err = configmapTemplate.Parse(configmap)
 		if err != nil {
 			return err
 		}
-		existingConfigMap, resp, err := kube.ConfigMaps.Get(releaseRollout.Env, configmapName)
+		existingConfigMap, err := endpoint.Get(configmapName, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
 		if existingConfigMap == nil {
-			_, resp, err = kube.ConfigMaps.Create(releaseRollout.Env, configmap)
+			_, err = endpoint.Create(configmap)
 		} else {
-			_, resp, err = kube.ConfigMaps.Replace(releaseRollout.Env, configmapName, configmap)
+			_, err = endpoint.Update(configmap)
 		}
 		if err != nil {
 			return err
-		}
-		if resp != nil {
-			return fmt.Errorf("Got error response from kubernetes: %s", resp)
 		}
 	}
 	return nil

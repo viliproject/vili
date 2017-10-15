@@ -4,54 +4,38 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"sort"
 	"strconv"
 	"sync"
-
-	"golang.org/x/net/websocket"
 
 	"github.com/airware/vili/docker"
 	"github.com/airware/vili/environments"
 	"github.com/airware/vili/errors"
 	"github.com/airware/vili/kube"
-	"github.com/airware/vili/kube/extensions/v1beta1"
-	"github.com/airware/vili/kube/unversioned"
-	"github.com/airware/vili/kube/v1"
 	"github.com/airware/vili/log"
 	"github.com/airware/vili/server"
 	"github.com/airware/vili/templates"
 	echo "gopkg.in/labstack/echo.v1"
-)
-
-var (
-	deploymentsQueryParams = []string{"labelSelector", "fieldSelector", "resourceVersion"}
+	corev1 "k8s.io/api/core/v1"
+	extv1beta1 "k8s.io/api/extensions/v1beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func deploymentsGetHandler(c *echo.Context) error {
 	env := c.Param("env")
-	query := filterQueryFields(c, deploymentsQueryParams)
+
+	endpoint := kube.GetClient(env).Deployments()
+	query := getListOptionsFromRequest(c)
 
 	if c.Request().URL.Query().Get("watch") != "" {
-		// watch deployments and return over websocket
-		var err error
-		websocket.Handler(func(ws *websocket.Conn) {
-			err = deploymentsWatchHandler(ws, env, query)
-			ws.Close()
-		}).ServeHTTP(c.Response(), c.Request())
-		return err
+		return apiWatchWebsocket(c, query, endpoint.Watch)
 	}
 
-	// otherwise, return the deployments list
-	resp, _, err := kube.Deployments.List(env, query)
+	resp, err := endpoint.List(query)
 	if err != nil {
 		return err
 	}
 	return c.JSON(http.StatusOK, resp)
-}
-
-func deploymentsWatchHandler(ws *websocket.Conn, env string, query *url.Values) error {
-	return apiWatchHandler(ws, env, query, kube.Deployments.Watch)
 }
 
 type deploymentRepositoryResponse struct {
@@ -104,11 +88,12 @@ func deploymentServiceGetHandler(c *echo.Context) error {
 	env := c.Param("env")
 	deployment := c.Param("deployment")
 
-	service, _, err := kube.Services.Get(env, deployment)
+	endpoint := kube.GetClient(env).Services()
+
+	service, err := endpoint.Get(deployment, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
-
 	return c.JSON(http.StatusOK, service)
 }
 
@@ -116,10 +101,12 @@ func deploymentServiceCreateHandler(c *echo.Context) error {
 	env := c.Param("env")
 	deploymentName := c.Param("deployment")
 
+	endpoint := kube.GetClient(env).Services()
+
 	failed := false
 
 	var deploymentTemplate templates.Template
-	var currentService *v1.Service
+	var currentService *corev1.Service
 
 	environment, err := environments.Get(env)
 	if err != nil {
@@ -140,26 +127,15 @@ func deploymentServiceCreateHandler(c *echo.Context) error {
 	}()
 
 	// service
-	waitGroup.Add(1)
-	go func() {
-		defer waitGroup.Done()
-		service, _, err := kube.Services.Get(env, deploymentName)
-		if err != nil {
-			log.Error(err)
-			failed = true
-		}
-		currentService = service
-	}()
-
-	waitGroup.Wait()
-	if failed {
-		return fmt.Errorf("failed one of the service calls")
+	currentService, err = endpoint.Get(deploymentName, metav1.GetOptions{})
+	if err != nil {
+		return err
 	}
 
 	if currentService != nil {
 		return server.ErrorResponse(c, errors.Conflict("Service exists"))
 	}
-	deployment := &v1beta1.Deployment{}
+	deployment := &extv1beta1.Deployment{}
 	err = deploymentTemplate.Parse(deployment)
 	if err != nil {
 		return err
@@ -170,16 +146,16 @@ func deploymentServiceCreateHandler(c *echo.Context) error {
 		return err
 	}
 
-	service := &v1.Service{
-		TypeMeta: unversioned.TypeMeta{
+	service := &corev1.Service{
+		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
 		},
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name: deploymentName,
 		},
-		Spec: v1.ServiceSpec{
-			Ports: []v1.ServicePort{
-				v1.ServicePort{
+		Spec: corev1.ServiceSpec{
+			Ports: []corev1.ServicePort{
+				corev1.ServicePort{
 					Protocol: "TCP",
 					Port:     deploymentPort,
 				},
@@ -190,7 +166,7 @@ func deploymentServiceCreateHandler(c *echo.Context) error {
 		},
 	}
 
-	resp, err := kube.Services.Create(env, deploymentName, service)
+	resp, err := endpoint.Create(service)
 	if err != nil {
 		return err
 	}
@@ -214,13 +190,11 @@ func deploymentActionHandler(c *echo.Context) (err error) {
 	deploymentName := c.Param("deployment")
 	action := c.Param("action")
 
-	deployment, status, err := kube.Deployments.Get(env, deploymentName)
+	endpoint := kube.GetClient(env).Deployments()
+
+	deployment, err := endpoint.Get(deploymentName, metav1.GetOptions{})
 	if err != nil {
 		return err
-	}
-	if status != nil {
-		return server.ErrorResponse(c, errors.BadRequest(
-			fmt.Sprintf("Deployment %s not found", deploymentName)))
 	}
 
 	actionRequest := new(deploymentActionRequest)
@@ -231,15 +205,15 @@ func deploymentActionHandler(c *echo.Context) (err error) {
 
 	switch action {
 	case deploymentActionResume:
-		deployment.Spec.Paused = false
-		resp, status, err = kube.Deployments.Replace(env, deploymentName, deployment)
+		deployment.Spec.Paused = false // TODO use Patch?
+		resp, err = endpoint.Update(deployment)
 	case deploymentActionPause:
 		deployment.Spec.Paused = true
-		resp, status, err = kube.Deployments.Replace(env, deploymentName, deployment)
+		resp, err = endpoint.Update(deployment)
 	case deploymentActionRollback:
-		resp, status, err = kube.Deployments.Rollback(env, deploymentName, &v1beta1.DeploymentRollback{
+		err = endpoint.Rollback(&extv1beta1.DeploymentRollback{
 			Name: deploymentName,
-			RollbackTo: v1beta1.RollbackConfig{
+			RollbackTo: extv1beta1.RollbackConfig{
 				Revision: actionRequest.ToRevision,
 			},
 		})
@@ -247,8 +221,8 @@ func deploymentActionHandler(c *echo.Context) (err error) {
 		if actionRequest.Replicas == nil {
 			return server.ErrorResponse(c, errors.BadRequest("Replicas missing from scale request"))
 		}
-		resp, status, err = kube.Deployments.Scale(env, deploymentName, &v1beta1.Scale{
-			Spec: v1beta1.ScaleSpec{
+		resp, err = endpoint.UpdateScale(deploymentName, &extv1beta1.Scale{
+			Spec: extv1beta1.ScaleSpec{
 				Replicas: *actionRequest.Replicas,
 			},
 		})
@@ -259,14 +233,15 @@ func deploymentActionHandler(c *echo.Context) (err error) {
 	if err != nil {
 		return err
 	}
-	if status != nil {
-		return c.JSON(http.StatusBadRequest, status)
-	}
 	return c.JSON(http.StatusOK, resp)
 }
 
-func getRolloutHistoryForDeployment(env string, deployment *v1beta1.Deployment) ([]*v1beta1.ReplicaSet, error) {
-	replicaSetList, _, err := kube.ReplicaSets.ListForDeployment(env, deployment)
+func getRolloutHistoryForDeployment(env string, deployment *extv1beta1.Deployment) ([]*extv1beta1.ReplicaSet, error) {
+	var selector []string
+	for k, v := range deployment.Spec.Selector.MatchLabels {
+		selector = append(selector, fmt.Sprintf("%s=%s", k, v))
+	}
+	replicaSetList, err := kube.GetClient(env).ReplicaSets().List(getListOptionsForDeployment(deployment))
 	if err != nil {
 		return nil, err
 	}
@@ -282,7 +257,7 @@ func getRolloutHistoryForDeployment(env string, deployment *v1beta1.Deployment) 
 	return history, nil
 }
 
-func getReplicaSetForDeployment(deployment *v1beta1.Deployment, history []*v1beta1.ReplicaSet) (*v1beta1.ReplicaSet, error) {
+func getReplicaSetForDeployment(deployment *extv1beta1.Deployment, history []*extv1beta1.ReplicaSet) (*extv1beta1.ReplicaSet, error) {
 	deploymentRevision := deployment.ObjectMeta.Annotations["deployment.kubernetes.io/revision"]
 	for _, replicaSet := range history {
 		rsRevision := replicaSet.ObjectMeta.Annotations["deployment.kubernetes.io/revision"]
@@ -293,7 +268,7 @@ func getReplicaSetForDeployment(deployment *v1beta1.Deployment, history []*v1bet
 	return nil, fmt.Errorf("No replicaSet found for deployment %v", *deployment)
 }
 
-type byRevision []*v1beta1.ReplicaSet
+type byRevision []*extv1beta1.ReplicaSet
 
 func (s byRevision) Len() int      { return len(s) }
 func (s byRevision) Swap(i, j int) { s[i], s[j] = s[j], s[i] }

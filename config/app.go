@@ -59,24 +59,9 @@ func EnvRepositoryBranches(env string) string {
 	return fmt.Sprintf("env-%s-repository-branches", env)
 }
 
-// KubernetesURL returns the config variable name for the kube url
-func KubernetesURL(env string) string {
-	return fmt.Sprintf("kube-%s-url", env)
-}
-
-// KubernetesClientCert returns the config variable name for kube certs
-func KubernetesClientCert(env string) string {
-	return fmt.Sprintf("kube-%s-client-cert", env)
-}
-
-// KubernetesClientCACert returns the config variable name for kube CA certs
-func KubernetesClientCACert(env string) string {
-	return fmt.Sprintf("kube-%s-client-ca-cert", env)
-}
-
-// KubernetesClientKey returns the config variable name for kube private keys
-func KubernetesClientKey(env string) string {
-	return fmt.Sprintf("kube-%s-client-key", env)
+// KubeConfigPath returns the config variable name for the kubeconfig path
+func KubeConfigPath(env string) string {
+	return fmt.Sprintf("%s-kubeconfig-path", env)
 }
 
 // GithubEnvContentsPath returns the config variable name for the contents path for

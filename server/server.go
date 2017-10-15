@@ -14,6 +14,7 @@ import (
 	"github.com/tylerb/graceful"
 	"gopkg.in/labstack/echo.v1"
 	mw "gopkg.in/labstack/echo.v1/middleware"
+	kubeErrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 // Server is an instance of the server
@@ -93,6 +94,9 @@ func (s *Server) StopTest() {
 func (s *Server) httpErrorHandler(err error, c *echo.Context) {
 	code := http.StatusInternalServerError
 	switch e := err.(type) {
+	case *kubeErrors.StatusError:
+		c.JSON(http.StatusBadRequest, e.Status())
+		return
 	case *errors.ErrorResponse:
 		ErrorResponse(c, e)
 		return

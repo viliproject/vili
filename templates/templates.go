@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"html/template"
 
-	"github.com/airware/vili/kube/yaml"
+	"k8s.io/apimachinery/pkg/util/yaml"
 )
 
 var service Service

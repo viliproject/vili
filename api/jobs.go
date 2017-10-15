@@ -2,9 +2,6 @@ package api
 
 import (
 	"net/http"
-	"net/url"
-
-	"golang.org/x/net/websocket"
 
 	"github.com/airware/vili/docker"
 	"github.com/airware/vili/environments"
@@ -13,45 +10,35 @@ import (
 	echo "gopkg.in/labstack/echo.v1"
 )
 
-var (
-	jobsQueryParams = []string{"labelSelector", "fieldSelector", "resourceVersion"}
-)
-
 func jobsGetHandler(c *echo.Context) error {
 	env := c.Param("env")
-	query := filterQueryFields(c, jobsQueryParams)
+
+	endpoint := kube.GetClient(env).Jobs()
+	query := getListOptionsFromRequest(c)
 
 	if c.Request().URL.Query().Get("watch") != "" {
-		// watch jobs and return over websocket
-		var err error
-		websocket.Handler(func(ws *websocket.Conn) {
-			err = jobsWatchHandler(ws, env, query)
-			ws.Close()
-		}).ServeHTTP(c.Response(), c.Request())
-		return err
+		return apiWatchWebsocket(c, query, endpoint.Watch)
 	}
 
 	// otherwise, return the jobs list
-	resp, _, err := kube.Jobs.List(env, query)
+	resp, err := endpoint.List(query)
 	if err != nil {
 		return err
 	}
 	return c.JSON(http.StatusOK, resp)
-}
-
-func jobsWatchHandler(ws *websocket.Conn, env string, query *url.Values) error {
-	return apiWatchHandler(ws, env, query, kube.Jobs.Watch)
 }
 
 func jobDeleteHandler(c *echo.Context) error {
 	env := c.Param("env")
 	job := c.Param("job")
 
-	resp, err := kube.Jobs.Delete(env, job)
+	endpoint := kube.GetClient(env).Jobs()
+
+	err := endpoint.Delete(job, nil)
 	if err != nil {
 		return err
 	}
-	return c.JSON(http.StatusOK, resp)
+	return c.NoContent(http.StatusNoContent)
 }
 
 type jobRepositoryResponse struct {

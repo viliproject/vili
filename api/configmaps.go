@@ -3,15 +3,14 @@ package api
 import (
 	"encoding/json"
 	"net/http"
-	"net/url"
 
 	"github.com/airware/vili/environments"
 	"github.com/airware/vili/errors"
 	"github.com/airware/vili/kube"
-	"github.com/airware/vili/kube/v1"
 	"github.com/airware/vili/templates"
-	"golang.org/x/net/websocket"
 	echo "gopkg.in/labstack/echo.v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var (
@@ -20,28 +19,20 @@ var (
 
 func configmapsGetHandler(c *echo.Context) error {
 	env := c.Param("env")
-	query := filterQueryFields(c, configmapsQueryParams)
+
+	endpoint := kube.GetClient(env).ConfigMaps()
+	query := getListOptionsFromRequest(c)
 
 	if c.Request().URL.Query().Get("watch") != "" {
-		// watch configmaps and return over websocket
-		var err error
-		websocket.Handler(func(ws *websocket.Conn) {
-			err = configmapsWatchHandler(ws, env, query)
-			ws.Close()
-		}).ServeHTTP(c.Response(), c.Request())
-		return err
+		return apiWatchWebsocket(c, query, endpoint.Watch)
 	}
 
 	// otherwise, return the configmaps list
-	resp, _, err := kube.ConfigMaps.List(env, query)
+	resp, err := endpoint.List(query)
 	if err != nil {
 		return err
 	}
 	return c.JSON(http.StatusOK, resp)
-}
-
-func configmapsWatchHandler(ws *websocket.Conn, env string, query *url.Values) error {
-	return apiWatchHandler(ws, env, query, kube.ConfigMaps.Watch)
 }
 
 func configmapSpecGetHandler(c *echo.Context) error {
@@ -57,7 +48,7 @@ func configmapSpecGetHandler(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	configmap := new(v1.ConfigMap)
+	configmap := new(corev1.ConfigMap)
 	err = configmapTemplate.Parse(configmap)
 	return c.JSON(http.StatusOK, configmap)
 }
@@ -65,6 +56,8 @@ func configmapSpecGetHandler(c *echo.Context) error {
 func configmapCreateHandler(c *echo.Context) error {
 	env := c.Param("env")
 	configmapName := c.Param("configmap")
+
+	endpoint := kube.GetClient(env).ConfigMaps()
 
 	environment, err := environments.Get(env)
 	if err != nil {
@@ -75,15 +68,12 @@ func configmapCreateHandler(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	configmap := new(v1.ConfigMap)
+	configmap := new(corev1.ConfigMap)
 	err = configmapTemplate.Parse(configmap)
 
-	configmap, resp, err := kube.ConfigMaps.Create(env, configmap)
+	configmap, err = endpoint.Create(configmap)
 	if err != nil {
 		return err
-	}
-	if resp != nil {
-		return c.JSON(http.StatusBadRequest, resp)
 	}
 	return c.JSON(http.StatusOK, configmap)
 }
@@ -92,16 +82,20 @@ func configmapDeleteHandler(c *echo.Context) error {
 	env := c.Param("env")
 	configmapName := c.Param("configmap")
 
-	resp, err := kube.ConfigMaps.Delete(env, configmapName)
+	endpoint := kube.GetClient(env).ConfigMaps()
+
+	err := endpoint.Delete(configmapName, nil)
 	if err != nil {
 		return err
 	}
-	return c.JSON(http.StatusOK, resp)
+	return c.NoContent(http.StatusNoContent) // TODO return status?
 }
 
 func configmapSetKeysHandler(c *echo.Context) error {
 	env := c.Param("env")
 	configmapName := c.Param("configmap")
+
+	endpoint := kube.GetClient(env).ConfigMaps()
 
 	data := map[string]string{}
 	err := json.NewDecoder(c.Request().Body).Decode(&data)
@@ -109,17 +103,14 @@ func configmapSetKeysHandler(c *echo.Context) error {
 		return errors.BadRequest("Invalid body")
 	}
 
-	configmap, resp, err := kube.ConfigMaps.Get(env, configmapName)
+	configmap, err := endpoint.Get(configmapName, metav1.GetOptions{})
 	if err != nil {
 		return err
-	}
-	if resp != nil {
-		return c.JSON(http.StatusBadRequest, resp)
 	}
 	for key, val := range data {
 		configmap.Data[key] = val
 	}
-	configmap, _, err = kube.ConfigMaps.Replace(env, configmapName, configmap)
+	configmap, err = endpoint.Update(configmap)
 	if err != nil {
 		return err
 	}
@@ -131,7 +122,9 @@ func configmapDeleteKeyHandler(c *echo.Context) error {
 	configmapName := c.Param("configmap")
 	key := c.Param("key")
 
-	configmap, _, err := kube.ConfigMaps.Get(env, configmapName)
+	endpoint := kube.GetClient(env).ConfigMaps()
+
+	configmap, err := endpoint.Get(configmapName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -139,7 +132,7 @@ func configmapDeleteKeyHandler(c *echo.Context) error {
 	if _, ok := configmap.Data[key]; ok {
 		delete(configmap.Data, key)
 	}
-	resp, _, err := kube.ConfigMaps.Replace(env, configmapName, configmap)
+	resp, err := endpoint.Update(configmap)
 	if err != nil {
 		return err
 	}

@@ -15,7 +15,6 @@
     "url": "ssh://git@github.com/airware/vili.git"
   },
   "dependencies": {
-    "bluebird": "2.10.2",
     "browser-request": "0.3.3",
     "firebase": "2.3.1",
     "human-size": "1.1.0",
@@ -32,6 +31,7 @@
     "redux": "3.3.1",
     "redux-thunk": "2.1.0",
     "redux-ui": "0.0.15",
+    "reselect": "3.0.1",
     "superagent": "3.3.1",
     "underscore": "1.8.2"
   },

@@ -4,60 +4,44 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"time"
-
-	"golang.org/x/net/websocket"
 
 	"github.com/airware/vili/config"
 	"github.com/airware/vili/docker"
 	"github.com/airware/vili/errors"
 	"github.com/airware/vili/kube"
-	"github.com/airware/vili/kube/extensions/v1beta1"
 	"github.com/airware/vili/log"
 	"github.com/airware/vili/server"
 	"github.com/airware/vili/session"
 	"github.com/airware/vili/templates"
 	"github.com/airware/vili/util"
 	echo "gopkg.in/labstack/echo.v1"
-)
-
-var (
-	jobRunsQueryParams = []string{"labelSelector", "fieldSelector", "resourceVersion"}
+	batchv1 "k8s.io/api/batch/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/watch"
 )
 
 func jobRunsGetHandler(c *echo.Context) error {
 	env := c.Param("env")
 	job := c.Param("job")
-	query := filterQueryFields(c, jobRunsQueryParams)
 
-	labelSelector := query.Get("labelSelector")
-	if labelSelector != "" {
-		labelSelector += ","
+	endpoint := kube.GetClient(env).Jobs()
+	query := getListOptionsFromRequest(c)
+	if query.LabelSelector != "" {
+		query.LabelSelector += ","
 	}
-	labelSelector += "job=" + job
-	query.Set("labelSelector", labelSelector)
+	query.LabelSelector += "job=" + job
 
 	if c.Request().URL.Query().Get("watch") != "" {
-		// watch jobs and return over websocket
-		var err error
-		websocket.Handler(func(ws *websocket.Conn) {
-			err = jobRunsWatchHandler(ws, env, query)
-			ws.Close()
-		}).ServeHTTP(c.Response(), c.Request())
-		return err
+		return apiWatchWebsocket(c, query, endpoint.Watch)
 	}
 
 	// otherwise, return the pods list
-	resp, _, err := kube.Jobs.List(env, query)
+	resp, err := endpoint.List(query)
 	if err != nil {
 		return err
 	}
 	return c.JSON(http.StatusOK, resp)
-}
-
-func jobRunsWatchHandler(ws *websocket.Conn, env string, query *url.Values) error {
-	return apiWatchHandler(ws, env, query, kube.Jobs.Watch)
 }
 
 func jobRunCreateHandler(c *echo.Context) error {
@@ -100,7 +84,7 @@ type JobRun struct {
 	Time     time.Time `json:"time"`
 	Username string    `json:"username"`
 
-	Job *v1beta1.Job `json:"job"`
+	Job *batchv1.Job `json:"job"`
 }
 
 // Run initializes a job, checks to make sure it is valid, and runs it
@@ -137,7 +121,7 @@ func (r *JobRun) createNewJob() (err error) {
 		return
 	}
 
-	job := new(v1beta1.Job)
+	job := new(batchv1.Job)
 	err = jobTemplate.Parse(job)
 	if err != nil {
 		return
@@ -176,12 +160,9 @@ func (r *JobRun) createNewJob() (err error) {
 	job.ObjectMeta.Annotations["vili/startedBy"] = r.Username
 	job.Spec.Template.ObjectMeta.Annotations["vili/startedBy"] = r.Username
 
-	newJob, status, err := kube.Jobs.Create(r.Env, job)
+	newJob, err := kube.GetClient(r.Env).Jobs().Create(job)
 	if err != nil {
 		return
-	}
-	if status != nil {
-		return fmt.Errorf(status.Message)
 	}
 	r.Job = newJob
 	r.logMessage(fmt.Sprintf("Job for tag %s and branch %s created by %s", r.Tag, r.Branch, r.Username), log.InfoLevel)
@@ -190,8 +171,8 @@ func (r *JobRun) createNewJob() (err error) {
 
 // watchJob waits until the job exits
 func (r *JobRun) watchJob() (err error) {
-	watcher, err := kube.Jobs.Watch(r.Env, &url.Values{
-		"fieldSelector": {"metadata.name=" + r.Job.ObjectMeta.Name},
+	watcher, err := kube.GetClient(r.Env).Jobs().Watch(metav1.ListOptions{
+		FieldSelector: "metadata.name=" + r.Job.ObjectMeta.Name,
 	})
 	if err != nil {
 		return
@@ -201,32 +182,27 @@ func (r *JobRun) watchJob() (err error) {
 eventLoop:
 	for {
 		select {
-		case event, ok := <-watcher.EventChan:
+		case event, ok := <-watcher.ResultChan():
 			if !ok {
 				break eventLoop
 			}
-			if watcher.Stopped() {
-				// empty the channel
-				continue
-			}
 			elapsed := time.Now().Sub(startTime)
-			jobEvent := event.(*kube.JobEvent)
-			job := jobEvent.Object
-			if jobEvent.List != nil && len(jobEvent.List.Items) > 0 {
-				job = &jobEvent.List.Items[0]
-			}
-			switch jobEvent.Type {
-			case kube.WatchEventDeleted:
+			job := event.Object.(*batchv1.Job)
+			switch event.Type {
+			case watch.Deleted:
 				r.logMessage(fmt.Sprintf("Deleted job after %s", humanizeDuration(elapsed)), log.WarnLevel)
-			case kube.WatchEventInit, kube.WatchEventAdded, kube.WatchEventModified:
+				watcher.Stop()
+				err = fmt.Errorf("deleted")
+				break eventLoop
+			case watch.Added, watch.Modified:
 				finished := false
 				for _, condition := range job.Status.Conditions {
 					switch condition.Type {
-					case v1beta1.JobComplete:
+					case batchv1.JobComplete:
 						elapsed := time.Now().Sub(startTime)
 						r.logMessage(fmt.Sprintf("Successfully completed job in %s", humanizeDuration(elapsed)), log.InfoLevel)
 						finished = true
-					case v1beta1.JobFailed:
+					case batchv1.JobFailed:
 						elapsed := time.Now().Sub(startTime)
 						r.logMessage(fmt.Sprintf("Failed job after %s", humanizeDuration(elapsed)), log.ErrorLevel)
 						finished = true
@@ -235,7 +211,7 @@ eventLoop:
 				}
 				if finished {
 					watcher.Stop()
-					break
+					break eventLoop
 				}
 			}
 		case <-time.After(config.GetDuration(config.JobRunTimeout)):
@@ -243,7 +219,7 @@ eventLoop:
 			r.logMessage(fmt.Sprintf("Job timed out after %s", humanizeDuration(elapsed)), log.WarnLevel)
 			watcher.Stop()
 			err = fmt.Errorf("timeout")
-			break
+			break eventLoop
 		}
 	}
 	return
