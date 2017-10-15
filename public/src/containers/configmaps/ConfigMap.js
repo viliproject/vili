@@ -4,6 +4,7 @@ import { connect } from 'react-redux'
 import { Link } from 'react-router'
 import { Table, Button, ButtonToolbar, Modal, FormGroup, FormControl, ControlLabel } from 'react-bootstrap'
 import _ from 'underscore'
+import Immutable from 'immutable'
 
 import Loading from '../../components/Loading'
 import { activateNav } from '../../actions/app'
@@ -24,18 +25,7 @@ const dispatchProps = {
   deleteConfigMap
 }
 
-@connect(mapStateToProps, dispatchProps)
-export default class ConfigMap extends React.Component {
-  static propTypes = {
-    activateNav: PropTypes.func.isRequired,
-    getConfigMapSpec: PropTypes.func.isRequired,
-    createConfigMap: PropTypes.func.isRequired,
-    deleteConfigMap: PropTypes.func.isRequired,
-    params: PropTypes.object,
-    location: PropTypes.object,
-    configmap: PropTypes.object
-  }
-
+export class ConfigMap extends React.Component {
   constructor (props) {
     super(props)
     this.state = {
@@ -56,13 +46,13 @@ export default class ConfigMap extends React.Component {
   }
 
   fetchData = () => {
-    const { params } = this.props
-    this.props.getConfigMapSpec(params.env, params.configmap)
+    const { params, getConfigMapSpec } = this.props
+    getConfigMapSpec(params.env, params.configmap)
   }
 
   clickCreate = () => {
-    const { params } = this.props
-    this.props.createConfigMap(params.env, params.configmap)
+    const { params, createConfigMap } = this.props
+    createConfigMap(params.env, params.configmap)
   }
 
   clickDelete = () => {
@@ -103,7 +93,7 @@ export default class ConfigMap extends React.Component {
         <li className='active'>{params.configmap}</li>
       </ol>
     ]
-    if (!configmap || !configmap.spec) {
+    if (!configmap || !configmap.get('spec')) {
       return (
         <div>
           <div className='view-header'>{header}</div>
@@ -113,35 +103,29 @@ export default class ConfigMap extends React.Component {
     }
 
     const buttons = []
-    if (!configmap.object) {
+    if (!configmap.get('object')) {
       buttons.push(<Button key='create' onClick={this.clickCreate} bsStyle='success' bsSize='small'>Create Config Map</Button>)
     } else {
       buttons.push(<Button key='delete' onClick={this.clickDelete} bsStyle='danger' bsSize='small'>Delete Config Map</Button>)
     }
     header.push(<ButtonToolbar key='toolbar' bsClass='pull-right'>{buttons}</ButtonToolbar>)
 
-    const actualMap = configmap.object && configmap.object.data
-    const specMap = configmap.spec.data
+    const actualMap = configmap.getIn(['object', 'data'], Immutable.Map())
+    const specMap = configmap.getIn(['spec', 'data'], Immutable.Map())
 
-    let keys = []
-    if (actualMap) {
-      keys = Object.keys(actualMap)
-    }
-    if (specMap) {
-      keys = _.union(keys, Object.keys(specMap))
-    }
-    keys = _.sortBy(keys, (x) => x)
+    const keys = Immutable.Set().union(actualMap.keys(), specMap.keys()).sort()
 
-    const rows = _.map(keys, (key) => {
-      return (
+    const rows = []
+    keys.forEach((key) => {
+      rows.push(
         <Row
           key={key}
           keyName={key}
           env={params.env}
           configmapName={params.configmap}
-          val={actualMap && actualMap[key]}
-          specVal={specMap && specMap[key]}
-          hasConfigMap={!!configmap.object}
+          val={actualMap.get(key)}
+          specVal={specMap.get(key)}
+          hasConfigMap={!!configmap.get('object')}
         />
       )
     })
@@ -170,6 +154,18 @@ export default class ConfigMap extends React.Component {
     )
   }
 }
+
+ConfigMap.propTypes = {
+  activateNav: PropTypes.func.isRequired,
+  getConfigMapSpec: PropTypes.func.isRequired,
+  createConfigMap: PropTypes.func.isRequired,
+  deleteConfigMap: PropTypes.func.isRequired,
+  params: PropTypes.object,
+  location: PropTypes.object,
+  configmap: PropTypes.object
+}
+
+export default connect(mapStateToProps, dispatchProps)(ConfigMap)
 
 const rowDispatchProps = {
   setConfigMapKeys,

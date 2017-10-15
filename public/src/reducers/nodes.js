@@ -1,5 +1,5 @@
 import { CHANGE_NODE } from '../constants'
-import NodeModel from '../models/NodeModel'
+import Node from '../models/Node'
 
 import { getInitialState, changeObject } from './utils'
 
@@ -8,7 +8,7 @@ const initialState = getInitialState()
 export default function (state = initialState, action) {
   switch (action.type) {
     case CHANGE_NODE:
-      return changeObject(state, action, NodeModel)
+      return changeObject(state, action, Node)
     default:
       return state
   }

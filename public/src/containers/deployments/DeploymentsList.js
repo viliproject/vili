@@ -1,21 +1,25 @@
 import PropTypes from 'prop-types'
-/* global prompt */
 import React from 'react'
 import { connect } from 'react-redux'
 import { Link } from 'react-router'
-import _ from 'underscore'
 
 import Table from '../../components/Table'
 import { activateNav } from '../../actions/app'
+import { makeLookUpObjects } from '../../selectors'
 
-function mapStateToProps (state, ownProps) {
-  const env = _.findWhere(state.envs.toJS().envs, {name: ownProps.params.env})
-  const deployments = state.deployments.lookUpObjects(ownProps.params.env)
-  const replicaSets = state.replicaSets.lookUpObjects(ownProps.params.env)
-  return {
-    env,
-    deployments,
-    replicaSets
+function makeMapStateToProps () {
+  const lookUpDeploymentObjects = makeLookUpObjects()
+  const lookUpReplicaSetObjects = makeLookUpObjects()
+  return (state, ownProps) => {
+    const { env: envName } = ownProps.params
+    const env = state.envs.getIn(['envs', envName])
+    const deployments = lookUpDeploymentObjects(state.deployments, env.name)
+    const replicaSets = lookUpReplicaSetObjects(state.replicaSets, env.name)
+    return {
+      env,
+      deployments,
+      replicaSets
+    }
   }
 }
 
@@ -23,8 +27,7 @@ const dispatchProps = {
   activateNav
 }
 
-@connect(mapStateToProps, dispatchProps)
-export default class DeploymentsList extends React.Component {
+export class DeploymentsList extends React.Component {
   static propTypes = {
     params: PropTypes.object,
     location: PropTypes.object,
@@ -57,17 +60,19 @@ export default class DeploymentsList extends React.Component {
       {title: 'Deployed', key: 'deployedAt', style: {width: '200px', textAlign: 'right'}}
     ]
 
-    const rows = _.map(env.deployments, (deploymentName) => {
-      const deployment = deployments[deploymentName]
-      const replicaSet = deployment && _.find(replicaSets, (rs) => {
-        return rs.hasLabel('app', deploymentName) && rs.revision === deployment.revision
-      })
-      return {
+    const rows = []
+    env.deployments.forEach((deploymentName) => {
+      const deployment = deployments.find((d) => d.getIn(['metadata', 'name']) === deploymentName)
+      const replicaSet = deployment && replicaSets
+        .filter(x => x.hasLabel('app', deploymentName) && x.revision === deployment.revision)
+        .sortBy(x => -x.creationTimestamp)
+        .first()
+      rows.push({
         name: (<Link to={`/${env.name}/deployments/${deploymentName}`}>{deploymentName}</Link>),
-        tag: replicaSet && replicaSet.imageTag,
-        replicas: replicaSet && (replicaSet.status.replicas + '/' + replicaSet.spec.replicas),
+        tag: deployment && deployment.imageTag,
+        replicas: replicaSet && `${replicaSet.getIn(['status', 'replicas'])}/${replicaSet.getIn(['spec', 'replicas'])}`,
         deployedAt: replicaSet && replicaSet.deployedAt
-      }
+      })
     })
 
     return (
@@ -77,5 +82,6 @@ export default class DeploymentsList extends React.Component {
       </div>
     )
   }
-
 }
+
+export default connect(makeMapStateToProps, dispatchProps)(DeploymentsList)

@@ -3,17 +3,16 @@ import React from 'react'
 import { connect } from 'react-redux'
 import { Link } from 'react-router'
 import { Navbar, Nav, NavDropdown, MenuItem } from 'react-bootstrap'
-import _ from 'underscore'
 
 import LinkMenuItem from '../../components/LinkMenuItem'
 import EnvCreateModal from '../EnvCreateModal'
 import { showCreateEnvModal, deleteEnvironment } from '../../actions/envs'
 
 function mapStateToProps (state, ownProps) {
-  const envs = state.envs.toJS().envs
-  const env = _.findWhere(envs, {name: ownProps.envName})
+  const envs = state.envs.get('envs')
+  const env = envs.get(ownProps.envName)
   return {
-    app: state.app.toJS(),
+    app: state.app,
     user: state.user,
     envs,
     env
@@ -31,7 +30,7 @@ export default class TopNav extends React.Component {
     dispatch: PropTypes.func,
     location: PropTypes.object,
     user: PropTypes.object,
-    envs: PropTypes.array,
+    envs: PropTypes.object,
     env: PropTypes.object,
     showCreateEnvModal: PropTypes.func.isRequired,
     deleteEnvironment: PropTypes.func.isRequired
@@ -48,14 +47,15 @@ export default class TopNav extends React.Component {
     const userText = user.firstName + ' ' + user.lastName + ' (' + user.username + ')'
 
     // environments
-    const envElements = envs.map((e) => {
+    const envElements = []
+    envs.map((e) => {
       var onRemove = null
       if (env && e.name !== env.name && !e.protected) {
         onRemove = () => {
           this.props.deleteEnvironment(e.name)
         }
       }
-      return (
+      envElements.push(
         <LinkMenuItem
           key={e.name}
           to={`/${e.name}`}

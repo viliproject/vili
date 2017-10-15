@@ -39,24 +39,27 @@ export default class Pod extends React.Component {
   }
 
   componentDidUpdate (prevProps) {
-    if (this.props.params !== prevProps.params) {
+    const { params: { env, pod } } = this.props
+    const { params: { env: prevEnv, pod: prevPod } } = prevProps
+    if (env !== prevEnv || pod !== prevPod) {
       this.unsubData()
       this.subData()
     }
   }
 
   subData = () => {
-    const { params } = this.props
-    this.props.subPodLog(params.env, params.pod)
+    const { params, subPodLog } = this.props
+    subPodLog(params.env, params.pod)
   }
 
   unsubData = () => {
-    const { params } = this.props
-    this.props.unsubPodLog(params.env, params.pod)
+    const { params, unsubPodLog } = this.props
+    unsubPodLog(params.env, params.pod)
   }
 
   render () {
-    const { params, pod } = this.props
+    const { params, pod: podData } = this.props
+    const pod = podData && podData.get('object')
     const header = (
       <div className='view-header'>
         <ol className='breadcrumb'>
@@ -66,7 +69,7 @@ export default class Pod extends React.Component {
         </ol>
       </div>
     )
-    if (!pod || !pod.object) {
+    if (!pod) {
       return (
         <div>
           {header}
@@ -77,29 +80,29 @@ export default class Pod extends React.Component {
 
     const metadata = [
       <dt key='title-ip'>IP</dt>,
-      <dd key='data-ip'>{pod.object.status.podIP}</dd>,
+      <dd key='data-ip'>{pod.getIn(['status', 'podIP'])}</dd>,
       <dt key='title-phase'>Phase</dt>,
-      <dd key='data-phase'>{pod.object.status.phase}</dd>,
+      <dd key='data-phase'>{pod.getIn(['status', 'phase'])}</dd>,
       <dt key='title-node'>Node</dt>,
       (<dd key='data-node'>
-        <Link to={`/${this.props.params.env}/nodes/${pod.object.spec.nodeName}`}>{pod.object.spec.nodeName}</Link>
+        <Link to={`/${params.env}/nodes/${pod.getIn(['spec', 'nodeName'])}`}>{pod.getIn(['spec', 'nodeName'])}</Link>
       </dd>)
     ]
-    if (pod.object.metadata.labels.app) {
+    if (pod.getLabel('app')) {
       metadata.push(<dt key='title-deployment'>Deployment</dt>)
       metadata.push(<dd key='data-deployment'>
-        <Link to={`/${this.props.params.env}/deployments/${pod.object.metadata.labels.app}`}>{pod.object.metadata.labels.app}</Link>
+        <Link to={`/${params.env}/deployments/${pod.getLabel('app')}`}>{pod.getLabel('app')}</Link>
       </dd>)
     }
-    if (pod.object.metadata.labels.job) {
+    if (pod.getLabel('job')) {
       metadata.push(<dt key='title-job'>Job</dt>)
       metadata.push(<dd key='data-job'>
-        <Link to={`/${this.props.params.env}/jobs/${pod.object.metadata.labels.job}`}>{pod.object.metadata.labels.job}</Link>
+        <Link to={`/${params.env}/jobs/${pod.getLabel('job')}`}>{pod.getLabel('job')}</Link>
       </dd>)
     }
-    if (pod.object.metadata.annotations['vili/deployedBy']) {
+    if (pod.deployedBy) {
       metadata.push(<dt key='title-deployedBy'>Deployed By</dt>)
-      metadata.push(<dd key='data-deployedBy'>{pod.object.metadata.annotations['vili/deployedBy']}</dd>)
+      metadata.push(<dd key='data-deployedBy'>{pod.deployedBy}</dd>)
     }
     return (
       <div>
@@ -108,7 +111,7 @@ export default class Pod extends React.Component {
           <h4>Metadata</h4>
           <dl className='dl-horizontal'>{metadata}</dl>
         </div>
-        <PodLog log={pod.log} />
+        <PodLog log={podData.get('log')} />
       </div>
     )
   }

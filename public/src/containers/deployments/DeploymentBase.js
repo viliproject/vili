@@ -15,7 +15,7 @@ const tabs = {
 
 function mapStateToProps (state) {
   return {
-    app: state.app.toJS()
+    app: state.app
   }
 }
 
@@ -23,8 +23,7 @@ const dispatchProps = {
   activateNav
 }
 
-@connect(mapStateToProps, dispatchProps)
-export default class DeploymentBase extends React.Component {
+export class DeploymentBase extends React.Component {
   static propTypes = {
     children: PropTypes.node,
     params: PropTypes.object,
@@ -34,23 +33,25 @@ export default class DeploymentBase extends React.Component {
   }
 
   componentDidMount () {
-    this.props.activateNav('deployments', this.props.params.deployment)
+    const { params, activateNav } = this.props
+    activateNav('deployments', params.deployment)
   }
 
   componentDidUpdate (prevProps) {
-    if (this.props.params.deployment !== prevProps.params.deployment) {
-      this.props.activateNav('deployments', this.props.params.deployment)
+    const { params, activateNav } = this.props
+    if (params.deployment !== prevProps.params.deployment) {
+      activateNav('deployments', params.deployment)
     }
   }
 
   render () {
-    var self = this
-    var tabElements = _.map(tabs, function (name, key) {
-      var className = ''
-      if (self.props.app.deploymentTab === key) {
+    const { params, app, children } = this.props
+    const tabElements = _.map(tabs, (name, key) => {
+      let className = ''
+      if (app.get('deploymentTab') === key) {
         className = 'active'
       }
-      var link = `/${self.props.params.env}/deployments/${self.props.params.deployment}`
+      let link = `/${params.env}/deployments/${params.deployment}`
       if (key !== 'home') {
         link += `/${key}`
       }
@@ -64,16 +65,18 @@ export default class DeploymentBase extends React.Component {
       <div>
         <div key='view-header' className='view-header'>
           <ol className='breadcrumb'>
-            <li><Link to={`/${this.props.params.env}`}>{this.props.params.env}</Link></li>
-            <li><Link to={`/${this.props.params.env}/deployments`}>Deployments</Link></li>
-            <li className='active'>{this.props.params.deployment}</li>
+            <li><Link to={`/${params.env}`}>{params.env}</Link></li>
+            <li><Link to={`/${params.env}/deployments`}>Deployments</Link></li>
+            <li className='active'>{params.deployment}</li>
           </ol>
           <ul className='nav nav-pills pull-right'>
             {tabElements}
           </ul>
         </div>
-        {this.props.children}
+        {children}
       </div>
     )
   }
 }
+
+export default connect(mapStateToProps, dispatchProps)(DeploymentBase)

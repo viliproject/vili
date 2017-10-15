@@ -2,7 +2,6 @@ import PropTypes from 'prop-types'
 import React from 'react'
 import { connect } from 'react-redux'
 import { Button, Label } from 'react-bootstrap'
-import _ from 'underscore'
 
 import { deployTag } from '../../actions/deployments'
 
@@ -10,13 +9,12 @@ const dispatchProps = {
   deployTag
 }
 
-@connect(null, dispatchProps)
-export default class DeploymentRow extends React.Component {
+export class DeploymentRow extends React.Component {
   static propTypes = {
     deployTag: PropTypes.func.isRequired,
     env: PropTypes.string,
     deployment: PropTypes.string,
-    currentRevision: PropTypes.number,
+    isActive: PropTypes.bool,
     tag: PropTypes.string,
     branch: PropTypes.string,
     revision: PropTypes.string,
@@ -31,19 +29,20 @@ export default class DeploymentRow extends React.Component {
   }
 
   render () {
-    const { currentRevision, tag, branch, revision, buildTime, replicaSets } = this.props
+    const { isActive, tag, branch, revision, buildTime, replicaSets } = this.props
     var className = ''
-    const deployedAt = _.map(replicaSets, (replicaSet) => {
+    const deployedAt = []
+    replicaSets.forEach((replicaSet) => {
       var bsStyle = 'default'
-      if (currentRevision === replicaSet.revision) {
+      if (isActive) {
         className = 'success'
         bsStyle = 'success'
-      } else if (replicaSet.status.replicas > 0) {
+      } else if (replicaSet.getIn(['status', 'replicas'], 0) > 0) {
         className = 'warning'
         bsStyle = 'warning'
       }
-      return (
-        <div key={replicaSet.metadata.name}>
+      deployedAt.push(
+        <div key={replicaSet.getIn(['metadata', 'name'])}>
           <Label bsStyle={bsStyle}>{replicaSet.revision} - {replicaSet.deployedAt}</Label>
         </div>
       )
@@ -63,3 +62,5 @@ export default class DeploymentRow extends React.Component {
   }
 
 }
+
+export default connect(null, dispatchProps)(DeploymentRow)

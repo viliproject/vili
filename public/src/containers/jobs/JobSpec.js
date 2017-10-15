@@ -7,14 +7,19 @@ import { activateJobTab } from '../../actions/app'
 import { getJobSpec } from '../../actions/jobs'
 
 function mapStateToProps (state, ownProps) {
-  const job = state.jobs.lookUpData(ownProps.params.env, ownProps.params.job)
+  const { env, job: jobName } = ownProps.params
+  const job = state.jobs.lookUpData(env, jobName)
   return {
     job
   }
 }
 
-@connect(mapStateToProps)
-export default class JobSpec extends React.Component {
+const dispatchProps = {
+  activateJobTab,
+  getJobSpec
+}
+
+export class JobSpec extends React.Component {
   static propTypes = {
     dispatch: PropTypes.func,
     params: PropTypes.object,
@@ -53,5 +58,6 @@ export default class JobSpec extends React.Component {
       </div>
     )
   }
-
 }
+
+export default connect(mapStateToProps, dispatchProps)(JobSpec)

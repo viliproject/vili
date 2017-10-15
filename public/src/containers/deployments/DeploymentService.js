@@ -8,7 +8,8 @@ import { getDeploymentService } from '../../actions/deployments'
 import { createService } from '../../actions/services'
 
 function mapStateToProps (state, ownProps) {
-  const deployment = state.deployments.lookUpData(ownProps.params.env, ownProps.params.deployment)
+  const { env, deployment: deploymentName } = ownProps.params
+  const deployment = state.deployments.lookUpData(env, deploymentName)
   return {
     deployment
   }
@@ -20,8 +21,7 @@ const dispatchProps = {
   createService
 }
 
-@connect(mapStateToProps)
-export default class DeploymentService extends React.Component {
+export class DeploymentService extends React.Component {
   static propTypes = {
     dispatch: PropTypes.func,
     params: PropTypes.object,
@@ -59,7 +59,7 @@ export default class DeploymentService extends React.Component {
     if (!deployment) {
       return (<Loading />)
     }
-    if (!deployment.service) {
+    if (!deployment.get('service')) {
       return (
         <div id='service'>
           <div className='alert alert-warning' role='alert'>No Service Defined</div>
@@ -69,8 +69,10 @@ export default class DeploymentService extends React.Component {
     }
     return (
       <div id='service'>
-        IP: {deployment.service.spec.clusterIP}
+        IP: {deployment.getIn(['service', 'spec', 'clusterIP'])}
       </div>
     )
   }
 }
+
+export default connect(mapStateToProps, dispatchProps)(DeploymentService)

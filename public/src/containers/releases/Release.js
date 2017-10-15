@@ -28,13 +28,11 @@ const tableColumns = {
 
 function mapStateToProps (state, ownProps) {
   const { env: envName, release: releaseName } = ownProps.params
-  const env = _.findWhere(state.envs.toJS().envs, {name: envName})
+  const env = state.envs.getIn(['envs', envName])
   const release = state.releases.lookUpObject(envName, releaseName)
-  const rollouts = release && release.envRollouts(envName) || []
   return {
     env,
-    release,
-    rollouts
+    release
   }
 }
 
@@ -50,7 +48,6 @@ export default class Release extends React.Component {
     location: PropTypes.object,
     env: PropTypes.object,
     release: PropTypes.object,
-    rollouts: PropTypes.array,
     activateNav: PropTypes.func.isRequired,
     deployRelease: PropTypes.func.isRequired
   }
@@ -78,7 +75,7 @@ export default class Release extends React.Component {
   }
 
   renderMetadata () {
-    const { env, release, rollouts } = this.props
+    const { env, release } = this.props
     if (!env || !release) {
       return null
     }
@@ -105,7 +102,8 @@ export default class Release extends React.Component {
       <div key='createdAt-value'>{release.createdAtHumanize}</div>
     )
 
-    if (rollouts.length > 0) {
+    const rollouts = release.envRollouts(env.name)
+    if (rollouts.size > 0) {
       metadata.push(<h5 key='rollouts-title'>Rollouts</h5>)
 
       const columns = [
@@ -114,13 +112,14 @@ export default class Release extends React.Component {
         {title: 'Rollout By', key: 'rolloutBy', style: {width: '200px', textAlign: 'right'}},
         {title: 'Status', key: 'status', style: {width: '200px', textAlign: 'right'}}
       ]
-      const rows = _.map(rollouts, (rollout) => {
-        return {
+      const rows = []
+      rollouts.forEach((rollout) => {
+        rows.push({
           id: (<Link to={`/${env.name}/releases/${release.name}/rollouts/${rollout.id}`}>{rollout.id}</Link>),
           rolloutAtHumanize: rollout.rolloutAtHumanize,
           rolloutBy: rollout.rolloutBy,
           status: rollout.status
-        }
+        })
       })
       metadata.push(
         <Table key='rollouts-value' columns={columns} rows={rows} />
@@ -132,13 +131,14 @@ export default class Release extends React.Component {
   renderWavePanels () {
     const { env, release } = this.props
     if (release) {
-      const panels = _.map(release.waves, (wave, ix) => {
-        return (
+      const panels = []
+      release.waves.forEach((wave, ix) => {
+        panels.push(
           <WavePanel
             key={ix}
             ix={ix}
             env={env.name}
-            wave={wave}
+            wave={wave.toJS()}
           />
         )
       })

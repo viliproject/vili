@@ -26,7 +26,7 @@ export default class SideNav extends React.Component {
       </LinkMenuItem>
     )
 
-    if (!_.isEmpty(env.deployments)) {
+    if (env.deployments && !env.deployments.isEmpty()) {
       items.push(
         <LinkMenuItem key='deployments' to={`/${env.name}/deployments`}
           active={nav.item === 'deployments' && !nav.subItem}
@@ -34,7 +34,7 @@ export default class SideNav extends React.Component {
           Deployments
         </LinkMenuItem>)
       if (nav.item === 'deployments') {
-        _.map(env.deployments, function (deployment) {
+        env.deployments.forEach((deployment) => {
           items.push(
             <LinkMenuItem key={`deployments-${deployment}`} to={`/${env.name}/deployments/${deployment}`} subitem
               active={nav.item === 'deployments' && nav.subItem === deployment}
@@ -44,7 +44,7 @@ export default class SideNav extends React.Component {
         })
       }
     }
-    if (!_.isEmpty(env.jobs)) {
+    if (env.jobs && !env.jobs.isEmpty()) {
       items.push(
         <LinkMenuItem key='jobs' to={`/${env.name}/jobs`}
           active={nav.item === 'jobs' && !nav.subItem}
@@ -52,7 +52,7 @@ export default class SideNav extends React.Component {
           Jobs
         </LinkMenuItem>)
       if (nav.item === 'jobs') {
-        _.map(env.jobs, function (job) {
+        env.jobs.forEach((job) => {
           items.push(
             <LinkMenuItem key={`jobs-${job}`} to={`/${env.name}/jobs/${job}`} subitem
               active={nav.item === 'jobs' && nav.subItem === job}
@@ -62,14 +62,14 @@ export default class SideNav extends React.Component {
         })
       }
     }
-    if (!_.isEmpty(env.configmaps)) {
+    if (env.configmaps && !env.configmaps.isEmpty()) {
       items.push(
         <LinkMenuItem key='configmaps' to={`/${env.name}/configmaps`}
           active={nav.item === 'configmaps' && !nav.subItem}
         >Config Maps</LinkMenuItem>
       )
       if (nav.item === 'configmaps') {
-        _.map(env.configmaps, function (configmap) {
+        env.configmaps.forEach((configmap) => {
           items.push(
             <LinkMenuItem key={`configmaps-${configmap}`} to={`/${env.name}/configmaps/${configmap}`} subitem
               active={nav.item === 'configmaps' && nav.subItem === configmap}

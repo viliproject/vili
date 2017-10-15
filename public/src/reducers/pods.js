@@ -1,35 +1,30 @@
 import { CHANGE_POD, ADD_POD_LOG } from '../constants'
-import PodModel from '../models/PodModel'
+import Pod from '../models/Pod'
 
-import { getInitialState, changeObject, newEnv } from './utils'
+import { getInitialState, changeObject, EnvRecord } from './utils'
 
 const initialState = getInitialState()
 
 function addPodLog (state, action) {
   const { env, name, eventBuffer } = action.payload
-  const newState = Object.assign({}, state)
-  if (!newState.envs[env]) {
-    newState.envs[env] = newEnv()
-  }
-  const newStateKeys = newState.envs[env].keys
-  if (!newStateKeys[name]) {
-    newStateKeys[name] = {}
-  }
-  const podData = newStateKeys[name]
-  eventBuffer.forEach((event) => {
-    if (event.type === 'START') {
-      podData.log = event.object
-    } else {
-      podData.log = event.object + '\n' + podData.log
-    }
-  })
-  return newState
+  return state
+    .updateIn(['envs', env], new EnvRecord(), (e) => e)
+    .updateIn(['envs', env, 'keys', name, 'log'], '', (l) => {
+      eventBuffer.forEach((event) => {
+        if (event.type === 'START') {
+          l = event.object
+        } else {
+          l = event.object + '\n' + l
+        }
+      })
+      return l
+    })
 }
 
 export default function (state = initialState, action) {
   switch (action.type) {
     case CHANGE_POD:
-      return changeObject(state, action, PodModel)
+      return changeObject(state, action, Pod)
     case ADD_POD_LOG:
       return addPodLog(state, action)
     default:

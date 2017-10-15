@@ -3,34 +3,44 @@ import React from 'react'
 import { connect } from 'react-redux'
 import { Link } from 'react-router'
 import { Button } from 'react-bootstrap'
-import _ from 'underscore'
+import Immutable from 'immutable'
 
 import Table from '../../components/Table'
 import { activateNav } from '../../actions/app'
 import { setNodeSchedulable } from '../../actions/nodes'
+import { makeLookUpObjects } from '../../selectors'
 
-function mapStateToProps (state, ownProps) {
-  const nodes = state.nodes.lookUpObjects(ownProps.params.env)
-  return {
-    nodes
+function makeMapStateToProps () {
+  const lookUpObjects = makeLookUpObjects()
+  return (state, ownProps) => {
+    const nodes = lookUpObjects(state.nodes, ownProps.params.env)
+    return {
+      nodes
+    }
   }
 }
 
-@connect(mapStateToProps)
-export default class NodesList extends React.Component {
+const dispatchProps = {
+  activateNav,
+  setNodeSchedulable
+}
+
+export class NodesList extends React.Component {
   static propTypes = {
-    dispatch: PropTypes.func,
+    activateNav: PropTypes.func.isRequired,
+    setNodeSchedulable: PropTypes.func.isRequired,
     params: PropTypes.object,
     location: PropTypes.object,
     nodes: PropTypes.object
   }
 
   componentDidMount () {
-    this.props.dispatch(activateNav('nodes'))
+    this.props.activateNav('nodes')
   }
 
   setNodeSchedulable = (node, action) => {
-    this.props.dispatch(setNodeSchedulable(this.props.params.env, this.props.params.node, action))
+    const { setNodeSchedulable, params } = this.props
+    setNodeSchedulable(params.env, params.node, action)
   }
 
   render () {
@@ -66,16 +76,17 @@ export default class NodesList extends React.Component {
       { title: 'Actions', key: 'actions' }
     ]
 
-    const rows = _.map(nodes, function (node) {
-      var name = node.metadata.name
+    const rows = []
+    nodes.forEach((node) => {
+      var name = node.getIn(['metadata', 'name'])
       var nodeStatuses = []
-      if (node.status.conditions[0].status === 'Unknown') {
-        nodeStatuses.push('NotReady')
-      } else {
-        nodeStatuses.push(node.status.conditions[0].type)
-      }
+      node.getIn(['status', 'conditions'], Immutable.List()).forEach((condition) => {
+        if (condition.get('status') === 'True') {
+          nodeStatuses.push(condition.get('type'))
+        }
+      })
       var actions
-      if (node.spec.unschedulable === true) {
+      if (node.getIn(['spec', 'unschedulable']) === true) {
         actions = (
           <Button bsStyle='success' bsSize='xs'
             onClick={() => this.setNodeSchedulable(name, 'enable')}
@@ -94,20 +105,20 @@ export default class NodesList extends React.Component {
         )
       }
 
-      return {
+      rows.push({
         host: <Link to={`/${params.env}/nodes/${name}`}>{name}</Link>,
-        instance_type: node.metadata.labels['airware.io/instance-type'],
-        role: node.metadata.labels['airware.io/role'],
-        cpu_capacity: node.status.capacity.cpu,
+        instance_type: node.getLabel('beta.kubernetes.io/instance-type'),
+        role: node.getLabel('airware.io/role'),
+        cpu_capacity: node.getIn(['status', 'capacity', 'cpu']),
         memory_capacity: node.memory,
-        pods_capacity: node.status.capacity.pods,
-        os_version: node.status.nodeInfo.osImage,
-        kubelet_version: node.status.nodeInfo.kubeletVersion,
-        proxy_version: node.status.nodeInfo.kubeProxyVersion,
+        pods_capacity: node.getIn(['status', 'capacity', 'pods']),
+        os_version: node.getIn(['status', 'nodeInfo', 'osImage']),
+        kubelet_version: node.getIn(['status', 'nodeInfo', 'kubeletVersion']),
+        proxy_version: node.getIn(['status', 'nodeInfo', 'kubeProxyVersion']),
         created: node.createdAt,
         status: nodeStatuses.join(','),
         actions: actions
-      }
+      })
     })
 
     return (
@@ -119,3 +130,5 @@ export default class NodesList extends React.Component {
   }
 
 }
+
+export default connect(makeMapStateToProps, dispatchProps)(NodesList)

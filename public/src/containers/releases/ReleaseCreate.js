@@ -8,6 +8,7 @@ import _ from 'underscore'
 import Table from '../../components/Table'
 import { activateNav } from '../../actions/app'
 import { getReleaseSpec, createRelease } from '../../actions/releases'
+import { makeLookUpObjects } from '../../selectors'
 
 const tableColumns = {
   waveActions: [
@@ -28,27 +29,24 @@ const tableColumns = {
   ]
 }
 
-function mapStateToProps (state, ownProps) {
-  const env = _.findWhere(state.envs.toJS().envs, {name: ownProps.params.env})
-  const releaseEnv = state.releases.lookUp(ownProps.params.env)
-  const deployments = state.deployments.lookUpObjects(ownProps.params.env)
-  const replicaSets = state.replicaSets.lookUpObjects(ownProps.params.env)
-  const jobRuns = state.jobRuns.lookUpObjects(ownProps.params.env)
-  var spec
-  if (releaseEnv && releaseEnv.spec) {
-    spec = JSON.parse(JSON.stringify(releaseEnv.spec))
-    _.each(spec.waves, (wave, ix) => {
-      _.each(wave.targets, (target) => {
-        updateTargetVersion(target, env, deployments, replicaSets, jobRuns)
-      })
-    })
-  }
-  return {
-    env,
-    spec,
-    deployments,
-    replicaSets,
-    jobRuns
+function makeMapStateToProps () {
+  const lookUpDeployments = makeLookUpObjects()
+  const lookUpReplicaSets = makeLookUpObjects()
+  const lookUpJobRuns = makeLookUpObjects()
+  return (state, ownProps) => {
+    const { env: envName } = ownProps.params
+    const env = state.envs.getIn(['envs', envName])
+    const releaseEnv = state.releases.lookUp(envName)
+    const deployments = lookUpDeployments(state.deployments, envName)
+    const replicaSets = lookUpReplicaSets(state.replicaSets, envName)
+    const jobRuns = lookUpJobRuns(state.jobRuns, envName)
+    return {
+      env,
+      releaseEnv,
+      deployments,
+      replicaSets,
+      jobRuns
+    }
   }
 }
 
@@ -64,38 +62,40 @@ function updateTargetVersion (target, env, deployments, replicaSets, jobRuns) {
       target.branch = env.branch
       return
     case 'job':
-      const runs = _.sortBy(
-        _.filter(jobRuns, x => x.hasLabel('job', target.name)),
-        x => -x.creationTimestamp
-      )
-      if (runs.length > 0) {
-        target.tag = runs[0].imageTag
-        target.branch = runs[0].imageBranch || env.branch
-        target.runAt = runs[0].runAt
+      const run = jobRuns
+        .filter(x => x.hasLabel('job', target.name))
+        .sortBy(x => -x.creationTimestamp)
+        .first()
+      if (run) {
+        target.tag = run.imageTag
+        target.branch = run.imageBranch || env.branch
+        target.runAt = run.runAt
       }
       return
     case 'app':
-      const deployment = deployments && deployments[target.name]
-      const replicaSet = deployment && _.find(replicaSets, (rs) => {
-        return rs.hasLabel('app', target.name) && rs.revision === deployment.revision
-      })
-      if (replicaSet) {
-        target.tag = replicaSet.imageTag
-        target.branch = replicaSet.imageBranch || env.branch
-        target.deployedAt = replicaSet.deployedAt
+      const deployment = deployments.find((d) => d.getIn(['metadata', 'name']) === target.name)
+      if (deployment) {
+        target.tag = deployment.imageTag
+        target.branch = deployment.imageBranch || env.branch
+        const replicaSet = replicaSets
+          .filter(x => x.hasLabel('app', target.name) && x.revision === deployment.revision)
+          .sortBy(x => -x.creationTimestamp)
+          .first()
+        if (replicaSet) {
+          target.deployedAt = replicaSet.deployedAt
+        }
       }
       return
   }
   return
 }
 
-@connect(mapStateToProps, dispatchProps)
-export default class ReleaseCreate extends React.Component {
+export class ReleaseCreate extends React.Component {
   static propTypes = {
     params: PropTypes.object,
     location: PropTypes.object,
     env: PropTypes.object,
-    spec: PropTypes.object,
+    releaseEnv: PropTypes.object,
     deployments: PropTypes.object,
     replicaSets: PropTypes.object,
     jobRuns: PropTypes.object,
@@ -138,13 +138,28 @@ export default class ReleaseCreate extends React.Component {
     this.setState({ releaseLink: e.target.value })
   }
 
+  getSpec () {
+    const { releaseEnv, env, deployments, replicaSets, jobRuns } = this.props
+    if (!releaseEnv.spec) {
+      return
+    }
+    const spec = JSON.parse(JSON.stringify(releaseEnv.spec))
+    _.each(spec.waves, (wave, ix) => {
+      _.each(wave.targets, (target) => {
+        updateTargetVersion(target, env, deployments, replicaSets, jobRuns)
+      })
+    })
+    return spec
+  }
+
   createRelease = (event) => {
     event.target.setAttribute('disabled', 'disabled')
     const { releaseName, releaseNameValidation, releaseLink } = this.state
     if (releaseNameValidation) {
       return
     }
-    const { params, spec } = this.props
+    const { params } = this.props
+    const spec = this.getSpec()
     const release = {
       name: releaseName,
       link: releaseLink,
@@ -186,7 +201,8 @@ export default class ReleaseCreate extends React.Component {
   }
 
   renderWavePanels () {
-    const { env, spec } = this.props
+    const { env } = this.props
+    const spec = this.getSpec()
     if (spec) {
       return _.map(spec.waves, (wave, ix) => {
         return (
@@ -226,8 +242,9 @@ export default class ReleaseCreate extends React.Component {
       </div>
     )
   }
-
 }
+
+export default connect(makeMapStateToProps, dispatchProps)(ReleaseCreate)
 
 class WavePanel extends React.Component {
   static propTypes = {

@@ -6,31 +6,28 @@ import _ from 'underscore'
 
 import Table from '../../components/Table'
 import { activateNav } from '../../actions/app'
+import { makeLookUpObjectsByNodeName } from '../../selectors'
 
-function mapStateToProps (state, ownProps) {
-  const { env, node: nodeName } = ownProps.params
-  const node = state.nodes.lookUpData(env, nodeName)
-  const pods = state.pods.lookUpObjectsByFunc(env, (obj) => {
-    return obj.spec.nodeName === nodeName
-  })
-  return {
-    node,
-    pods
+function makeMapStateToProps () {
+  const lookUpPodsByNodeName = makeLookUpObjectsByNodeName()
+  return (state, ownProps) => {
+    const { env, node: nodeName } = ownProps.params
+    const node = state.nodes.lookUpData(env, nodeName)
+    const pods = lookUpPodsByNodeName(state.pods, env, nodeName)
+    return {
+      node,
+      pods
+    }
   }
 }
 
-@connect(mapStateToProps)
-export default class Node extends React.Component {
-  static propTypes = {
-    dispatch: PropTypes.func,
-    params: PropTypes.object,
-    location: PropTypes.object,
-    node: PropTypes.object,
-    pods: PropTypes.object
-  }
+const dispatchProps = {
+  activateNav
+}
 
+export class Node extends React.Component {
   componentDidMount () {
-    this.props.dispatch(activateNav('nodes'))
+    this.props.activateNav('nodes')
   }
 
   render () {
@@ -47,23 +44,24 @@ export default class Node extends React.Component {
     const columns = _.union([
       {title: 'Name', key: 'name'},
       {title: 'App', key: 'app'},
-      {title: 'Pod IP', key: 'pod_ip'},
+      {title: 'Pod IP', key: 'podIP'},
       {title: 'Created', key: 'created'},
       {title: 'Phase', key: 'phase'}
     ])
 
-    const rows = _.map(pods, function (pod) {
+    const rows = []
+    pods.forEach((pod) => {
       var app = null
-      if (pod.metadata.labels && pod.metadata.labels.app) {
-        app = <Link to={`/${params.env}/deployments/${pod.metadata.labels.app}`}>{pod.metadata.labels.app}</Link>
+      if (pod.getLabel('app')) {
+        app = <Link to={`/${params.env}/deployments/${pod.getLabel('app')}`}>{pod.getLabel('app')}</Link>
       }
-      return {
-        name: <Link to={`/${params.env}/pods/${pod.metadata.name}`}>{pod.metadata.name}</Link>,
+      rows.push({
+        name: <Link to={`/${params.env}/pods/${pod.getIn(['metadata', 'name'])}`}>{pod.getIn(['metadata', 'name'])}</Link>,
         app: app,
-        phase: pod.status.phase,
-        pod_ip: pod.status.podIP,
+        phase: pod.getIn(['status', 'phase']),
+        podIP: pod.getIn(['status', 'podIP']),
         created: pod.createdAt
-      }
+      })
     })
 
     return (
@@ -76,5 +74,14 @@ export default class Node extends React.Component {
       </div>
     )
   }
-
 }
+
+Node.propTypes = {
+  activateNav: PropTypes.func,
+  params: PropTypes.object,
+  location: PropTypes.object,
+  node: PropTypes.object,
+  pods: PropTypes.object
+}
+
+export default connect(makeMapStateToProps, dispatchProps)(Node)

@@ -9,23 +9,30 @@ import Loading from '../../components/Loading'
 import DeploymentRow from '../../components/deployments/DeploymentRow'
 import { activateDeploymentTab } from '../../actions/app'
 import { getDeploymentRepository } from '../../actions/deployments'
+import { makeLookUpObjectsByLabel } from '../../selectors'
 
-function mapStateToProps (state, ownProps) {
-  const { env, deployment: deploymentName } = ownProps.params
-  const deployment = state.deployments.lookUpData(env, deploymentName)
-  const replicaSets = state.replicaSets.lookUpObjectsByFunc(env, (obj) => {
-    return obj.hasLabel('app', deploymentName)
-  })
-  return {
-    deployment,
-    replicaSets
+function makeMapStateToProps () {
+  const lookUpObjectsByLabel = makeLookUpObjectsByLabel()
+  return (state, ownProps) => {
+    const { env, deployment: deploymentName } = ownProps.params
+    const deployment = state.deployments.lookUpData(env, deploymentName)
+    const replicaSets = lookUpObjectsByLabel(state.replicaSets, env, 'app', deploymentName)
+    return {
+      deployment,
+      replicaSets
+    }
   }
 }
 
-@connect(mapStateToProps)
-export default class Deployment extends React.Component {
+const dispatchProps = {
+  activateDeploymentTab,
+  getDeploymentRepository
+}
+
+export class Deployment extends React.Component {
   static propTypes = {
-    dispatch: PropTypes.func,
+    activateDeploymentTab: PropTypes.func,
+    getDeploymentRepository: PropTypes.func,
     params: PropTypes.object,
     location: PropTypes.object,
     deployment: PropTypes.object,
@@ -33,7 +40,7 @@ export default class Deployment extends React.Component {
   }
 
   componentDidMount () {
-    this.props.dispatch(activateDeploymentTab('home'))
+    this.props.activateDeploymentTab('home')
     this.fetchData()
   }
 
@@ -44,13 +51,13 @@ export default class Deployment extends React.Component {
   }
 
   fetchData = () => {
-    const { params } = this.props
-    this.props.dispatch(getDeploymentRepository(params.env, params.deployment))
+    const { params, getDeploymentRepository } = this.props
+    getDeploymentRepository(params.env, params.deployment)
   }
 
   render () {
     const { params, deployment, replicaSets } = this.props
-    if (!deployment) {
+    if (!deployment || !deployment.get('repository')) {
       return (<Loading />)
     }
 
@@ -62,29 +69,26 @@ export default class Deployment extends React.Component {
       {title: 'Deployed', key: 'deployedAt', style: {textAlign: 'right'}},
       {title: 'Actions', key: 'actions', style: {textAlign: 'right'}}
     ]
-    var rows = _.map(deployment.repository, (image) => {
-      const imageReplicaSets = Object.keys(replicaSets).filter(
-        (key) => replicaSets[key].imageTag === image.tag
-      ).reduce((obj, key) => {
-        obj[key] = replicaSets[key]
-        return obj
-      }, {})
 
-      const buildTime = new Date(image.lastModified)
-      return {
+    let rows = []
+    deployment.get('repository').forEach((image) => {
+      const imageReplicaSets = replicaSets
+        .filter((rs) => rs.imageTag === image.get('tag'))
+      const buildTime = new Date(image.get('lastModified'))
+      rows.push({
         component: (
-          <DeploymentRow key={image.tag}
+          <DeploymentRow key={image.get('tag')}
             env={params.env}
             deployment={params.deployment}
-            currentRevision={deployment.object && deployment.object.revision}
-            tag={image.tag}
-            branch={image.branch}
-            revision={image.revision}
+            isActive={deployment.get('object', {}).imageTag === image.get('tag')}
+            tag={image.get('tag')}
+            branch={image.get('branch')}
+            revision={image.get('revision')}
             buildTime={displayTime(buildTime)}
             replicaSets={imageReplicaSets}
           />),
         time: buildTime.getTime()
-      }
+      })
     })
 
     rows = _.sortBy(rows, function (row) {
@@ -95,3 +99,5 @@ export default class Deployment extends React.Component {
   }
 
 }
+
+export default connect(makeMapStateToProps, dispatchProps)(Deployment)

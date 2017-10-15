@@ -7,7 +7,7 @@ import { activateNav } from '../../actions/app'
 
 function mapStateToProps (state) {
   return {
-    envs: state.envs.toJS().envs
+    envs: state.envs.get('envs')
   }
 }
 
@@ -15,10 +15,9 @@ const dispatchProps = {
   activateNav
 }
 
-@connect(mapStateToProps, dispatchProps)
-export default class Home extends React.Component {
+export class Home extends React.Component {
   static propTypes = {
-    envs: PropTypes.array,
+    envs: PropTypes.object,
     activateNav: PropTypes.func.isRequired
   }
 
@@ -26,9 +25,11 @@ export default class Home extends React.Component {
     this.props.activateNav('home')
   }
 
-  get renderEnvs () {
-    var links = this.props.envs.map(function (env) {
-      return <li key={env.name}><Link to={`/${env.name}`}>{env.name}</Link></li>
+  renderEnvs () {
+    const { envs } = this.props
+    const links = []
+    envs.forEach((env) => {
+      links.push(<li key={env.name}><Link to={`/${env.name}`}>{env.name}</Link></li>)
     })
     return (<div>
       <div className='view-header'>
@@ -40,7 +41,7 @@ export default class Home extends React.Component {
     </div>)
   }
 
-  get renderLoggedOut () {
+  renderLoggedOut () {
     return (
       <div className='jumbotron'>
         <h1>Welcome to Vili</h1>
@@ -52,10 +53,11 @@ export default class Home extends React.Component {
 
   render () {
     const { envs } = this.props
-    if (!envs || envs.length === 0) {
-      return this.renderLoggedOut
+    if (!envs || envs.isEmpty()) {
+      return this.renderLoggedOut()
     }
-    return this.renderEnvs
+    return this.renderEnvs()
   }
-
 }
+
+export default connect(mapStateToProps, dispatchProps)(Home)

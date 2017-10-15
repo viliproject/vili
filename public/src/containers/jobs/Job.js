@@ -9,31 +9,38 @@ import Table from '../../components/Table'
 import JobRow from '../../components/jobs/JobRow'
 import { activateJobTab } from '../../actions/app'
 import { getJobRepository } from '../../actions/jobs'
+import { makeLookUpObjectsByLabel } from '../../selectors'
 
-function mapStateToProps (state, ownProps) {
-  const { env, job: jobName } = ownProps.params
-  const job = state.jobs.lookUpData(env, jobName)
-  const jobRuns = state.jobRuns.lookUpObjectsByFunc(env, (obj) => {
-    return obj.hasLabel('job', jobName)
-  })
-  return {
-    job,
-    jobRuns
+function makeMapStateToProps () {
+  const lookUpObjectsByLabel = makeLookUpObjectsByLabel()
+  return (state, ownProps) => {
+    const { env, job: jobName } = ownProps.params
+    const job = state.jobs.lookUpData(env, jobName)
+    const jobRuns = lookUpObjectsByLabel(state.jobRuns, env, 'job', jobName)
+    return {
+      job,
+      jobRuns
+    }
   }
 }
 
-@connect(mapStateToProps)
-export default class Job extends React.Component {
+const dispatchProps = {
+  activateJobTab,
+  getJobRepository
+}
+
+export class Job extends React.Component {
   static propTypes = {
-    dispatch: PropTypes.func,
     params: PropTypes.object,
     location: PropTypes.object,
     job: PropTypes.object,
-    jobRuns: PropTypes.object
+    jobRuns: PropTypes.object,
+    activateJobTab: PropTypes.func.isRequired,
+    getJobRepository: PropTypes.func.isRequired
   }
 
   componentDidMount () {
-    this.props.dispatch(activateJobTab('home'))
+    this.props.activateJobTab('home')
     this.fetchData()
   }
 
@@ -44,24 +51,15 @@ export default class Job extends React.Component {
   }
 
   fetchData = () => {
-    const { params } = this.props
-    this.props.dispatch(getJobRepository(params.env, params.job))
+    const { params, getJobRepository } = this.props
+    getJobRepository(params.env, params.job)
   }
 
   render () {
     const { params, job, jobRuns } = this.props
-    if (!job) {
+    if (!job || !job.get('repository')) {
       return (<Loading />)
     }
-
-    const tagJobRuns = {}
-    _.each(jobRuns, function (jobRun) {
-      const tag = jobRun.imageTag
-      if (!tagJobRuns[tag]) {
-        tagJobRuns[tag] = []
-      }
-      tagJobRuns[tag].push(jobRun)
-    })
 
     const columns = [
       {title: 'Tag', key: 'tag', style: {width: '180px'}},
@@ -72,22 +70,25 @@ export default class Job extends React.Component {
       {title: 'Actions', key: 'actions', style: {textAlign: 'right'}}
     ]
 
-    var rows = _.map(job.repository, (image) => {
-      const buildTime = new Date(image.lastModified)
-      const runs = _.sortBy(tagJobRuns[image.tag] || [], x => -x.creationTimestamp)
-      return {
+    let rows = []
+    job.get('repository').forEach((image) => {
+      const buildTime = new Date(image.get('lastModified'))
+      const runs = jobRuns
+        .filter(r => r.imageTag === image.get('tag'))
+        .sortBy(r => -r.creationTimestamp)
+      rows.push({
         component: (
-          <JobRow key={image.tag}
+          <JobRow key={image.get('tag')}
             env={params.env}
             job={params.job}
-            tag={image.tag}
-            branch={image.branch}
-            revision={image.revision}
+            tag={image.get('tag')}
+            branch={image.get('branch')}
+            revision={image.get('revision')}
             buildTime={displayTime(buildTime)}
             jobRuns={runs}
           />),
         time: buildTime.getTime()
-      }
+      })
     })
 
     rows = _.sortBy(rows, function (row) {
@@ -96,5 +97,6 @@ export default class Job extends React.Component {
 
     return (<Table columns={columns} rows={rows} />)
   }
-
 }
+
+export default connect(makeMapStateToProps, dispatchProps)(Job)

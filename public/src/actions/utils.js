@@ -1,3 +1,4 @@
+import _ from 'underscore'
 
 export function actionCreator (type, payload) {
   return {
@@ -28,8 +29,25 @@ export function subObjects (changeActionType, objectType, env, query) {
     if (objectsSubscriptions[objectType][env]) {
       return
     }
-    const ws = api[objectType].watch((data) => {
-      dispatch(changeObject(changeActionType, env, data))
+    let initialized = false
+    const initialItems = []
+    const initialDispatch = _.debounce((event) => {
+      initialized = true
+      dispatch(changeObject(changeActionType, env, {
+        type: 'INIT',
+        list: initialItems
+      }))
+    }, 200)
+    const ws = api[objectType].watch((event) => {
+      if (!initialized && event.type === 'INIT') {
+        initialized = true
+      }
+      if (initialized) {
+        dispatch(changeObject(changeActionType, env, event))
+      } else {
+        initialItems.push(event.object)
+        initialDispatch()
+      }
     }, env, query)
     objectsSubscriptions[objectType][env] = ws
   }

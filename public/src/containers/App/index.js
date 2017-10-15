@@ -1,21 +1,20 @@
 import PropTypes from 'prop-types'
 import React from 'react'
 import { connect } from 'react-redux'
-import _ from 'underscore'
 
 import TopNav from '../../containers/TopNav'
 import SideNav from '../../components/SideNav'
 
 function mapStateToProps (state, ownProps) {
-  const env = _.findWhere(state.envs.toJS().envs, {name: ownProps.params.env})
+  const { env: envName } = ownProps.params
+  const env = state.envs.getIn(['envs', envName])
   return {
-    app: state.app.toJS(),
+    app: state.app,
     env
   }
 }
 
-@connect(mapStateToProps)
-export default class App extends React.Component {
+export class App extends React.Component {
   static propTypes = {
     children: PropTypes.node,
     location: PropTypes.object,
@@ -31,7 +30,7 @@ export default class App extends React.Component {
         <TopNav location={location} envName={params.env} />
         <div className='page-wrapper'>
           <div className='sidebar'>
-            <SideNav env={env} nav={app.nav} />
+            <SideNav env={env} nav={app.get('nav')} />
           </div>
           <div className='content-wrapper'>{children}</div>
         </div>
@@ -39,3 +38,5 @@ export default class App extends React.Component {
     )
   }
 }
+
+export default connect(mapStateToProps)(App)

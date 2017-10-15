@@ -5,15 +5,14 @@ import { Modal, Button, FormGroup, ControlLabel, FormControl, Panel } from 'reac
 import Typeahead from 'react-bootstrap-typeahead'
 import { browserHistory } from 'react-router'
 import _ from 'underscore'
+import Immutable from 'immutable'
 
 import { hideCreateEnvModal, getBranches, createEnvironment, getEnvironmentSpec } from '../../actions/envs'
 
 function mapStateToProps (state) {
-  const envs = state.envs.toJS()
-  const defaultEnv = _.findWhere(envs.envs, {name: state.defaultEnv})
+  const envs = state.envs
   return {
-    envs,
-    defaultEnv
+    envs
   }
 }
 
@@ -24,8 +23,7 @@ const dispatchProps = {
   getEnvironmentSpec
 }
 
-@connect(mapStateToProps, dispatchProps)
-export default class EnvCreateModal extends React.Component {
+export class EnvCreateModal extends React.Component {
   static propTypes = {
     children: PropTypes.node,
     dispatch: PropTypes.func,
@@ -120,7 +118,7 @@ export default class EnvCreateModal extends React.Component {
 
   render () {
     const { envs } = this.props
-    if (!envs.showCreateModal) {
+    if (!envs.get('showCreateModal')) {
       return null
     }
 
@@ -155,18 +153,20 @@ export default class EnvCreateModal extends React.Component {
 
     let output = null
     if (this.state.error) {
-      console.log(this.state.error)
       var errorMessage = _.map(this.state.error.split('\n'), function (text, ix) {
         return <div key={ix}>{text}</div>
       })
       output = <Panel header='Error' bsStyle='danger'>{errorMessage}</Panel>
     }
 
-    const branches = _.map(envs.branches, (branch) => {
-      return {
-        label: branch
-      }
-    })
+    const branches = envs
+      .get('branches', Immutable.List())
+      .map((branch) => {
+        return {
+          label: branch
+        }
+      })
+      .toJS()
     return (
       <Modal show onHide={this.hide}>
         <Modal.Header closeButton>
@@ -204,3 +204,5 @@ export default class EnvCreateModal extends React.Component {
     )
   }
 }
+
+export default connect(mapStateToProps, dispatchProps)(EnvCreateModal)

@@ -6,23 +6,28 @@ import _ from 'underscore'
 
 import JobRunPod from '../../components/jobs/JobRunPod'
 import { activateJobTab } from '../../actions/app'
+import { makeLookUpObjectsByLabel } from '../../selectors'
 
-function mapStateToProps (state, ownProps) {
-  const { env, run } = ownProps.params
-  const jobRun = state.jobRuns.lookUpObject(env, run)
-  const pods = state.pods.lookUpObjectsByFunc(env, (obj) => {
-    return obj.hasLabel('run', run)
-  })
-  return {
-    jobRun,
-    pods
+function makeMapStateToProps () {
+  const lookUpObjectsByLabel = makeLookUpObjectsByLabel()
+  return (state, ownProps) => {
+    const { env, run } = ownProps.params
+    const jobRun = state.jobRuns.lookUpObject(env, run)
+    const pods = lookUpObjectsByLabel(state.pods, env, 'run', run)
+    return {
+      jobRun,
+      pods
+    }
   }
 }
 
-@connect(mapStateToProps)
-export default class JobRun extends React.Component {
+const dispatchProps = {
+  activateJobTab
+}
+
+export class JobRun extends React.Component {
   static propTypes = {
-    dispatch: PropTypes.func,
+    activateJobTab: PropTypes.func.isRequired,
     params: PropTypes.object,
     location: PropTypes.object,
     jobRun: PropTypes.object,
@@ -30,7 +35,7 @@ export default class JobRun extends React.Component {
   }
 
   componentDidMount () {
-    this.props.dispatch(activateJobTab('runs'))
+    this.props.activateJobTab('runs')
   }
 
   renderBanner () {
@@ -72,8 +77,9 @@ export default class JobRun extends React.Component {
     if (!jobRun) {
       return null
     }
-    const podLogs = _.map(pods, (pod, podName) => {
-      return <JobRunPod key={podName} env={params.env} podName={podName} />
+    const podLogs = []
+    pods.forEach((pod, podName) => {
+      podLogs.push(<JobRunPod key={podName} env={params.env} podName={podName} />)
     })
     if (podLogs.length > 0) {
       podLogs.splice(0, 0, (<h3 key='header'>Pods</h3>))
@@ -89,3 +95,5 @@ export default class JobRun extends React.Component {
     )
   }
 }
+
+export default connect(makeMapStateToProps, dispatchProps)(JobRun)

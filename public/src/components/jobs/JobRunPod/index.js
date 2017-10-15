@@ -7,16 +7,22 @@ import PodLog from '../../../components/PodLog'
 import { subPodLog, unsubPodLog } from '../../../actions/pods'
 
 function mapStateToProps (state, ownProps) {
-  const pod = state.pods.lookUpData(ownProps.env, ownProps.podName)
+  const { env, podName } = ownProps
+  const pod = state.pods.lookUpData(env, podName)
   return {
-    log: pod.log
+    log: pod.get('log')
   }
 }
 
-@connect(mapStateToProps)
-export default class JobRunPod extends React.Component {
+const dispatchProps = {
+  subPodLog,
+  unsubPodLog
+}
+
+export class JobRunPod extends React.Component {
   static propTypes = {
-    dispatch: PropTypes.func,
+    subPodLog: PropTypes.func.isRequired,
+    unsubPodLog: PropTypes.func.isRequired,
     env: PropTypes.string,
     podName: PropTypes.string,
     log: PropTypes.string
@@ -31,13 +37,13 @@ export default class JobRunPod extends React.Component {
   }
 
   subData = () => {
-    const { env, podName } = this.props
-    this.props.dispatch(subPodLog(env, podName))
+    const { env, podName, subPodLog } = this.props
+    subPodLog(env, podName)
   }
 
   unsubData = () => {
-    const { env, podName } = this.props
-    this.props.dispatch(unsubPodLog(env, podName))
+    const { env, podName, unsubPodLog } = this.props
+    unsubPodLog(env, podName)
   }
 
   render () {
@@ -52,3 +58,5 @@ export default class JobRunPod extends React.Component {
     )
   }
 }
+
+export default connect(mapStateToProps, dispatchProps)(JobRunPod)

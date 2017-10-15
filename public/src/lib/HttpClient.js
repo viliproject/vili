@@ -1,6 +1,5 @@
 import querystring from 'querystring'
 import request from 'browser-request'
-import { Promise } from 'bluebird'
 import WebSocketClient from './WebSocketClient'
 
 class Response {

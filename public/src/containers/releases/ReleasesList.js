@@ -5,16 +5,21 @@ import { Button, ButtonToolbar, Label } from 'react-bootstrap'
 import { browserHistory, Link } from 'react-router'
 import _ from 'underscore'
 
+import { makeLookUpObjects } from '../../selectors'
 import Table from '../../components/Table'
 import { activateNav } from '../../actions/app'
 import { createReleaseFromLatest, deployRelease, deleteRelease } from '../../actions/releases'
 
-function mapStateToProps (state, ownProps) {
-  const env = _.findWhere(state.envs.toJS().envs, {name: ownProps.params.env})
-  const releases = state.releases.lookUpObjects(ownProps.params.env)
-  return {
-    env,
-    releases
+function makeMapStateToProps () {
+  const lookUpObjects = makeLookUpObjects()
+  return (state, ownProps) => {
+    const { env: envName } = ownProps.params
+    const env = state.envs.getIn(['envs', envName])
+    const releases = lookUpObjects(state.releases, envName)
+    return {
+      env,
+      releases
+    }
   }
 }
 
@@ -23,7 +28,7 @@ const dispatchProps = {
   createReleaseFromLatest
 }
 
-@connect(mapStateToProps, dispatchProps)
+@connect(makeMapStateToProps, dispatchProps)
 export default class ReleasesList extends React.Component {
   static propTypes = {
     params: PropTypes.object,
@@ -85,8 +90,9 @@ export default class ReleasesList extends React.Component {
       {title: 'Actions', key: 'actions', style: {width: '150px', textAlign: 'right'}}
     ]
 
-    const rows = _.map(releases, function (release) {
-      return {
+    const rows = []
+    releases.map((release) => {
+      rows.push({
         component: (
           <Row key={release.name}
             env={env}
@@ -94,7 +100,7 @@ export default class ReleasesList extends React.Component {
           />
         ),
         key: -(new Date(release.createdAt))
-      }
+      })
     })
     const sortedRows = _.sortBy(rows, 'key')
 
@@ -158,14 +164,14 @@ class Row extends React.Component {
     const actions = []
     if (env.deployedToEnv) {
       actions.push(
-        <Button onClick={this.deployRelease} style={style} bsStyle='primary' bsSize='xs'>Deploy</Button>
+        <Button key='deploy' onClick={this.deployRelease} style={style} bsStyle='primary' bsSize='xs'>Deploy</Button>
       )
       actions.push(
-        <Button onClick={this.deleteRelease} style={style} bsStyle='danger' bsSize='xs'>Delete</Button>
+        <Button key='delete' onClick={this.deleteRelease} style={style} bsStyle='danger' bsSize='xs'>Delete</Button>
       )
     } else if (env.approvedFromEnv) {
       actions.push(
-        <Button onClick={this.deployRelease} style={style} bsStyle='primary' bsSize='xs'>Deploy</Button>
+        <Button key='deploy' onClick={this.deployRelease} style={style} bsStyle='primary' bsSize='xs'>Deploy</Button>
       )
     }
     return actions
@@ -173,25 +179,29 @@ class Row extends React.Component {
 
   render () {
     const { env, release } = this.props
-    const releasedAt = _.map(release.envRollouts(env.name), (rollout) => {
-      let bsStyle = 'default'
-      switch (rollout.status) {
-        case 'deployed':
-          bsStyle = 'success'
-          break
-        case 'deploying':
-          bsStyle = 'warning'
-          break
-        case 'failed':
-          bsStyle = 'danger'
-          break
-      }
-      return (
-        <div key={rollout.id}>
-          <Label bsStyle={bsStyle}>{rollout.id} - {rollout.rolloutAtHumanize}</Label>
-        </div>
-      )
-    })
+    const releasedAt = []
+    release
+      .envRollouts(env.name)
+      .sortBy(x => -x.rolloutAtDate)
+      .forEach((rollout) => {
+        let bsStyle = 'default'
+        switch (rollout.status) {
+          case 'deployed':
+            bsStyle = 'success'
+            break
+          case 'deploying':
+            bsStyle = 'warning'
+            break
+          case 'failed':
+            bsStyle = 'danger'
+            break
+        }
+        releasedAt.push(
+          <div key={rollout.id}>
+            <Label bsStyle={bsStyle}>{rollout.id} - {rollout.rolloutAtHumanize}</Label>
+          </div>
+        )
+      })
     return (
       <tr>
         <td>{this.nameLink}</td>

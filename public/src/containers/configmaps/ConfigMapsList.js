@@ -2,39 +2,36 @@ import PropTypes from 'prop-types'
 import React from 'react'
 import { connect } from 'react-redux'
 import { Link } from 'react-router'
-import _ from 'underscore'
 
 import Table from '../../components/Table'
 import { activateNav } from '../../actions/app'
+import { makeLookUpObjects } from '../../selectors'
+import ConfigMapRow from './ConfigMapRow'
 
-function mapStateToProps (state, ownProps) {
-  const env = _.findWhere(state.envs.toJS().envs, {name: ownProps.params.env})
-  const configmaps = state.configmaps.lookUpObjects(ownProps.params.env)
-  _.each(env.configmaps, (key) => {
-    if (_.isUndefined(configmaps[key])) {
-      configmaps[key] = null
+function makeMapStateToProps () {
+  const lookUpObjects = makeLookUpObjects()
+  return (state, ownProps) => {
+    const { env: envName } = ownProps.params
+    const env = state.envs.getIn(['envs', envName])
+    const configmaps = lookUpObjects(state.configmaps, env.name)
+    return {
+      env,
+      configmaps
     }
-  })
-  return {
-    configmaps
   }
 }
 
-@connect(mapStateToProps)
-export default class ConfigMapsList extends React.Component {
-  static propTypes = {
-    dispatch: PropTypes.func,
-    params: PropTypes.object,
-    location: PropTypes.object,
-    configmaps: PropTypes.object
-  }
+const dispatchProps = {
+  activateNav
+}
 
+export class ConfigMapsList extends React.Component {
   componentDidMount () {
-    this.props.dispatch(activateNav('configmaps'))
+    this.props.activateNav('configmaps')
   }
 
   render () {
-    const { params, configmaps } = this.props
+    const { params, env, configmaps } = this.props
     const header = (
       <div className='view-header'>
         <ol className='breadcrumb'>
@@ -50,55 +47,38 @@ export default class ConfigMapsList extends React.Component {
       {title: 'Created', key: 'created'}
     ]
 
-    const rows = _.map(configmaps, function (configmap, name) {
-      return {
+    const rows = []
+    env.configmaps.forEach((configmapName) => {
+      const configmap = configmaps.find((d) => d.getIn(['metadata', 'name']) === configmapName)
+      rows.push({
         component: (
-          <Row key={name}
+          <ConfigMapRow
+            key={configmapName}
             env={params.env}
-            name={name}
+            name={configmapName}
             configmap={configmap}
           />
         ),
-        key: name
-      }
+        key: configmapName
+      })
     })
-    const sortedRows = _.sortBy(rows, 'key')
 
     return (
       <div>
         {header}
-        <Table columns={columns} rows={sortedRows} />
+        <Table columns={columns} rows={rows} />
       </div>
     )
   }
 
 }
 
-@connect()
-class Row extends React.Component {
-  static propTypes = {
-    dispatch: PropTypes.func,
-    env: PropTypes.string,
-    name: PropTypes.string,
-    configmap: PropTypes.object
-  }
-
-  get nameLink () {
-    const { env, name } = this.props
-    return (
-      <Link to={`/${env}/configmaps/${name}`}>{name}</Link>
-    )
-  }
-
-  render () {
-    const { configmap } = this.props
-    return (
-      <tr>
-        <td data-column='name'>{this.nameLink}</td>
-        <td data-column='key-count'>{configmap && configmap.keyCount || '-'}</td>
-        <td data-column='created_at'>{configmap && configmap.createdAt || '-'}</td>
-      </tr>
-    )
-  }
-
+ConfigMapsList.propTypes = {
+  activateNav: PropTypes.func,
+  params: PropTypes.object,
+  location: PropTypes.object,
+  env: PropTypes.object,
+  configmaps: PropTypes.object
 }
+
+export default connect(makeMapStateToProps, dispatchProps)(ConfigMapsList)

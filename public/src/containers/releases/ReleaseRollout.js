@@ -4,6 +4,7 @@ import { connect } from 'react-redux'
 import { Panel, Alert } from 'react-bootstrap'
 import { Link } from 'react-router'
 import _ from 'underscore'
+import Immutable from 'immutable'
 
 import Table from '../../components/Table'
 import { activateNav } from '../../actions/app'
@@ -27,16 +28,12 @@ const tableColumns = {
 
 function mapStateToProps (state, ownProps) {
   const { env: envName, release: releaseName, rollout: rolloutID } = ownProps.params
-  const env = _.findWhere(state.envs.toJS().envs, {name: envName})
+  const env = state.envs.getIn(['envs', envName])
   const release = state.releases.lookUpObject(envName, releaseName)
-  const rollouts = release && release.envRollouts(envName) || []
-  const rollout = _.findWhere(rollouts, {id: parseInt(rolloutID)})
-  const rolloutWaves = rollout && rollout.waves || []
   return {
     env,
     release,
-    rollout,
-    rolloutWaves
+    rolloutID: parseInt(rolloutID)
   }
 }
 
@@ -51,8 +48,7 @@ export default class ReleaseRollout extends React.Component {
     location: PropTypes.object,
     env: PropTypes.object,
     release: PropTypes.object,
-    rollout: PropTypes.object,
-    rolloutWaves: PropTypes.array,
+    rolloutID: PropTypes.number,
     activateNav: PropTypes.func.isRequired
   }
 
@@ -60,11 +56,8 @@ export default class ReleaseRollout extends React.Component {
     this.props.activateNav('releases')
   }
 
-  renderMetadata () {
-    const { env, release, rollout } = this.props
-    if (!env || !release || !rollout) {
-      return null
-    }
+  renderMetadata (rollout) {
+    const { release } = this.props
     const metadata = []
 
     switch (rollout.status) {
@@ -97,33 +90,31 @@ export default class ReleaseRollout extends React.Component {
     return metadata
   }
 
-  renderWavePanels () {
-    const { env, release, rolloutWaves } = this.props
-    if (release) {
-      const panels = _.map(release.waves, (wave, ix) => {
-        const rolloutWave = rolloutWaves[ix] || {}
-        return (
-          <WavePanel
-            key={ix}
-            ix={ix}
-            env={env.name}
-            wave={wave}
-            rolloutWave={rolloutWave}
-          />
-        )
-      })
-      return (
-        <div>
-          <h5>Waves</h5>
-          {panels}
-        </div>
+  renderWavePanels (rollout) {
+    const { env, release } = this.props
+    const panels = []
+    release.waves.forEach((wave, ix) => {
+      const rolloutWave = rollout.waves.get(ix, Immutable.Map())
+      panels.push(
+        <WavePanel
+          key={ix}
+          ix={ix}
+          env={env.name}
+          wave={wave.toJS()}
+          rolloutWave={rolloutWave.toJS()}
+        />
       )
-    }
-    return null
+    })
+    return (
+      <div>
+        <h5>Waves</h5>
+        {panels}
+      </div>
+    )
   }
 
   render () {
-    const { params } = this.props
+    const { params, env, release, rolloutID } = this.props
     const header = [
       <div key='header' className='view-header'>
         <ol className='breadcrumb'>
@@ -135,11 +126,28 @@ export default class ReleaseRollout extends React.Component {
       </div>
     ]
 
+    if (!env || !release) {
+      return (
+        <div>
+          {header}
+        </div>
+      )
+    }
+    const rollouts = release.envRollouts(env.name)
+    const rollout = rollouts.find((r) => r.id === rolloutID)
+    if (!rollout) {
+      return (
+        <div>
+          {header}
+        </div>
+      )
+    }
+
     return (
       <div>
         {header}
-        {this.renderMetadata()}
-        {this.renderWavePanels()}
+        {this.renderMetadata(rollout)}
+        {this.renderWavePanels(rollout)}
       </div>
     )
   }

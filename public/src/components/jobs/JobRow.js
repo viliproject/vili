@@ -2,35 +2,39 @@ import PropTypes from 'prop-types'
 import React from 'react'
 import { connect } from 'react-redux'
 import { Button, Label } from 'react-bootstrap'
-import _ from 'underscore'
+import Immutable from 'immutable'
 
 import { runTag } from '../../actions/jobs'
 
-@connect()
-export default class JobRow extends React.Component {
+const dispatchProps = {
+  runTag
+}
+
+export class JobRow extends React.Component {
   static propTypes = {
-    dispatch: PropTypes.func,
+    runTag: PropTypes.func.isRequired,
     env: PropTypes.string,
     job: PropTypes.string,
     tag: PropTypes.string,
     branch: PropTypes.string,
     revision: PropTypes.string,
     buildTime: PropTypes.string,
-    jobRuns: PropTypes.array
+    jobRuns: PropTypes.object
   }
 
   runTag = (event) => {
     event.target.setAttribute('disabled', 'disabled')
-    const { dispatch, env, job, tag, branch } = this.props
-    dispatch(runTag(env, job, tag, branch))
+    const { runTag, env, job, tag, branch } = this.props
+    runTag(env, job, tag, branch)
   }
 
   render () {
     const { tag, branch, revision, buildTime, jobRuns } = this.props
-    const runTimes = _.map(jobRuns, function (jobRun) {
+    const runTimes = []
+    jobRuns.forEach((jobRun) => {
       var bsStyle = 'default'
-      _.each(jobRun.status.conditions, (condition) => {
-        switch (condition.type) {
+      jobRun.getIn(['status', 'conditions'], Immutable.List()).forEach((condition) => {
+        switch (condition.get('type')) {
           case 'Complete':
             bsStyle = 'success'
             break
@@ -39,8 +43,8 @@ export default class JobRow extends React.Component {
             break
         }
       })
-      return (
-        <div key={jobRun.metadata.name}>
+      runTimes.push(
+        <div key={jobRun.getIn(['metadata', 'name'])}>
           <Label bsStyle={bsStyle}>{jobRun.runAt}</Label>
         </div>
       )
@@ -58,5 +62,6 @@ export default class JobRow extends React.Component {
       </tr>
     )
   }
-
 }
+
+export default connect(null, dispatchProps)(JobRow)

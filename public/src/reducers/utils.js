@@ -1,71 +1,42 @@
-import BaseModel from '../models/BaseModel'
+import Immutable from 'immutable'
 
-export function getInitialState () {
-  return {
-    envs: {},
-    lookUp,
-    lookUpData,
-    lookUpObject,
-    lookUpObjects,
-    lookUpObjectsByFunc
+class APIStoreRecord extends Immutable.Record({
+  envs: Immutable.Map()
+}) {
+  lookUp (env) {
+    return this.getIn(['envs', env], new EnvRecord())
+  }
+
+  lookUpObjects (env) {
+    return this.lookUp(env).get('keys').map((v) => v.get('object'))
+  }
+
+  lookUpData (env, name) {
+    return this.lookUp(env).getIn(['keys', name], Immutable.Map())
+  }
+
+  lookUpObject (env, name) {
+    return this.lookUp(env).getIn(['keys', name, 'object'])
   }
 }
 
-export function newEnv () {
-  return { keys: {} }
+export class EnvRecord extends Immutable.Record({
+  keys: Immutable.Map(),
+  spec: undefined
+}) {
 }
 
-function lookUp (env) {
-  return this.envs[env] || newEnv()
-}
-
-function lookUpObjects (env) {
-  const envData = this.lookUp(env).keys
-  return Object.keys(envData).reduce((obj, key) => {
-    obj[key] = envData[key].object
-    return obj
-  }, {})
-}
-
-function lookUpData (env, name) {
-  return this.lookUp(env).keys[name] || {}
-}
-
-function lookUpObject (env, name) {
-  return this.lookUpData(env, name).object
-}
-
-function lookUpObjectsByFunc (env, filterFunc) {
-  const objects = this.lookUp(env).keys
-  return Object.keys(objects).filter(
-    (key) => filterFunc(objects[key].object)
-  ).reduce((obj, key) => {
-    obj[key] = objects[key].object
-    return obj
-  }, {})
+export function getInitialState () {
+  return new APIStoreRecord()
 }
 
 export function setEnvField (state, action) {
   const { env, field, data } = action.payload
-  const newState = Object.assign({}, state)
-  if (!newState.envs[env]) {
-    newState.envs[env] = newEnv()
-  }
-  newState.envs[env][field] = data
-  return newState
+  return state.updateIn(['envs', env], new EnvRecord(), (e) => e.set(field, data))
 }
 
 export function setData (state, env, name, data) {
-  const newState = Object.assign({}, state)
-  if (!newState.envs[env]) {
-    newState.envs[env] = newEnv()
-  }
-  const newStateKeys = newState.envs[env].keys
-  if (!newStateKeys[name]) {
-    newStateKeys[name] = {}
-  }
-  newStateKeys[name] = Object.assign({}, newStateKeys[name], data)
-  return newState
+  return state.updateIn(['envs', env], new EnvRecord(), (e) => e.mergeIn(['keys', name], data))
 }
 
 export function setDataField (state, action) {
@@ -75,26 +46,18 @@ export function setDataField (state, action) {
 
 export function deleteData (state, action) {
   const { env, name } = action.payload
-  const data = state.lookUpData(env, name)
-  if (!data) {
-    return state
-  }
-  const newState = Object.assign({}, state)
-  delete newState.envs[env].keys[name]
-  return newState
+  return state.deleteIn(['envs', env, 'keys', name])
 }
 
 function initObjects (state, env, list, Model) {
-  const newState = Object.assign({}, state)
-  if (!newState.envs[env]) {
-    newState.envs[env] = newEnv()
+  if (!state.getIn(['envs', env])) {
+    state = state.setIn(['envs', env], new EnvRecord())
   }
-  const newStateKeys = newState.envs[env].keys
-  list.items.forEach((item) => {
+  list.forEach((item) => {
     const name = item.name || item.metadata.name
-    newStateKeys[name] = Object.assign({}, newStateKeys[name], { object: getModelObject(Model, item) })
+    state = state.setIn(['envs', env, 'keys', name, 'object'], getModelInstance(Model, item))
   })
-  return newState
+  return state
 }
 
 export function changeObject (state, action, Model) {
@@ -104,14 +67,13 @@ export function changeObject (state, action, Model) {
       return initObjects(state, env, list, Model)
     case 'ADDED':
     case 'MODIFIED':
-      return setData(state, env, object.name || object.metadata.name, { object: getModelObject(Model, object) })
+      return setData(state, env, object.name || object.metadata.name, { object: getModelInstance(Model, object) })
     case 'DELETED':
       return deleteData(state, { payload: { env, name: object.name || object.metadata.name } })
   }
   return state
 }
 
-function getModelObject (Model, object) {
-  Model = Model || BaseModel
-  return new Model(object)
+function getModelInstance (Model, object) {
+  return new Model(Immutable.fromJS(object))
 }

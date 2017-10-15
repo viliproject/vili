@@ -14,38 +14,43 @@ const tabs = {
 
 function mapStateToProps (state) {
   return {
-    app: state.app.toJS()
+    app: state.app
   }
 }
 
-@connect(mapStateToProps)
-export default class JobBase extends React.Component {
+const dispatchProps = {
+  activateNav
+}
+
+export class JobBase extends React.Component {
   static propTypes = {
     children: PropTypes.node,
-    dispatch: PropTypes.func,
     params: PropTypes.object,
     location: PropTypes.object,
-    app: PropTypes.object
+    app: PropTypes.object,
+    activateNav: PropTypes.func.isRequired
   }
 
   componentDidMount () {
-    this.props.dispatch(activateNav('jobs', this.props.params.job))
+    const { params, activateNav } = this.props
+    activateNav('jobs', params.job)
   }
 
   componentDidUpdate (prevProps) {
-    if (this.props.params.job !== prevProps.params.job) {
-      this.props.dispatch(activateNav('jobs', this.props.params.job))
+    const { params, activateNav } = this.props
+    if (params.job !== prevProps.params.job) {
+      activateNav('jobs', params.job)
     }
   }
 
   render () {
-    var self = this
-    var tabElements = _.map(tabs, function (name, key) {
-      var className = ''
-      if (self.props.app.jobTab === key) {
+    const { params, app, children } = this.props
+    const tabElements = _.map(tabs, (name, key) => {
+      let className = ''
+      if (app.get('jobTab') === key) {
         className = 'active'
       }
-      var link = `/${self.props.params.env}/jobs/${self.props.params.job}`
+      let link = `/${params.env}/jobs/${params.job}`
       if (key !== 'home') {
         link += `/${key}`
       }
@@ -59,16 +64,18 @@ export default class JobBase extends React.Component {
       <div>
         <div key='view-header' className='view-header'>
           <ol className='breadcrumb'>
-            <li><Link to={`/${this.props.params.env}`}>{this.props.params.env}</Link></li>
-            <li><Link to={`/${this.props.params.env}/jobs`}>Jobs</Link></li>
-            <li className='active'>{this.props.params.job}</li>
+            <li><Link to={`/${params.env}`}>{params.env}</Link></li>
+            <li><Link to={`/${params.env}/jobs`}>Jobs</Link></li>
+            <li className='active'>{params.job}</li>
           </ol>
           <ul className='nav nav-pills pull-right'>
             {tabElements}
           </ul>
         </div>
-        {this.props.children}
+        {children}
       </div>
     )
   }
 }
+
+export default connect(mapStateToProps, dispatchProps)(JobBase)

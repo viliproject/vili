@@ -7,23 +7,29 @@ import { activateDeploymentTab } from '../../actions/app'
 import { getDeploymentSpec } from '../../actions/deployments'
 
 function mapStateToProps (state, ownProps) {
-  const deployment = state.deployments.lookUpData(ownProps.params.env, ownProps.params.deployment)
+  const { env, deployment: deploymentName } = ownProps.params
+  const deployment = state.deployments.lookUpData(env, deploymentName)
   return {
     deployment
   }
 }
 
-@connect(mapStateToProps)
-export default class DeploymentSpec extends React.Component {
+const dispatchProps = {
+  activateDeploymentTab,
+  getDeploymentSpec
+}
+
+export class DeploymentSpec extends React.Component {
   static propTypes = {
-    dispatch: PropTypes.func,
-    params: PropTypes.object, // react router provides this
-    location: PropTypes.object, // react router provides this
-    deployment: PropTypes.object
+    params: PropTypes.object,
+    location: PropTypes.object,
+    deployment: PropTypes.object,
+    activateDeploymentTab: PropTypes.func,
+    getDeploymentSpec: PropTypes.func
   }
 
   componentDidMount () {
-    this.props.dispatch(activateDeploymentTab('spec'))
+    this.props.activateDeploymentTab('spec')
     this.fetchData()
   }
 
@@ -34,20 +40,20 @@ export default class DeploymentSpec extends React.Component {
   }
 
   fetchData = () => {
-    const { params } = this.props
-    this.props.dispatch(getDeploymentSpec(params.env, params.deployment))
+    const { params, getDeploymentSpec } = this.props
+    getDeploymentSpec(params.env, params.deployment)
   }
 
   render () {
     const { deployment } = this.props
-    if (!deployment || !deployment.spec) {
+    if (!deployment || !deployment.get('spec')) {
       return (<Loading />)
     }
     return (
       <div className='col-md-8'>
         <div id='source-yaml'>
           <pre><code>
-            {deployment.spec}
+            {deployment.get('spec')}
           </code></pre>
         </div>
       </div>
@@ -55,3 +61,5 @@ export default class DeploymentSpec extends React.Component {
   }
 
 }
+
+export default connect(mapStateToProps, dispatchProps)(DeploymentSpec)

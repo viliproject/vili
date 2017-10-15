@@ -3,32 +3,39 @@ import React from 'react'
 import { connect } from 'react-redux'
 import { Button, ButtonToolbar } from 'react-bootstrap'
 import { Link } from 'react-router'
-import _ from 'underscore'
 
 import Table from '../../components/Table'
 import { activateNav } from '../../actions/app'
+import { makeLookUpObjects } from '../../selectors'
 
-function mapStateToProps (state, ownProps) {
-  const env = _.findWhere(state.envs.toJS().envs, {name: ownProps.params.env})
-  const jobRuns = state.jobRuns.lookUpObjects(ownProps.params.env)
-  return {
-    env,
-    jobRuns
+function makeMapStateToProps () {
+  const lookUpObjects = makeLookUpObjects()
+  return (state, ownProps) => {
+    const { env: envName } = ownProps.params
+    const env = state.envs.getIn(['envs', envName])
+    const jobRuns = lookUpObjects(state.jobRuns, env.name)
+    return {
+      env,
+      jobRuns
+    }
   }
 }
 
-@connect(mapStateToProps)
-export default class JobsList extends React.Component {
+const dispatchProps = {
+  activateNav
+}
+
+export class JobsList extends React.Component {
   static propTypes = {
-    dispatch: PropTypes.func,
     params: PropTypes.object,
     location: PropTypes.object,
     env: PropTypes.object,
-    jobRuns: PropTypes.object
+    jobRuns: PropTypes.object,
+    activateNav: PropTypes.func.isRequired
   }
 
   componentDidMount () {
-    this.props.dispatch(activateNav('jobs'))
+    this.props.activateNav('jobs')
   }
 
   render () {
@@ -56,17 +63,17 @@ export default class JobsList extends React.Component {
       {title: 'Last Run', key: 'lastRun', style: {width: '200px', textAlign: 'right'}}
     ]
 
-    var rows = _.map(env.jobs, (jobName) => {
-      const runs = _.sortBy(
-        _.filter(jobRuns, x => x.hasLabel('job', jobName)),
-        x => -x.creationTimestamp
-      )
-      const jobRun = runs[0]
-      return {
+    const rows = []
+    env.jobs.forEach((jobName) => {
+      const jobRun = jobRuns
+        .filter(r => r.hasLabel('job', jobName))
+        .sortBy(r => -r.creationTimestamp)
+        .first()
+      rows.push({
         name: (<Link to={`/${env.name}/jobs/${jobName}`}>{jobName}</Link>),
         tag: jobRun && jobRun.imageTag,
         lastRun: jobRun && jobRun.runAt
-      }
+      })
     })
 
     return (
@@ -76,5 +83,6 @@ export default class JobsList extends React.Component {
       </div>
     )
   }
-
 }
+
+export default connect(makeMapStateToProps, dispatchProps)(JobsList)
