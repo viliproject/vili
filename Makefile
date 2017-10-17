@@ -6,15 +6,7 @@ TIMESTAMP := $(shell date +%s)
 all: build
 
 build:
-	-rm -rf main build
-	docker build -t vilibuilder:${SHA} -f Dockerfile .
-	-docker rm -f vilibuilder
-	docker create --name vilibuilder vilibuilder:${SHA} true
-	docker cp vilibuilder:/go/src/github.com/airware/vili/main .
-	docker cp vilibuilder:/go/src/github.com/airware/vili/public/build .
-	-docker rm vilibuilder
-	docker build -t vili:${SHA} -f Dockerfile.minimal .
-	-rm -rf main build
+	docker build -t vili:${SHA} -f Dockerfile .
 
 publish: build
 	docker tag vili:${SHA} quay.io/airware/vili:${TIMESTAMP}-${SHA}
