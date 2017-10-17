@@ -3,16 +3,17 @@ version: 2
 jobs:
   go:
     docker:
-      - image: golang:1.9.1-alpine3.6
+      - image: circleci/golang:1.8
+    working_directory: /go/src/github.com/airware/vili
     steps:
       - checkout
       - run:
           name: Build
           command: |
-            CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags '-s' -o main
+            go build -a
   js:
     docker:
-      - image: node:8.7.0-alpine
+      - image: circleci/node:7
     steps:
       - checkout
       - run:
@@ -22,10 +23,7 @@ jobs:
             npm run build
   release:
     docker:
-      - image: 1
-    branches:
-      only:
-        - master
+      - image: circleci/python:3
     steps:
       - checkout
       - setup_remote_docker
@@ -44,6 +42,10 @@ workflows:
       - go
       - js
       - release:
+          filters:
+            branches:
+              only:
+                - master
           requires:
             - go
             - js
