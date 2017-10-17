@@ -22,7 +22,7 @@ jobs:
             npm run build
   release:
     docker:
-      - image: 1
+      - image: circleci/python:2.7
     branches:
       only:
         - master
