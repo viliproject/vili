@@ -32,13 +32,13 @@ func (s *gitService) resolvePath(env, subPath string) string {
 	return fmt.Sprintf(envContentsPath, subPath)
 }
 
-func (s *gitService) getContents(env, branch, subPath string) ([]byte, error) {
+func (s *gitService) getContents(env, branch, subPath string) (string, error) {
 	path := s.resolvePath(env, subPath)
 	contents, err := git.Contents(branch, path)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	if contents == nil && branch != "" {
+	if contents == "" && branch != "" {
 		// Fall back to the default branch
 		return git.Contents("", path)
 	}
@@ -58,13 +58,39 @@ func (s *gitService) listDirectory(env, branch, subPath string) ([]string, error
 	return files, nil
 }
 
+// Jobs returns a list of jobs for the given environment
+func (s *gitService) Jobs(env, branch string) ([]string, error) {
+	directoryContent, err := s.listDirectory(env, branch, "jobs")
+	if err != nil {
+		return nil, err
+	}
+	jobs := []string{}
+	for _, filePath := range directoryContent {
+		parts := strings.Split(filePath, ".")
+		if len(parts) != 2 || parts[1] != "yaml" {
+			continue
+		}
+		jobs = append(jobs, parts[0])
+	}
+	return jobs, nil
+}
+
+// Job returns a job for the given environment
+func (s *gitService) Job(env, branch, name string) (Template, error) {
+	fileContent, err := s.getContents(env, branch, "jobs/"+name+".yaml")
+	if err != nil {
+		return "", err
+	}
+	return Template(fileContent), nil
+}
+
 // Deployments returns a list of deployments for the given environment
 func (s *gitService) Deployments(env, branch string) ([]string, error) {
 	directoryContent, err := s.listDirectory(env, branch, "deployments")
 	if err != nil {
 		return nil, err
 	}
-	var deployments []string
+	deployments := []string{}
 	for _, filePath := range directoryContent {
 		parts := strings.Split(filePath, ".")
 		if len(parts) != 2 || parts[1] != "yaml" {
@@ -84,26 +110,35 @@ func (s *gitService) Deployment(env, branch, name string) (Template, error) {
 	return Template(fileContent), nil
 }
 
-// Pods returns a list of pods for the given environment
-func (s *gitService) Pods(env, branch string) ([]string, error) {
-	directoryContent, err := s.listDirectory(env, branch, "pods")
+// ConfigMaps returns a list of configMaps for the given environment
+func (s *gitService) ConfigMaps(env, branch string) ([]string, error) {
+	directoryContent, err := s.listDirectory(env, branch, "configmaps/"+env)
 	if err != nil {
 		return nil, err
 	}
-	var pods []string
+	configMaps := []string{}
 	for _, filePath := range directoryContent {
 		parts := strings.Split(filePath, ".")
 		if len(parts) != 2 || parts[1] != "yaml" {
 			continue
 		}
-		pods = append(pods, parts[0])
+		configMaps = append(configMaps, parts[0])
 	}
-	return pods, nil
+	return configMaps, nil
 }
 
-// Pod returns a list of pods for the given environment
-func (s *gitService) Pod(env, branch, name string) (Template, error) {
-	fileContent, err := s.getContents(env, branch, "pods/"+name+".yaml")
+// ConfigMap returns a configMap for the given environment
+func (s *gitService) ConfigMap(env, branch, name string) (Template, error) {
+	fileContent, err := s.getContents(env, branch, "configmaps/"+env+"/"+name+".yaml")
+	if err != nil {
+		return "", err
+	}
+	return Template(fileContent), nil
+}
+
+// Release returns a release template for the given environment
+func (s *gitService) Release(env, branch string) (Template, error) {
+	fileContent, err := s.getContents(env, branch, "release.yaml")
 	if err != nil {
 		return "", err
 	}

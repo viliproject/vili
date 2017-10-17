@@ -8,6 +8,19 @@ import (
 	"github.com/Sirupsen/logrus"
 )
 
+// Level wraps logrus.Level
+type Level logrus.Level
+
+// Levels of logging
+const (
+	DebugLevel Level = Level(logrus.DebugLevel)
+	InfoLevel  Level = Level(logrus.InfoLevel)
+	WarnLevel  Level = Level(logrus.WarnLevel)
+	ErrorLevel Level = Level(logrus.ErrorLevel)
+	FatalLevel Level = Level(logrus.FatalLevel)
+	PanicLevel Level = Level(logrus.PanicLevel)
+)
+
 // Fields wraps logrus.Fields, which is a map[string]interface{}
 type Fields logrus.Fields
 

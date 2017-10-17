@@ -4,298 +4,276 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
-	"time"
+	"sort"
+	"strconv"
+	"sync"
 
-	"github.com/CloudCom/firego"
 	"github.com/airware/vili/docker"
+	"github.com/airware/vili/environments"
 	"github.com/airware/vili/errors"
-	"github.com/airware/vili/firebase"
 	"github.com/airware/vili/kube"
-	"github.com/airware/vili/kube/v1"
+	"github.com/airware/vili/log"
 	"github.com/airware/vili/server"
-	"github.com/airware/vili/session"
-	"github.com/airware/vili/util"
-	"gopkg.in/labstack/echo.v1"
+	"github.com/airware/vili/templates"
+	echo "gopkg.in/labstack/echo.v1"
+	corev1 "k8s.io/api/core/v1"
+	extv1beta1 "k8s.io/api/extensions/v1beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// Deployment represents a single deployment of an image for any app
-type Deployment struct {
-	ID       string    `json:"id"`
-	Env      string    `json:"env"`
-	App      string    `json:"app"`
-	Branch   string    `json:"branch"`
-	Tag      string    `json:"tag"`
-	Time     time.Time `json:"time"`
-	Username string    `json:"username"`
-	State    string    `json:"state"`
-	Rollout  *Rollout  `json:"rollout,omitempty"`
+func deploymentsGetHandler(c *echo.Context) error {
+	env := c.Param("env")
 
-	Clock           *Clock `json:"clock"`
-	DesiredReplicas int    `json:"desiredReplicas"`
-	OriginalPods    []Pod  `json:"originalPods"`
-	FromPods        []Pod  `json:"fromPods"`
-	FromTag         string `json:"fromTag"`
-	FromUID         string `json:"fromUid"`
+	endpoint := kube.GetClient(env).Deployments()
+	query := getListOptionsFromRequest(c)
 
-	ToPods []Pod  `json:"toPods"`
-	ToUID  string `json:"toUid"`
-}
+	if c.Request().URL.Query().Get("watch") != "" {
+		return apiWatchWebsocket(c, query, endpoint.Watch)
+	}
 
-// Clock is a time.Duration struct with custom JSON marshal functions
-type Clock time.Duration
-
-// MarshalJSON implements the json.Marshaler interface
-func (c *Clock) MarshalJSON() ([]byte, error) {
-	return json.Marshal(int64(time.Duration(*c) / time.Millisecond))
-}
-
-// UnmarshalJSON implements the json.Unmarshaler interface
-func (c *Clock) UnmarshalJSON(b []byte) error {
-	var ms int64
-	err := json.Unmarshal(b, &ms)
+	resp, err := endpoint.List(query)
 	if err != nil {
 		return err
 	}
-	*c = Clock(time.Duration(ms) * time.Millisecond)
-	return nil
+	return c.JSON(http.StatusOK, resp)
 }
-func (c *Clock) humanize() string {
-	if c == nil {
-		return "0"
+
+type deploymentRepositoryResponse struct {
+	Images []*docker.Image `json:"images,omitempty"`
+}
+
+func deploymentRepositoryGetHandler(c *echo.Context) error {
+	env := c.Param("env")
+	deployment := c.Param("deployment")
+
+	environment, err := environments.Get(env)
+	if err != nil {
+		return err
 	}
-	return ((time.Duration(*c) / time.Second) * time.Second).String()
+
+	resp := new(deploymentRepositoryResponse)
+	images, err := docker.GetRepository(deployment, environment.RepositoryBranches)
+	if err != nil {
+		return err
+	}
+	resp.Images = images
+
+	return c.JSON(http.StatusOK, resp)
 }
 
-// Pod is a summary of the state of a kubernetes pod
-type Pod struct {
-	Name    string    `json:"name"`
-	Created time.Time `json:"created"`
-	Phase   string    `json:"phase"`
-	Ready   bool      `json:"ready"`
-	Host    string    `json:"host"`
+type deploymentSpecResponse struct {
+	Spec string `json:"spec,omitempty"`
 }
 
-// Rollout is the description of how the deployment will be rolled out
-// TODO: support MaxUnavailable and MaxSurge for rolling updates
-type Rollout struct {
-	Strategy string `json:"strategy"`
+func deploymentSpecGetHandler(c *echo.Context) error {
+	env := c.Param("env")
+	deployment := c.Param("deployment")
+
+	environment, err := environments.Get(env)
+	if err != nil {
+		return err
+	}
+
+	resp := new(deploymentSpecResponse)
+	body, err := templates.Deployment(environment.Name, environment.Branch, deployment)
+	if err != nil {
+		return err
+	}
+	resp.Spec = string(body)
+
+	return c.JSON(http.StatusOK, resp)
 }
 
-const (
-	rolloutStrategyRollingUpdate = "RollingUpdate"
-	rolloutStrategyRecreate      = "Recreate"
-)
+func deploymentServiceGetHandler(c *echo.Context) error {
+	env := c.Param("env")
+	deployment := c.Param("deployment")
+
+	endpoint := kube.GetClient(env).Services()
+
+	service, err := endpoint.Get(deployment, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	return c.JSON(http.StatusOK, service)
+}
+
+func deploymentServiceCreateHandler(c *echo.Context) error {
+	env := c.Param("env")
+	deploymentName := c.Param("deployment")
+
+	endpoint := kube.GetClient(env).Services()
+
+	failed := false
+
+	var deploymentTemplate templates.Template
+	var currentService *corev1.Service
+
+	environment, err := environments.Get(env)
+	if err != nil {
+		return err
+	}
+
+	var waitGroup sync.WaitGroup
+	// deploymentTemplate
+	waitGroup.Add(1)
+	go func() {
+		defer waitGroup.Done()
+		body, err := templates.Deployment(environment.Name, environment.Branch, deploymentName)
+		if err != nil {
+			log.Error(err)
+			failed = true
+		}
+		deploymentTemplate = body
+	}()
+
+	// service
+	currentService, err = endpoint.Get(deploymentName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	if currentService != nil {
+		return server.ErrorResponse(c, errors.Conflict("Service exists"))
+	}
+	deployment := &extv1beta1.Deployment{}
+	err = deploymentTemplate.Parse(deployment)
+	if err != nil {
+		return err
+	}
+
+	deploymentPort, err := getPortFromDeployment(deployment)
+	if err != nil {
+		return err
+	}
+
+	service := &corev1.Service{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: deploymentName,
+		},
+		Spec: corev1.ServiceSpec{
+			Ports: []corev1.ServicePort{
+				corev1.ServicePort{
+					Protocol: "TCP",
+					Port:     deploymentPort,
+				},
+			},
+			Selector: map[string]string{
+				"app": deploymentName,
+			},
+		},
+	}
+
+	resp, err := endpoint.Create(service)
+	if err != nil {
+		return err
+	}
+	return c.JSON(http.StatusOK, resp)
+}
+
+type deploymentActionRequest struct {
+	Replicas   *int32 `json:"replicas"`
+	ToRevision int64  `json:"toRevision"`
+}
 
 const (
 	deploymentActionResume   = "resume"
 	deploymentActionPause    = "pause"
 	deploymentActionRollback = "rollback"
+	deploymentActionScale    = "scale"
 )
 
-const (
-	deploymentStateNew         = "new"
-	deploymentStateRunning     = "running"
-	deploymentStatePausing     = "pausing"
-	deploymentStatePaused      = "paused"
-	deploymentStateRollingback = "rollingback"
-	deploymentStateRolledback  = "rolledback"
-	deploymentStateCompleted   = "completed"
-)
-
-func deploymentCreateHandler(c *echo.Context) error {
+func deploymentActionHandler(c *echo.Context) (err error) {
 	env := c.Param("env")
-	app := c.Param("app")
-
-	deployment := &Deployment{}
-	if err := json.NewDecoder(c.Request().Body).Decode(deployment); err != nil {
-		return err
-	}
-	if deployment.Branch == "" {
-		return server.ErrorResponse(c, errors.BadRequestError("Request missing branch"))
-	}
-	if deployment.Tag == "" {
-		return server.ErrorResponse(c, errors.BadRequestError("Request missing tag"))
-	}
-	err := deployment.Init(
-		env,
-		app,
-		c.Get("user").(*session.User).Username,
-		c.Request().URL.Query().Get("trigger") != "",
-	)
-	if err != nil {
-		switch e := err.(type) {
-		case DeploymentInitError:
-			return server.ErrorResponse(c, errors.BadRequestError(e.Error()))
-		default:
-			return e
-		}
-	}
-	c.JSON(http.StatusOK, deployment)
-	return nil
-}
-
-func deploymentRolloutEditHandler(c *echo.Context) error {
-	env := c.Param("env")
-	app := c.Param("app")
-	deploymentID := c.Param("deployment")
-
-	rollout := &Rollout{}
-	if err := json.NewDecoder(c.Request().Body).Decode(rollout); err != nil {
-		return err
-	}
-	if err := deploymentDB(env, app, deploymentID).Child("rollout").Set(rollout); err != nil {
-		return err
-	}
-	c.JSON(http.StatusOK, rollout)
-	return nil
-}
-
-func deploymentActionHandler(c *echo.Context) error {
-	env := c.Param("env")
-	app := c.Param("app")
-	deploymentID := c.Param("deployment")
+	deploymentName := c.Param("deployment")
 	action := c.Param("action")
 
-	deployment := &Deployment{}
-	if err := deploymentDB(env, app, deploymentID).Value(deployment); err != nil {
-		return err
-	}
-	if deployment.ID == "" {
-		return server.ErrorResponse(c, errors.NotFoundError("Deployment not found"))
-	}
-	deployer, err := makeDeployer(deployment)
+	endpoint := kube.GetClient(env).Deployments()
+
+	deployment, err := endpoint.Get(deploymentName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
+
+	actionRequest := new(deploymentActionRequest)
+	// ignore errors, as not all requests have a body
+	json.NewDecoder(c.Request().Body).Decode(actionRequest)
+
+	var resp interface{}
+
 	switch action {
 	case deploymentActionResume:
-		err = deployer.resume()
+		deployment.Spec.Paused = false // TODO use Patch?
+		resp, err = endpoint.Update(deployment)
 	case deploymentActionPause:
-		err = deployer.pause()
+		deployment.Spec.Paused = true
+		resp, err = endpoint.Update(deployment)
 	case deploymentActionRollback:
-		err = deployer.rollback()
-	default:
-		return server.ErrorResponse(c, errors.NotFoundError(fmt.Sprintf("Action %s not found", action)))
-	}
-	if err != nil {
-		return err
-	}
-	return c.NoContent(http.StatusNoContent)
-}
-
-// utils
-
-// Init initializes a deployment, checks to make sure it is valid, and writes the deployment
-// data to firebase
-func (d *Deployment) Init(env, app, username string, trigger bool) error {
-	d.ID = util.RandLowercaseString(16)
-	d.Env = env
-	d.App = app
-	d.Time = time.Now()
-	d.Username = username
-	d.State = deploymentStateNew
-
-	digest, err := docker.GetTag(app, d.Branch, d.Tag)
-	if err != nil {
-		return err
-	}
-	if digest == "" {
-		return DeploymentInitError{
-			message: fmt.Sprintf("Tag %s not found for app %s", d.Tag, app),
-		}
-	}
-
-	deployment, _, err := kube.Deployments.Get(env, app)
-	if err != nil {
-		return err
-	}
-	if deployment != nil {
-		kubePods, _, err := kube.Pods.ListForDeployment(env, deployment)
-		if err != nil {
-			return err
-		}
-		imageTag, err := getImageTagFromDeployment(deployment)
-		if err != nil {
-			return err
-		}
-		pods, _, _ := getPodsFromPodList(kubePods)
-		d.OriginalPods = pods
-		d.FromPods = pods
-		d.FromTag = imageTag
-
-		replicaSetList, _, _ := kube.ReplicaSets.List(env, &url.Values{
-			"labelSelector": []string{"app=" + app},
+		err = endpoint.Rollback(&extv1beta1.DeploymentRollback{
+			Name: deploymentName,
+			RollbackTo: extv1beta1.RollbackConfig{
+				Revision: actionRequest.ToRevision,
+			},
 		})
-		revision := deployment.ObjectMeta.Annotations["deployment.kubernetes.io/revision"]
-		if replicaSetList != nil {
-			for _, replicaSet := range replicaSetList.Items {
-				rev := replicaSet.ObjectMeta.Annotations["deployment.kubernetes.io/revision"]
-				if rev == revision {
-					d.FromUID = string(replicaSet.ObjectMeta.UID)
-					break
-				}
-			}
+	case deploymentActionScale:
+		if actionRequest.Replicas == nil {
+			return server.ErrorResponse(c, errors.BadRequest("Replicas missing from scale request"))
 		}
-	}
+		resp, err = endpoint.UpdateScale(deploymentName, &extv1beta1.Scale{
+			Spec: extv1beta1.ScaleSpec{
+				Replicas: *actionRequest.Replicas,
+			},
+		})
 
-	if err = deploymentDB(env, app, d.ID).Set(d); err != nil {
-		return err
+	default:
+		return server.ErrorResponse(c, errors.NotFound(fmt.Sprintf("Action %s not found", action)))
 	}
-
-	deployer, err := makeDeployer(d)
 	if err != nil {
 		return err
 	}
+	return c.JSON(http.StatusOK, resp)
+}
 
-	deployer.addMessage(fmt.Sprintf("Deployment for tag %s and branch %s created by %s", d.Tag, d.Branch, d.Username), "debug")
+func getRolloutHistoryForDeployment(env string, deployment *extv1beta1.Deployment) ([]*extv1beta1.ReplicaSet, error) {
+	var selector []string
+	for k, v := range deployment.Spec.Selector.MatchLabels {
+		selector = append(selector, fmt.Sprintf("%s=%s", k, v))
+	}
+	replicaSetList, err := kube.GetClient(env).ReplicaSets().List(getListOptionsForDeployment(deployment))
+	if err != nil {
+		return nil, err
+	}
+	if replicaSetList == nil {
+		return nil, fmt.Errorf("No replicaSet found for deployment %v", *deployment)
+	}
+	history := byRevision{}
+	for _, replicaSet := range replicaSetList.Items {
+		rs := replicaSet
+		history = append(history, &rs)
+	}
+	sort.Sort(history)
+	return history, nil
+}
 
-	if trigger {
-		if err := deployer.resume(); err != nil {
-			return err
+func getReplicaSetForDeployment(deployment *extv1beta1.Deployment, history []*extv1beta1.ReplicaSet) (*extv1beta1.ReplicaSet, error) {
+	deploymentRevision := deployment.ObjectMeta.Annotations["deployment.kubernetes.io/revision"]
+	for _, replicaSet := range history {
+		rsRevision := replicaSet.ObjectMeta.Annotations["deployment.kubernetes.io/revision"]
+		if deploymentRevision == rsRevision {
+			return replicaSet, nil
 		}
 	}
-
-	return nil
+	return nil, fmt.Errorf("No replicaSet found for deployment %v", *deployment)
 }
 
-func deploymentDB(env, app, deploymentID string) *firego.Firebase {
-	return firebase.Database().Child(env).Child("apps").Child(app).Child("deployments").Child(deploymentID)
-}
+type byRevision []*extv1beta1.ReplicaSet
 
-func getPodsFromPodList(kubePodList *v1.PodList) (pods []Pod, readyCount, runningCount int) {
-	for _, kubePod := range kubePodList.Items {
-		pod := Pod{
-			Name:    kubePod.ObjectMeta.Name,
-			Created: kubePod.ObjectMeta.CreationTimestamp.Time,
-			Phase:   string(kubePod.Status.Phase),
-		}
-		if kubePod.Status.Phase == v1.PodRunning {
-			runningCount++
-			pod.Ready = true
-			for _, containerStatus := range kubePod.Status.ContainerStatuses {
-				if !containerStatus.Ready {
-					pod.Ready = false
-					break
-				}
-			}
-			if pod.Ready {
-				readyCount++
-			}
-		}
-		if kubePod.Status.HostIP != "" {
-			pod.Host = kubePod.Status.HostIP
-		}
-		pods = append(pods, pod)
-	}
-	return
-}
-
-// DeploymentInitError is raised if there is a problem initializing a deployment
-type DeploymentInitError struct {
-	message string
-}
-
-func (e DeploymentInitError) Error() string {
-	return e.message
+func (s byRevision) Len() int      { return len(s) }
+func (s byRevision) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+func (s byRevision) Less(i, j int) bool {
+	ri, _ := strconv.Atoi(s[i].ObjectMeta.Annotations["deployment.kubernetes.io/revision"])
+	rj, _ := strconv.Atoi(s[j].ObjectMeta.Annotations["deployment.kubernetes.io/revision"])
+	return ri > rj
 }

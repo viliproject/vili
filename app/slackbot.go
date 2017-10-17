@@ -103,7 +103,7 @@ func handleCommand(command []string, username string) error {
 			log.Debugf("Skipping invalid command %s", command)
 			return nil
 		}
-		app := command[1]
+		deployment := command[1]
 		branch := command[2]
 		tag := command[3]
 
@@ -117,47 +117,17 @@ func handleCommand(command []string, username string) error {
 			}
 		} else {
 			for _, e := range environments.Environments() {
-				if e.Branch == branch && util.NewStringSet(e.Apps).Contains(app) {
+				if e.Branch == branch && util.NewStringSet(e.Deployments).Contains(deployment) {
 					env = e.Name
 					break
 				}
 			}
 			if env == "" {
-				log.Debugf("No environment found for branch %s with app %s", branch, app)
+				log.Debugf("No environment found for branch %s with deployment %s", branch, deployment)
 				return nil
 			}
 		}
-		deployApp(env, app, tag, branch, username)
-	case "run":
-		if len(command) < 4 || len(command) > 5 {
-			log.Debugf("Skipping invalid command %s", command)
-			return nil
-		}
-		job := command[1]
-		branch := command[2]
-		tag := command[3]
-
-		var env string
-
-		if len(command) == 5 {
-			env = command[4]
-			if _, err := environments.Get(env); err != nil {
-				log.Debugf("Invalid environment %s", env)
-				return nil
-			}
-		} else {
-			for _, e := range environments.Environments() {
-				if e.Branch == branch && util.NewStringSet(e.Jobs).Contains(job) {
-					env = e.Name
-					break
-				}
-			}
-			if env == "" {
-				log.Debugf("No environment found for branch %s with job %s", branch, job)
-				return nil
-			}
-		}
-		runJob(env, job, tag, branch, username)
+		rolloutDeployment(env, deployment, tag, branch, username)
 	default:
 		// TODO print usage?
 		log.Debugf("Ignoring unknown command", command[0])
@@ -172,64 +142,38 @@ func handlePublish(images []string, tag, branch, username string) error {
 	}
 
 	for _, image := range images {
-		var isApp, isJob bool
 		var env string
 		for _, e := range environments.Environments() {
 			if e.Branch == branch {
-				if util.NewStringSet(e.Apps).Contains(image) {
-					isApp = true
-					env = e.Name
-					break
-				} else if util.NewStringSet(e.Jobs).Contains(image) {
-					isJob = true
-					env = e.Name
-					break
-				}
+				env = e.Name
+				break
 			}
 		}
-		if isApp {
-			deployApp(env, image, tag, branch, username)
-		} else if isJob {
-			runJob(env, image, tag, branch, username)
+		if env != "" {
+			rolloutDeployment(env, image, tag, branch, username)
 		} else {
-			log.Debugf("No app or job found for branch %s with name %s", branch, image)
+			log.Debugf("No deployment found for branch %s with name %s", branch, image)
 		}
 	}
 	return nil
 }
 
-func deployApp(env, app, tag, branch, username string) {
-	log.Debugf("Deploying app %s, tag %s to env %s, requested by %s", app, tag, env, username)
-	deployment := api.Deployment{
-		Branch: branch,
-		Tag:    tag,
+func rolloutDeployment(env, deployment, tag, branch, username string) {
+	log.Debugf("Rolling out deployment %s, tag %s to env %s, requested by %s", deployment, tag, env, username)
+	rollout := &api.Rollout{
+		Env:            env,
+		DeploymentName: deployment,
+		Username:       username,
+		Branch:         branch,
+		Tag:            tag,
 	}
-	err := deployment.Init(env, app, username, true)
+	err := rollout.Run(true)
 	if err != nil {
 		switch e := err.(type) {
-		case api.DeploymentInitError:
-			slack.PostLogMessage(e.Error(), "error")
+		case api.RolloutInitError:
+			slack.PostLogMessage(e.Error(), log.ErrorLevel)
 		case *docker.NotFoundError:
-			slack.PostLogMessage(fmt.Sprintf("App *%s* with tag *%s* not found", app, tag), "error")
-		default:
-			log.Error(e)
-		}
-	}
-}
-
-func runJob(env, job, tag, branch, username string) {
-	log.Debugf("Running job %s, tag %s in env %s, requested by %s", job, tag, env, username)
-	run := api.Run{
-		Branch: branch,
-		Tag:    tag,
-	}
-	err := run.Init(env, job, username, true)
-	if err != nil {
-		switch e := err.(type) {
-		case api.RunInitError:
-			slack.PostLogMessage(e.Error(), "error")
-		case *docker.NotFoundError:
-			slack.PostLogMessage(fmt.Sprintf("Job *%s* with tag *%s* not found", job, tag), "error")
+			slack.PostLogMessage(fmt.Sprintf("Deployment *%s* with tag *%s* not found", deployment, tag), log.ErrorLevel)
 		default:
 			log.Error(e)
 		}

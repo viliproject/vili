@@ -13,9 +13,10 @@ const (
 	URI                     = "vili-uri"
 	StaticLiveReload        = "static-live-reload"
 	Environments            = "environments"
-	ProdEnvs                = "prod-envs"
-	ApprovalEnvs            = "approval-envs"
+	ApprovalProdEnvs        = "approval-prod-envs"
+	IgnoredEnvs             = "ignored-envs"
 	DefaultEnv              = "default-env"
+	EnvKubernetesNamespaces = "env-kube-namespaces"
 	LogDebug                = "log-debug"
 	LogJSON                 = "log-json"
 	RedisPort               = "redis-port"
@@ -25,9 +26,11 @@ const (
 	OktaIssuer              = "okta-issuer"
 	OktaCert                = "okta-cert"
 	OktaDomain              = "okta-domain"
+	HardcodedTokenUsers     = "hardcoded-token-users"
 	GithubToken             = "github-token"
 	GithubOwner             = "github-owner"
 	GithubRepo              = "github-repo"
+	GithubDefaultBranch     = "github-default-branch"
 	GithubContentsPath      = "github-contents-path"
 	RegistryURL             = "registry-url"
 	RegistryBranchDelimiter = "registry-branch-delimiter"
@@ -46,29 +49,23 @@ const (
 	SlackUsername           = "slack-username"
 	SlackEmoji              = "slack-emoji"
 	SlackDeployUsernames    = "slack-deploy-usernames"
+	RolloutTimeout          = "rollout-timeout"
+	JobRunTimeout           = "job-run-timeout"
 )
 
-// KubernetesURL returns the config variable name for robot tokens
-func KubernetesURL(env string) string {
-	return fmt.Sprintf("kube-%s-url", env)
+// EnvRepositoryBranches returns the config variable name for the
+// repository branches for the given env
+func EnvRepositoryBranches(env string) string {
+	return fmt.Sprintf("env-%s-repository-branches", env)
 }
 
-// KubernetesNamespace returns the config variable name for robot tokens
-func KubernetesNamespace(env string) string {
-	return fmt.Sprintf("kube-%s-namespace", env)
+// KubeConfigPath returns the config variable name for the kubeconfig path
+func KubeConfigPath(env string) string {
+	return fmt.Sprintf("%s-kubeconfig-path", env)
 }
 
-// KubernetesClientCert returns the config variable name for robot tokens
-func KubernetesClientCert(env string) string {
-	return fmt.Sprintf("kube-%s-client-cert", env)
-}
-
-// KubernetesClientKey returns the config variable name for robot tokens
-func KubernetesClientKey(env string) string {
-	return fmt.Sprintf("kube-%s-client-key", env)
-}
-
-// GithubEnvContentsPath returns the config variable name for robot tokens
+// GithubEnvContentsPath returns the config variable name for the contents path for
+// a given environment
 func GithubEnvContentsPath(env string) string {
 	return fmt.Sprintf("github-envs-%s-contents-path", env)
 }
@@ -78,10 +75,11 @@ func InitApp() error {
 	SetDefault(ListenAddr, ":80")
 	SetDefault(ServerTimeout, time.Second*30)
 	SetDefault(SlackUsername, "vili")
-	SetDefault(ProdEnvs, "prod")
-	SetDefault(ApprovalEnvs, "preprod")
+	SetDefault(ApprovalProdEnvs, "preprod prod")
 	SetDefault(RegistryBranchDelimiter, "-")
 	SetDefault(DockerMode, "registry")
+	SetDefault(RolloutTimeout, 10*time.Minute)
+	SetDefault(JobRunTimeout, 10*time.Minute)
 	return Require(
 		BuildDir,
 		URI,

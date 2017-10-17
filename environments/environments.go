@@ -6,37 +6,112 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/airware/vili/config"
 	"github.com/airware/vili/kube"
 	"github.com/airware/vili/log"
 	"github.com/airware/vili/templates"
+	"github.com/airware/vili/util"
+	apiv1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/watch"
 )
 
-var environments map[string]Environment
-var rwMutex sync.RWMutex
+var (
+	// ExitingChan is a flag indicating that the server is exiting
+	ExitingChan   = make(chan struct{})
+	environments  map[string]*Environment
+	namespaceEnvs map[string]string
+	ignoredEnvs   *util.StringSet
+	rwMutex       sync.RWMutex
+)
 
 // Environment describes an environment backed by a kubernetes namespace
 type Environment struct {
-	Name      string   `json:"name"`
-	Branch    string   `json:"branch,omitempty"`
-	Protected bool     `json:"protected,omitempty"`
-	Prod      bool     `json:"prod,omitempty"`
-	Approval  bool     `json:"approval,omitempty"`
-	Apps      []string `json:"apps"`
-	Jobs      []string `json:"jobs"`
+	Name               string   `json:"name"`
+	Branch             string   `json:"branch,omitempty"`
+	RepositoryBranches []string `json:"repositoryBranches,omitempty"`
+	AutodeployBranches []string `json:"autodeployBranches,omitempty"`
+	Protected          bool     `json:"protected,omitempty"`
+	DeployedToEnv      string   `json:"deployedToEnv,omitempty"`
+	ApprovedFromEnv    string   `json:"approvedFromEnv,omitempty"`
+	Jobs               []string `json:"jobs"`
+	Deployments        []string `json:"deployments"`
+	ConfigMaps         []string `json:"configmaps"`
+}
+
+func (e *Environment) fillBranches() {
+	defaultBranch := "develop"
+	if e.ApprovedFromEnv != "" || e.DeployedToEnv != "" {
+		defaultBranch = "master"
+	}
+	if e.Branch == "" {
+		e.Branch = defaultBranch
+	}
+	e.RepositoryBranches = config.GetStringSlice(config.EnvRepositoryBranches(e.Name))
+	if !util.NewStringSet(e.RepositoryBranches).Contains(e.Branch) {
+		e.RepositoryBranches = append(e.RepositoryBranches, e.Branch)
+	}
+	if !util.NewStringSet(e.RepositoryBranches).Contains(defaultBranch) {
+		e.RepositoryBranches = append(e.RepositoryBranches, defaultBranch)
+	}
+	e.AutodeployBranches = []string{e.Branch}
+	if defaultBranch == "master" && !util.NewStringSet(e.RepositoryBranches).Contains(defaultBranch) {
+		e.AutodeployBranches = append(e.AutodeployBranches, defaultBranch)
+	}
+}
+
+func (e *Environment) fillSpecs() {
+	jobs, err := templates.Jobs(e.Name, e.Branch)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+	deployments, err := templates.Deployments(e.Name, e.Branch)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+	configMaps, err := templates.ConfigMaps(e.Name, e.Branch)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+	e.Jobs = jobs
+	e.Deployments = deployments
+	e.ConfigMaps = configMaps
 }
 
 // Init initializes the global environments list
-func Init(envs []Environment) {
+func Init() {
 	rwMutex.Lock()
-	environments = make(map[string]Environment)
-	for _, env := range envs {
+	environments = make(map[string]*Environment)
+	ignoredEnvs = util.NewStringSet(append(config.GetStringSlice(config.IgnoredEnvs), "kube-system", "default"))
+	envKubeNamespaces := config.GetStringSliceMap(config.EnvKubernetesNamespaces)
+	namespaceEnvs = map[string]string{}
+	for env, namespace := range envKubeNamespaces {
+		namespaceEnvs[namespace] = env
+	}
+
+	deployedToEnvs := config.GetStringSliceMap(config.ApprovalProdEnvs)
+	approvedFromEnvs := map[string]string{}
+	for k, v := range deployedToEnvs {
+		approvedFromEnvs[v] = k
+	}
+	for _, envName := range config.GetStringSlice(config.Environments) {
+		env := &Environment{
+			Name:            envName,
+			Protected:       true,
+			DeployedToEnv:   deployedToEnvs[envName],
+			ApprovedFromEnv: approvedFromEnvs[envName],
+		}
+		env.fillBranches()
 		environments[env.Name] = env
 	}
 	rwMutex.Unlock()
 }
 
 // Environments returns a snapshot of all of the known environments
-func Environments() (ret []Environment) {
+func Environments() (ret []*Environment) {
 	rwMutex.RLock()
 	for _, env := range environments {
 		ret = append(ret, env)
@@ -47,12 +122,12 @@ func Environments() (ret []Environment) {
 }
 
 // Get returns the environment with `name`
-func Get(name string) (Environment, error) {
+func Get(name string) (*Environment, error) {
 	rwMutex.RLock()
-	defer rwMutex.RUnlock()
 	env, ok := environments[name]
+	rwMutex.RUnlock()
 	if !ok {
-		return Environment{}, errors.New(name + " not found")
+		return nil, errors.New(name + " not found")
 	}
 	return env, nil
 }
@@ -67,33 +142,12 @@ func Create(name, branch, spec string) (map[string][]string, error) {
 		return nil, err
 	}
 
-	env := Environment{
+	env := &Environment{
 		Name:   name,
 		Branch: branch,
 	}
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		deployments, err := templates.Deployments(name, branch)
-		if err != nil {
-			log.Error(err)
-		}
-		env.Apps = deployments
-	}()
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		pods, err := templates.Pods(name, branch)
-		if err != nil {
-			log.Error(err)
-		}
-		env.Jobs = pods
-	}()
-
-	wg.Wait()
-
+	env.fillBranches()
+	env.fillSpecs()
 	rwMutex.Lock()
 	environments[name] = env
 	rwMutex.Unlock()
@@ -112,89 +166,64 @@ func Delete(name string) error {
 		return errors.New(name + " is a protected environment")
 	}
 
-	status, err := kube.Namespaces.Delete(name)
-	if err != nil {
-		return err
-	}
-	if status != nil {
-		return errors.New(status.Message)
-	}
-
-	delete(environments, name)
-	return nil
+	return kube.GetClient("").Core().Namespaces().Delete(name, nil)
 }
 
-// RefreshEnvs refreshes the list of environments as detected from the kubernetes cluster
-func RefreshEnvs() error {
-	namespaceList, _, err := kube.Namespaces.List(nil)
+// WatchEnvs watches the namespaces on the kubernetes cluster and updates the list of environments
+func WatchEnvs() {
+	watcher, err := kube.GetClient("").Core().Namespaces().Watch(metav1.ListOptions{})
 	if err != nil {
-		return err
+		log.WithError(err).Error("error watching namespaces")
+		return
 	}
-
-	newEnvs := make(map[string]Environment)
-	rwMutex.Lock()
-	defer rwMutex.Unlock()
-	for name, env := range environments {
-		if env.Protected {
-			newEnvs[name] = env
+	go func() {
+		for event := range watcher.ResultChan() {
+			namespace := event.Object.(*apiv1.Namespace)
+			switch event.Type {
+			case watch.Added, watch.Modified:
+				updateEnv(namespace)
+			case watch.Deleted:
+				rwMutex.Lock()
+				delete(environments, namespace.Name)
+				rwMutex.Unlock()
+			}
 		}
-	}
+	}()
+	<-ExitingChan
+	log.Info("stopping namespace watcher")
+	watcher.Stop()
+}
 
-	// Load environments from namespaces, add branch metadata
-	for _, namespace := range namespaceList.Items {
-		if namespace.Name != "kube-system" && namespace.Name != "default" && namespace.Status.Phase != "Terminating" {
-			env, ok := newEnvs[namespace.Name]
+func updateEnv(namespace *apiv1.Namespace) {
+	envName := namespace.Name
+	if namespaceEnvs[envName] != "" {
+		envName = namespaceEnvs[envName]
+	}
+	if !ignoredEnvs.Contains(envName) {
+		if namespace.Status.Phase == "Terminating" {
+			rwMutex.Lock()
+			delete(environments, envName)
+			rwMutex.Unlock()
+		} else {
+			env, ok := environments[envName]
 			if ok {
 				env.Branch = namespace.Annotations["vili.environment-branch"]
 			} else {
-				env = Environment{
-					Name:   namespace.Name,
+				env = &Environment{
+					Name:   envName,
 					Branch: namespace.Annotations["vili.environment-branch"],
 				}
 			}
-			newEnvs[namespace.Name] = env
+			env.fillBranches()
+			env.fillSpecs()
+			rwMutex.Lock()
+			environments[envName] = env
+			rwMutex.Unlock()
 		}
 	}
-
-	var wg sync.WaitGroup
-	var mapLock sync.Mutex
-
-	// Load apps and jobs from template files
-	for _, env := range newEnvs {
-		wg.Add(1)
-		go func(name, branch string) {
-			defer wg.Done()
-			deployments, err := templates.Deployments(name, branch)
-			if err != nil {
-				log.Error(err)
-			}
-			mapLock.Lock()
-			e := newEnvs[name]
-			e.Apps = deployments
-			newEnvs[name] = e
-			mapLock.Unlock()
-		}(env.Name, env.Branch)
-		wg.Add(1)
-		go func(name, branch string) {
-			defer wg.Done()
-			pods, err := templates.Pods(name, branch)
-			if err != nil {
-				log.Error(err)
-			}
-			mapLock.Lock()
-			e := newEnvs[name]
-			e.Jobs = pods
-			newEnvs[name] = e
-			mapLock.Unlock()
-		}(env.Name, env.Branch)
-	}
-
-	wg.Wait()
-	environments = newEnvs
-	return nil
 }
 
-type byProtectedAndName []Environment
+type byProtectedAndName []*Environment
 
 // Len implements the sort interface
 func (e byProtectedAndName) Len() int {

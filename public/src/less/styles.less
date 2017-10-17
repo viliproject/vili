@@ -77,8 +77,9 @@
 
 // nav
 nav.navbar {
-    a.navbar-brand, a.environment {
-        padding: 15px 30px;
+
+    ul.environment > li.active > a {
+        background-color: transparent;
     }
 
     &.prod {
@@ -108,50 +109,10 @@ nav.navbar {
         background-color: transparent;
         font-size: 24px;
     }
-    .nav, .btn-toolbar {
+    .nav, [role=toolbar] {
         position: absolute;
         right: 0;
         top: 23px;
-    }
-}
-
-
-.table {
-
-    [data-column=tag] {
-        width: 180px;
-    }
-    [data-column=branch] {
-        width: 120px;
-    }
-    [data-column=revision] {
-        width: 90px;
-    }
-    [data-column=replicas] {
-        width: 100px;
-    }
-    [data-column=buildtime] {
-        width: 180px;
-    }
-    [data-column=size] {
-        text-align: right;
-        width: 90px;
-    }
-    [data-column=approved] {
-        text-align: right;
-        width: 240px;
-    }
-    [data-column=deployed_at] {
-        text-align: right;
-        width: 180px;
-    }
-    [data-column=actions] {
-        text-align: right;
-        width: 200px;
-
-        button {
-            margin-left: 10px;
-        }
     }
 }
 

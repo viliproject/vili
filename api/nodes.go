@@ -1,45 +1,32 @@
 package api
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 
 	"github.com/airware/vili/errors"
 	"github.com/airware/vili/kube"
 	"github.com/airware/vili/server"
-	"gopkg.in/labstack/echo.v1"
+	echo "gopkg.in/labstack/echo.v1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
-var nodesQueryParams = []string{"labelSelector", "fieldSelector"}
-
-func nodesHandler(c *echo.Context) error {
+func nodesGetHandler(c *echo.Context) error {
 	env := c.Param("env")
 
-	query := &url.Values{}
-	for _, param := range nodesQueryParams {
-		val := c.Request().URL.Query().Get(param)
-		if val != "" {
-			query.Add(param, val)
-		}
+	endpoint := kube.GetClient(env).Nodes()
+	query := getListOptionsFromRequest(c)
+
+	if c.Request().URL.Query().Get("watch") != "" {
+		return apiWatchWebsocket(c, query, endpoint.Watch)
 	}
-	resp, err := kube.Nodes.List(env, query)
+
+	// otherwise, return the nodes list
+	resp, err := endpoint.List(query)
 	if err != nil {
 		return err
-	}
-	return c.JSON(http.StatusOK, resp)
-}
-
-func nodeHandler(c *echo.Context) error {
-	env := c.Param("env")
-	node := c.Param("node")
-
-	resp, status, err := kube.Nodes.Get(env, node)
-	if err != nil {
-		return err
-	}
-	if status != nil {
-		return c.JSON(http.StatusOK, status)
 	}
 	return c.JSON(http.StatusOK, resp)
 }
@@ -49,16 +36,27 @@ func nodeStateEditHandler(c *echo.Context) error {
 	node := c.Param("node")
 	state := c.Param("state")
 
+	endpoint := kube.GetClient(env).Nodes()
+
 	var unschedulable bool
 	if state == "enable" {
 		unschedulable = false
 	} else if state == "disable" {
 		unschedulable = true
 	} else {
-		return server.ErrorResponse(c, errors.BadRequestError(fmt.Sprintf("Invalid state for node: %s", state)))
+		return server.ErrorResponse(c, errors.BadRequest(fmt.Sprintf("Invalid state for node: %s", state)))
 	}
 
-	resp, err := kube.Nodes.PatchUnschedulable(env, node, unschedulable)
+	data := &corev1.Node{
+		Spec: corev1.NodeSpec{
+			Unschedulable: unschedulable,
+		},
+	}
+	dataBytes, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+	resp, err := endpoint.Patch(node, types.MergePatchType, dataBytes)
 	if err != nil {
 		return err
 	}

@@ -1,53 +1,127 @@
 package api
 
 import (
+	"bufio"
+	"io"
 	"net/http"
-	"net/url"
+	"strconv"
 
 	"github.com/airware/vili/kube"
-	"gopkg.in/labstack/echo.v1"
+	"github.com/airware/vili/log"
+	"golang.org/x/net/websocket"
+	echo "gopkg.in/labstack/echo.v1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/rest"
 )
 
-var podsQueryParams = []string{"labelSelector", "fieldSelector"}
+var (
+	podLogQueryParams = []string{"sinceSeconds", "sinceTime"}
+)
 
 func podsHandler(c *echo.Context) error {
 	env := c.Param("env")
 
-	query := &url.Values{}
-	for _, param := range podsQueryParams {
-		val := c.Request().URL.Query().Get(param)
-		if val != "" {
-			query.Add(param, val)
-		}
+	endpoint := kube.GetClient(env).Pods()
+	query := getListOptionsFromRequest(c)
+
+	if c.Request().URL.Query().Get("watch") != "" {
+		return apiWatchWebsocket(c, query, endpoint.Watch)
 	}
-	resp, _, err := kube.Pods.List(env, query)
+
+	// otherwise, return the pods list
+	resp, err := endpoint.List(query)
 	if err != nil {
 		return err
 	}
 	return c.JSON(http.StatusOK, resp)
 }
 
-func podHandler(c *echo.Context) error {
+func podLogHandler(c *echo.Context) error {
 	env := c.Param("env")
-	pod := c.Param("pod")
+	name := c.Param("pod")
 
-	resp, status, err := kube.Pods.Get(env, pod)
+	endpoint := kube.GetClient(env).Pods()
+	query := parsePodLogOptions(c)
+	logRequest := endpoint.GetLogs(name, query)
+
+	if query.Follow {
+		// watch pod logs and return changes over websocket
+		var err error
+		websocket.Handler(func(ws *websocket.Conn) {
+			err = podLogWatchHandler(ws, logRequest)
+			ws.Close()
+		}).ServeHTTP(c.Response(), c.Request())
+		return err
+	}
+
+	output, err := logRequest.DoRaw()
 	if err != nil {
 		return err
 	}
-	if status != nil {
-		return c.JSON(http.StatusOK, status)
+	return c.String(http.StatusOK, string(output))
+}
+
+func parsePodLogOptions(c *echo.Context) *corev1.PodLogOptions {
+	urlQuery := c.Request().URL.Query()
+	query := &corev1.PodLogOptions{}
+	query.Follow, _ = strconv.ParseBool(urlQuery.Get("follow"))
+	return query
+}
+
+func podLogWatchHandler(ws *websocket.Conn, request *rest.Request) error {
+	readCloser, err := request.Stream()
+	if err != nil {
+		return err
 	}
-	return c.JSON(http.StatusOK, resp)
+
+	go func() {
+		var cmd interface{}
+		err := websocket.JSON.Receive(ws, cmd)
+		if err == io.EOF {
+			readCloser.Close()
+		}
+	}()
+
+	go func() {
+		first := true
+		scanner := bufio.NewScanner(readCloser)
+		for scanner.Scan() {
+			err := scanner.Err()
+			if err != nil {
+				log.WithError(err).Warn("error scanning")
+				break
+			}
+			logType := "ADD"
+			if first {
+				logType = "START"
+				first = false
+			}
+			err = websocket.JSON.Send(ws, map[string]string{
+				"type":   logType,
+				"object": scanner.Text(),
+			})
+			if err != nil {
+				log.WithError(err).Error("error writing to pod log stream")
+				readCloser.Close()
+			}
+		}
+	}()
+
+	<-ExitingChan
+	readCloser.Close()
+	websocket.JSON.Send(ws, webSocketCloseMessage)
+	return nil
 }
 
 func podDeleteHandler(c *echo.Context) error {
 	env := c.Param("env")
 	pod := c.Param("pod")
 
-	resp, _, err := kube.Pods.Delete(env, pod)
+	endpoint := kube.GetClient(env).Pods()
+
+	err := endpoint.Delete(pod, nil)
 	if err != nil {
 		return err
 	}
-	return c.JSON(http.StatusOK, resp)
+	return c.NoContent(http.StatusNoContent)
 }

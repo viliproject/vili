@@ -19,21 +19,23 @@ type redisService struct {
 
 // InitRedisService initializes the redis session service
 func InitRedisService(c *RedisConfig) {
-	service = &redisService{
+	var service Service = &redisService{
 		config: c,
 	}
+	services = append(services, service)
 }
 
-func (s *redisService) Login(r *http.Request, w http.ResponseWriter, u *User) error {
+func (s *redisService) Login(r *http.Request, w http.ResponseWriter, u *User) (skip bool, err error) {
 	userBytes, err := json.Marshal(u)
 	if err != nil {
-		return err
+		return
 	}
 	for i := 0; i < 10; i++ {
 		sessionID := newSessionID()
-		success, err := redis.GetClient().SetNX(sessionRedisKey(sessionID), string(userBytes), 0).Result()
+		var success bool
+		success, err = redis.GetClient().SetNX(sessionRedisKey(sessionID), string(userBytes), 0).Result()
 		if err != nil {
-			return err
+			return
 		}
 		if success {
 			http.SetCookie(w, &http.Cookie{
@@ -43,23 +45,24 @@ func (s *redisService) Login(r *http.Request, w http.ResponseWriter, u *User) er
 				Path:   "/",
 				Secure: s.config.Secure,
 			})
-			return nil
+			return
 		}
 	}
-	return fmt.Errorf("failed to find a unique session ID")
+	err = fmt.Errorf("failed to find a unique session ID")
+	return
 }
 
-func (s *redisService) Logout(r *http.Request, w http.ResponseWriter) error {
+func (s *redisService) Logout(r *http.Request, w http.ResponseWriter) (skip bool, err error) {
 	sessionID := getSessionCookie(r)
-	err := redis.GetClient().Del(sessionRedisKey(sessionID)).Err()
+	err = redis.GetClient().Del(sessionRedisKey(sessionID)).Err()
 	if err != nil {
-		return err
+		return
 	}
 	http.SetCookie(w, &http.Cookie{
 		Name:   sessionCookie,
 		MaxAge: -1, // delete cookie
 	})
-	return nil
+	return
 }
 
 func (s *redisService) GetUser(r *http.Request) (*User, error) {

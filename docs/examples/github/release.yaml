@@ -1,0 +1,13 @@
+waves:
+- targets:
+  - type: job
+    name: job1
+  - type: app
+    name: app2
+  - type: app
+    name: app3
+- targets:
+  - type: app
+    name: app4
+  - type: app
+    name: app5

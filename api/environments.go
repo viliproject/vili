@@ -3,18 +3,50 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/airware/vili/environments"
-	"github.com/airware/vili/git"
+	"github.com/airware/vili/errors"
+	"github.com/airware/vili/session"
 	"github.com/airware/vili/templates"
-	"gopkg.in/labstack/echo.v1"
+	"github.com/airware/vili/types"
+	"github.com/airware/vili/util"
+	echo "gopkg.in/labstack/echo.v1"
 )
+
+// EnvironmentsGetResponse is a response to the get environments request
+type EnvironmentsGetResponse struct {
+	Environments []*environments.Environment `json:"environments"`
+}
+
+func environmentsGetHandler(c *echo.Context) error {
+	envs := environments.Environments()
+	if c.Query("branch") != "" {
+		allEnvs := envs
+		envs = []*environments.Environment{}
+		for _, env := range allEnvs {
+			if util.NewStringSet(env.AutodeployBranches).Contains(c.Query("branch")) {
+				envs = append(envs, env)
+			}
+		}
+	}
+	return c.JSON(http.StatusOK, &EnvironmentsGetResponse{
+		Environments: envs,
+	})
+}
 
 // EnvironmentCreateRequest is a request to create a new environment
 type EnvironmentCreateRequest struct {
 	Name   string `json:"name"`
 	Branch string `json:"branch"`
 	Spec   string `json:"spec"`
+}
+
+// EnvironmentCreateResponse is a response to the create new environment request
+type EnvironmentCreateResponse struct {
+	Environment *environments.Environment `json:"environment"`
+	Resources   map[string][]string       `json:"resources"`
+	Release     *types.Release            `json:"release"`
 }
 
 func environmentCreateHandler(c *echo.Context) error {
@@ -33,7 +65,37 @@ func environmentCreateHandler(c *echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, err.Error())
 	}
-	return c.JSON(http.StatusCreated, resources)
+	environment, err := environments.Get(envCreateRequest.Name)
+	if err != nil {
+		return err
+	}
+	release := new(types.Release)
+	// get spec for this environment
+	spec, err := templates.Release(environment.Name, environment.Branch)
+	if err != nil {
+		return err
+	}
+	if err = spec.Parse(release); err != nil {
+		return err
+	}
+	release.Name = "init"
+	release.TargetEnv = environment.Name
+	release.CreatedAt = time.Now()
+	release.CreatedBy = c.Get("user").(*session.User).Username
+	if populateReleaseLatestVersions(environment, release) {
+		return errors.InternalServerError()
+	}
+	// save release to the database
+	err = setReleaseValue(release)
+	if err != nil {
+		return err
+	}
+
+	return c.JSON(http.StatusCreated, &EnvironmentCreateResponse{
+		Environment: environment,
+		Resources:   resources,
+		Release:     release,
+	})
 }
 
 func environmentDeleteHandler(c *echo.Context) error {
@@ -43,16 +105,6 @@ func environmentDeleteHandler(c *echo.Context) error {
 		return err
 	}
 	return c.NoContent(http.StatusNoContent)
-}
-
-func environmentBranchesHandler(c *echo.Context) error {
-	branches, err := git.Branches()
-	if err != nil {
-		return err
-	}
-	return c.JSON(http.StatusOK, map[string][]string{
-		"branches": branches,
-	})
 }
 
 func environmentSpecHandler(c *echo.Context) error {

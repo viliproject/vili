@@ -2,3 +2,5 @@ coverage
 *.log
 *.test
 devenv.sh
+node_modules/
+secrets/

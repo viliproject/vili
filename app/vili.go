@@ -3,7 +3,6 @@ package vili
 import (
 	"net/url"
 	"sync"
-	"time"
 
 	"github.com/airware/vili/api"
 	"github.com/airware/vili/auth"
@@ -23,7 +22,7 @@ import (
 	"github.com/airware/vili/stats"
 	"github.com/airware/vili/templates"
 	"github.com/airware/vili/util"
-	"gopkg.in/labstack/echo.v1"
+	echo "gopkg.in/labstack/echo.v1"
 )
 
 const appName = "vili"
@@ -48,25 +47,7 @@ func New() *App {
 	})
 
 	stats.TrackMemStats()
-	envs := []environments.Environment{}
-	for _, envName := range config.GetStringSlice(config.Environments) {
-		env := environments.Environment{
-			Name:      envName,
-			Protected: true,
-		}
-		for _, prodName := range config.GetStringSlice(config.ProdEnvs) {
-			if envName == prodName {
-				env.Prod = true
-			}
-		}
-		for _, approvalName := range config.GetStringSlice(config.ApprovalEnvs) {
-			if envName == approvalName {
-				env.Approval = true
-			}
-		}
-		envs = append(envs, env)
-	}
-	environments.Init(envs)
+	environments.Init()
 
 	// Set everything up in parallel
 	var wg sync.WaitGroup
@@ -76,7 +57,7 @@ func New() *App {
 			defer wg.Done()
 			err := public.LoadStats(config.GetString(config.BuildDir))
 			if err != nil {
-				log.Panic(err)
+				log.Fatal(err)
 			}
 		},
 
@@ -84,17 +65,20 @@ func New() *App {
 		func() {
 			defer wg.Done()
 			envConfigs := make(map[string]*kube.EnvConfig)
-			for _, env := range envs {
+			envKubeNamespaces := config.GetStringSliceMap(config.EnvKubernetesNamespaces)
+			for _, env := range environments.Environments() {
 				envConfigs[env.Name] = &kube.EnvConfig{
-					URL:        config.GetString(config.KubernetesURL(env.Name)),
-					Namespace:  config.GetString(config.KubernetesNamespace(env.Name)),
-					ClientCert: config.GetString(config.KubernetesClientCert(env.Name)),
-					ClientKey:  config.GetString(config.KubernetesClientKey(env.Name)),
+					Namespace:      envKubeNamespaces[env.Name],
+					KubeConfigPath: config.GetString(config.KubeConfigPath(env.Name)),
 				}
 			}
-			kube.Init(&kube.Config{
-				EnvConfigs: envConfigs,
+			err := kube.Init(&kube.Config{
+				EnvConfigs:            envConfigs,
+				DefaultKubeConfigPath: config.GetString(config.KubeConfigPath(config.GetString(config.DefaultEnv))),
 			})
+			if err != nil {
+				log.Fatal(err)
+			}
 		},
 
 		// set up the firebase client
@@ -105,7 +89,7 @@ func New() *App {
 				Secret: config.GetString(config.FirebaseSecret),
 			})
 			if err != nil {
-				log.Panic(err)
+				log.Fatal(err)
 			}
 		},
 
@@ -114,14 +98,14 @@ func New() *App {
 			defer wg.Done()
 			urlp, err := url.Parse(config.GetString(config.RedisPort))
 			if err != nil {
-				log.Panic(err)
+				log.Fatal(err)
 			}
 			err = redis.Init(&redis.Config{
 				Addr: urlp.Host,
 				DB:   config.GetInt(config.RedisDB),
 			})
 			if err != nil {
-				log.Panic(err)
+				log.Fatal(err)
 			}
 		},
 
@@ -129,9 +113,10 @@ func New() *App {
 		func() {
 			defer wg.Done()
 			git.InitGithub(&git.GithubConfig{
-				Token: config.GetString(config.GithubToken),
-				Owner: config.GetString(config.GithubOwner),
-				Repo:  config.GetString(config.GithubRepo),
+				Token:         config.GetString(config.GithubToken),
+				Owner:         config.GetString(config.GithubOwner),
+				Repo:          config.GetString(config.GithubRepo),
+				DefaultBranch: config.GetString(config.GithubDefaultBranch),
 			})
 		},
 
@@ -139,7 +124,7 @@ func New() *App {
 		func() {
 			defer wg.Done()
 			envContentsPaths := make(map[string]string, 0)
-			for _, env := range envs {
+			for _, env := range environments.Environments() {
 				envContentsPath := config.GetString(config.GithubEnvContentsPath(env.Name))
 				if envContentsPath == "" {
 					envContentsPath = config.GetString(config.GithubContentsPath)
@@ -157,20 +142,23 @@ func New() *App {
 			defer wg.Done()
 			switch config.GetString(config.DockerMode) {
 			case "registry":
-				docker.InitRegistry(&docker.RegistryConfig{
+				err := docker.InitRegistry(&docker.RegistryConfig{
 					BaseURL:         config.GetString(config.RegistryURL),
 					Username:        config.GetString(config.RegistryUsername),
 					Password:        config.GetString(config.RegistryPassword),
 					Namespace:       config.GetString(config.RegistryNamespace),
 					BranchDelimiter: config.GetString(config.RegistryBranchDelimiter),
 				})
+				if err != nil {
+					log.Fatal(err)
+				}
 			case "ecr":
 				ecrAccountID := config.GetString(config.ECRAccountID)
 				var registryID *string
 				if ecrAccountID != "" {
 					registryID = &ecrAccountID
 				}
-				docker.InitECR(&docker.ECRConfig{
+				err := docker.InitECR(&docker.ECRConfig{
 					Region:          config.GetString(config.AWSRegion),
 					AccessKeyID:     config.GetString(config.AWSAccessKeyID),
 					SecretAccessKey: config.GetString(config.AWSSecretAccessKey),
@@ -178,14 +166,20 @@ func New() *App {
 					BranchDelimiter: config.GetString(config.RegistryBranchDelimiter),
 					RegistryID:      registryID,
 				})
+				if err != nil {
+					log.Fatal(err)
+				}
 			default:
-				log.Panic("invalid docker mode provided")
+				log.Fatal("invalid docker mode provided")
 			}
 		},
 
-		// set up the session service
+		// set up the session services
 		func() {
 			defer wg.Done()
+			session.InitHardcodedService(&session.HardcodedConfig{
+				TokenUsers: config.GetStringSliceMap(config.HardcodedTokenUsers),
+			})
 			session.InitRedisService(&session.RedisConfig{
 				Secure: false,
 			})
@@ -206,7 +200,10 @@ func New() *App {
 					log.Fatal(err)
 				}
 			case "null":
-				auth.InitNullAuthService()
+				err := auth.InitNullAuthService()
+				if err != nil {
+					log.Fatal(err)
+				}
 			default:
 				log.Fatalf("Unknown auth service %s", config.GetString(config.AuthService))
 			}
@@ -253,18 +250,9 @@ func New() *App {
 
 // Start starts the app
 func (a *App) Start() {
-	go a.monitorEnvs()
 	go runDeployBot()
+	go environments.WatchEnvs()
 	a.server.Start()
-}
-
-func (a *App) monitorEnvs() {
-	for {
-		if err := environments.RefreshEnvs(); err != nil {
-			log.Warn("Unable to detect environments: ", err)
-		}
-		time.Sleep(5 * time.Minute)
-	}
 }
 
 // StartTest starts the test app
@@ -284,8 +272,11 @@ func healthCheck() error {
 func shutdown() {
 	auth.Cleanup()
 	log.Info("waiting for deployments and slack bot")
-	api.Exiting = true
-	slack.Exiting = true
+	close(environments.ExitingChan)
+	close(api.ExitingChan)
+	close(kube.ExitingChan)
+	close(slack.ExitingChan)
+	close(firebase.ExitingChan)
 	api.WaitGroup.Wait()
 	slack.WaitGroup.Wait()
 	log.Info("finished with deployments and slack bot")

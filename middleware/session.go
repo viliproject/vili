@@ -2,10 +2,11 @@ package middleware
 
 import (
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/airware/vili/session"
-	"gopkg.in/labstack/echo.v1"
+	echo "gopkg.in/labstack/echo.v1"
 )
 
 // Session logs the user in using the configured session service
@@ -34,8 +35,11 @@ func Session() echo.MiddlewareFunc {
 func RequireUser(h echo.HandlerFunc) echo.HandlerFunc {
 	return func(c *echo.Context) error {
 		if c.Get("user") == nil {
-			c.Redirect(http.StatusTemporaryRedirect, "/login")
-			return nil
+			redirectTo := c.Request().URL.String()
+			if redirectTo == "/logout" {
+				redirectTo = "/"
+			}
+			return c.Redirect(http.StatusTemporaryRedirect, "/login?redirect="+url.QueryEscape(redirectTo))
 		}
 		if err := h(c); err != nil {
 			c.Error(err)

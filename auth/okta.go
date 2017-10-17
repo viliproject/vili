@@ -8,12 +8,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
 
-	saml "github.com/RobotsAndPencils/go-saml"
-	"gopkg.in/labstack/echo.v1"
+	echo "gopkg.in/labstack/echo.v1"
 
 	"github.com/airware/vili/log"
 	"github.com/airware/vili/server"
@@ -68,7 +68,10 @@ func (s *OktaAuthService) Cleanup() {
 }
 
 func (s *OktaAuthService) loginHandler(c *echo.Context) error {
-	return c.Redirect(http.StatusFound, s.config.Entrypoint)
+	q := url.Values{
+		"RelayState": {c.Request().URL.Query().Get("redirect")},
+	}
+	return c.Redirect(http.StatusFound, s.config.Entrypoint+"?"+q.Encode())
 }
 
 func (s *OktaAuthService) loginCallbackHandler(c *echo.Context) error {
@@ -89,7 +92,7 @@ func (s *OktaAuthService) loginCallbackHandler(c *echo.Context) error {
 		return nil
 	}
 
-	response := &saml.Response{}
+	response := new(Response)
 	err = xml.Unmarshal(bytesXML, response)
 	if err != nil {
 		c.String(http.StatusBadRequest, "SAMLResponse parse: "+err.Error())
@@ -117,16 +120,26 @@ func (s *OktaAuthService) loginCallbackHandler(c *echo.Context) error {
 		return nil
 	}
 
-	err = session.Login(r, c.Response(), &session.User{
+	user := &session.User{
 		Email:     email,
 		Username:  splitEmail[0],
 		FirstName: response.GetAttribute("firstName"),
 		LastName:  response.GetAttribute("lastName"),
-	})
+	}
+	if groupAttr := response.GetGroupAttribute("groups"); groupAttr != nil {
+		for _, attrValue := range groupAttr.AttributeValue {
+			user.Groups = append(user.Groups, attrValue.Value)
+		}
+	}
+	err = session.Login(r, c.Response(), user)
 	if err != nil {
 		return err
 	}
-	return c.Redirect(http.StatusFound, "/")
+	redirect := r.FormValue("RelayState")
+	if redirect == "" {
+		redirect = "/"
+	}
+	return c.Redirect(http.StatusFound, redirect)
 }
 
 func (s *OktaAuthService) loginFailedHandler(c *echo.Context) error {
@@ -135,7 +148,7 @@ func (s *OktaAuthService) loginFailedHandler(c *echo.Context) error {
 
 // Validate validates the SAML response
 // taken from https://github.com/RobotsAndPencils/go-saml/blob/master/authnresponse.go#L49
-func (s *OktaAuthService) Validate(r *saml.Response, originalBytes []byte) error {
+func (s *OktaAuthService) Validate(r *Response, originalBytes []byte) error {
 	if r.Version != "2.0" {
 		return errors.New("unsupported SAML Version")
 	}
