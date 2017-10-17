@@ -1,0 +1,49 @@
+version: 2
+
+jobs:
+  go:
+    docker:
+      - image: golang:1.9.1-alpine3.6
+    steps:
+      - checkout
+      - run:
+          name: Build
+          command: |
+            CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags '-s' -o main
+  js:
+    docker:
+      - image: node:8.7.0-alpine
+    steps:
+      - checkout
+      - run:
+          name: Build
+          command: |
+            npm install
+            npm run build
+  release:
+    docker:
+      - image: 1
+    branches:
+      only:
+        - master
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Docker build and publish
+          command: |
+            image=quay.io/airware/vili:$(date +%s)-$(echo $CIRCLE_SHA1 | cut -c 1-7)
+            docker login --username "$QUAY_USER" --password "$QUAY_PASS" quay.io
+            docker build --tag $image
+            docker push $image
+
+workflows:
+  version: 2
+  build:
+    jobs:
+      - go
+      - js
+      - release:
+          requires:
+            - go
+            - js
