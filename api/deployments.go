@@ -190,7 +190,8 @@ func deploymentActionHandler(c *echo.Context) (err error) {
 	deploymentName := c.Param("deployment")
 	action := c.Param("action")
 
-	endpoint := kube.GetClient(env).Deployments()
+	kubeClient := kube.GetClient(env)
+	endpoint := kubeClient.Deployments()
 
 	deployment, err := endpoint.Get(deploymentName, metav1.GetOptions{})
 	if err != nil {
@@ -222,6 +223,10 @@ func deploymentActionHandler(c *echo.Context) (err error) {
 			return server.ErrorResponse(c, errors.BadRequest("Replicas missing from scale request"))
 		}
 		resp, err = endpoint.UpdateScale(deploymentName, &extv1beta1.Scale{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      deploymentName,
+				Namespace: kubeClient.Namespace(),
+			},
 			Spec: extv1beta1.ScaleSpec{
 				Replicas: *actionRequest.Replicas,
 			},
