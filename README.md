@@ -3,7 +3,7 @@
 [![CircleCI Status](https://circleci.com/gh/airware/vili.svg?style=shield)](https://circleci.com/gh/airware/vili)
 [![Slack Status](https://vili-slackin.herokuapp.com/badge.svg)](https://vili-slackin.herokuapp.com/)
 
-Vili is an open source dashboard for managing deployments to a [Kubernetes] (http://kubernetes.io/) cluster. It is built to:
+Vili is an open source dashboard for managing deployments to a [Kubernetes](http://kubernetes.io/) cluster. It is built to:
 
 - Manage both manual and continuous deployments
 - Gate production deployments through our QA process
@@ -41,14 +41,52 @@ To setup Vili on your Kubernetes cluster, follow these steps:
 
 You are all set! Vili will use the GitHub and Docker Registry APIs to discover your apps and help you deploy them.
 
+## Local Vili Development
+
+1. Follow the example [sample_devenv.sh](sample_devenv.sh) to create your own environment file with relevant configration.
+
+1. Install `redis` and `xmlsec1`
+
+   ```
+   > brew install redis xmlsec1
+   ```
+
+1. Start `redis`
+
+   ```
+   > brew services start redis
+   ```
+
+1. Install Vili frontend node modules
+
+   ```
+   > cd /path/to/<vili-root>
+   > npm install
+   ```
+
+1. Build Vili frontend Webpack
+
+   ```
+   > npm run build
+   ```
+
+1. Run Vili
+
+   ```
+   > go run main.go
+   ```
+
+1. Direct your browser to `https://localhost:4001`.  Viola!
+
+
 ## Concepts
 
-[Environment] (docs/environments.md): A namespace in Kubernetes that runs an isolated set of apps and jobs.
+[Environment](docs/environments.md): A namespace in Kubernetes that runs an isolated set of apps and jobs.
 
-[App] (docs/apps.md): A stateless application controlled by a deployment in Kubernetes, run continuously, and deployed with no downtime.
+[App](docs/apps.md): A stateless application controlled by a deployment in Kubernetes, run continuously, and deployed with no downtime.
 
-[Job] (docs/jobs.md): A pod in Kubernetes that runs to completion.
+[Job](docs/jobs.md): A pod in Kubernetes that runs to completion.
 
-[Template] (docs/templates.md): YAML configuration files for controllers and pods, using go templates syntax for variable population.
+[Template](docs/templates.md): YAML configuration files for controllers and pods, using go templates syntax for variable population.
 
-[Approval] (docs/approvals.md): An indication by the QA team that a certain build is deployable to prod.
+[Approval](docs/approvals.md): An indication by the QA team that a certain build is deployable to prod.
