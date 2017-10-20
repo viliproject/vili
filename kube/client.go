@@ -93,6 +93,11 @@ func newConfig(kubeConfigPath string) (cfg *rest.Config, err error) {
 	return
 }
 
+// Namespace returns the namespace for this client
+func (k *Client) Namespace() string {
+	return k.namespace
+}
+
 // Ping checks the k8s /healthz endpoint and returns error if there's an error
 func (k *Client) Ping() error {
 	req := k.Core().RESTClient().Get()
