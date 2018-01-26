@@ -177,21 +177,38 @@ func WatchEnvs() {
 		return
 	}
 	go func() {
-		for event := range watcher.ResultChan() {
-			namespace := event.Object.(*apiv1.Namespace)
-			switch event.Type {
-			case watch.Added, watch.Modified:
-				updateEnv(namespace)
-			case watch.Deleted:
-				rwMutex.Lock()
-				delete(environments, namespace.Name)
-				rwMutex.Unlock()
+		for {
+			select {
+			case event, ok := <-watcher.ResultChan():
+				if !ok {
+					log.Debug("namespace watcher disconnected, reconnecting...")
+					watcher, err = kube.GetClient("").Core().Namespaces().Watch(metav1.ListOptions{})
+					if err != nil {
+						log.WithError(err).Error("error watching namespaces")
+						return
+					}
+				} else {
+					namespace := event.Object.(*apiv1.Namespace)
+					switch event.Type {
+					case watch.Added, watch.Modified:
+						updateEnv(namespace)
+					case watch.Deleted:
+						rwMutex.Lock()
+						delete(environments, namespace.Name)
+						rwMutex.Unlock()
+					}
+				}
+			case <-ExitingChan:
+				watcher.Stop()
+				return
 			}
 		}
 	}()
 	<-ExitingChan
-	log.Info("stopping namespace watcher")
-	watcher.Stop()
+	if watcher != nil {
+		log.Info("stopping namespace watcher")
+		watcher.Stop()
+	}
 }
 
 func updateEnv(namespace *apiv1.Namespace) {
