@@ -159,5 +159,5 @@ func (s *ECRService) fullRepositoryName(repoName string) string {
 }
 
 func slugFromBranch(branch string) string {
-	return strings.Replace(branch, "/", "-", -1)
+	return strings.ToLower(strings.Replace(branch, "/", "-", -1))
 }
