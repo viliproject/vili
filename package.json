@@ -4,8 +4,8 @@
   "description": "Web UI for deploying code to kubernetes",
   "scripts": {
     "prebuild": "npm run build:clean",
-    "build:clean": "rimraf ./public/build/",
-    "build": "webpack --config ./public/webpack.config.js",
+    "build:clean": "./node_modules/.bin/rimraf ./public/build/",
+    "build": "./node_modules/.bin/webpack --config ./public/webpack.config.js",
     "watch": "npm run build -- --progress --colors --watch",
     "lint": "node_modules/.bin/eslint \"./public/src/**/*.js\"",
     "lint:fix": "node_modules/.bin/eslint \"./public/src/**/*.js\" --fix | snazzy"
