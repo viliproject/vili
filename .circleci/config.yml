@@ -13,7 +13,7 @@ jobs:
             go build -a
   js:
     docker:
-      - image: circleci/node:7
+      - image: circleci/node:8
     steps:
       - checkout
       - restore_cache:
@@ -35,6 +35,10 @@ jobs:
           name: Build
           command: |
             npm run build
+      - run:
+          name: Lint
+          command: |
+            npm run lint
 
   release:
     docker:
