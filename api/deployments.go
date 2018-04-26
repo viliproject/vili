@@ -15,13 +15,14 @@ import (
 	"github.com/airware/vili/log"
 	"github.com/airware/vili/server"
 	"github.com/airware/vili/templates"
-	echo "gopkg.in/labstack/echo.v1"
+	"github.com/labstack/echo"
 	corev1 "k8s.io/api/core/v1"
 	extv1beta1 "k8s.io/api/extensions/v1beta1"
+	kubeErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func deploymentsGetHandler(c *echo.Context) error {
+func deploymentsGetHandler(c echo.Context) error {
 	env := c.Param("env")
 
 	endpoint := kube.GetClient(env).Deployments()
@@ -42,7 +43,7 @@ type deploymentRepositoryResponse struct {
 	Images []*docker.Image `json:"images,omitempty"`
 }
 
-func deploymentRepositoryGetHandler(c *echo.Context) error {
+func deploymentRepositoryGetHandler(c echo.Context) error {
 	env := c.Param("env")
 	deployment := c.Param("deployment")
 
@@ -65,7 +66,7 @@ type deploymentSpecResponse struct {
 	Spec string `json:"spec,omitempty"`
 }
 
-func deploymentSpecGetHandler(c *echo.Context) error {
+func deploymentSpecGetHandler(c echo.Context) error {
 	env := c.Param("env")
 	deployment := c.Param("deployment")
 
@@ -84,7 +85,7 @@ func deploymentSpecGetHandler(c *echo.Context) error {
 	return c.JSON(http.StatusOK, resp)
 }
 
-func deploymentServiceGetHandler(c *echo.Context) error {
+func deploymentServiceGetHandler(c echo.Context) error {
 	env := c.Param("env")
 	deployment := c.Param("deployment")
 
@@ -97,7 +98,7 @@ func deploymentServiceGetHandler(c *echo.Context) error {
 	return c.JSON(http.StatusOK, service)
 }
 
-func deploymentServiceCreateHandler(c *echo.Context) error {
+func deploymentServiceCreateHandler(c echo.Context) error {
 	env := c.Param("env")
 	deploymentName := c.Param("deployment")
 
@@ -105,15 +106,14 @@ func deploymentServiceCreateHandler(c *echo.Context) error {
 
 	failed := false
 
-	var deploymentTemplate templates.Template
-	var currentService *corev1.Service
-
 	environment, err := environments.Get(env)
 	if err != nil {
 		return err
 	}
 
+	var deploymentTemplate templates.Template
 	var waitGroup sync.WaitGroup
+
 	// deploymentTemplate
 	waitGroup.Add(1)
 	go func() {
@@ -127,14 +127,18 @@ func deploymentServiceCreateHandler(c *echo.Context) error {
 	}()
 
 	// service
-	currentService, err = endpoint.Get(deploymentName, metav1.GetOptions{})
+	_, err = endpoint.Get(deploymentName, metav1.GetOptions{})
 	if err != nil {
-		return err
-	}
-
-	if currentService != nil {
+		if statusError, ok := err.(*kubeErrors.StatusError); !ok || statusError.Status().Code != http.StatusNotFound {
+			// only return error if the error is something other than NotFound
+			return err
+		}
+	} else {
 		return server.ErrorResponse(c, errors.Conflict("Service exists"))
 	}
+
+	waitGroup.Wait()
+
 	deployment := &extv1beta1.Deployment{}
 	err = deploymentTemplate.Parse(deployment)
 	if err != nil {
@@ -185,7 +189,7 @@ const (
 	deploymentActionScale    = "scale"
 )
 
-func deploymentActionHandler(c *echo.Context) (err error) {
+func deploymentActionHandler(c echo.Context) (err error) {
 	env := c.Param("env")
 	deploymentName := c.Param("deployment")
 	action := c.Param("action")

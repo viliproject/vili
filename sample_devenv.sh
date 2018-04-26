@@ -2,6 +2,9 @@ export LISTEN_ADDR=":4001"
 export VILI_URI=http://localhost:4001
 export BUILD_DIR=$HOME/go/src/github.com/airware/vili/public/build
 
+export APP_CERT="TODO"
+export APP_PRIVATE_KEY="TODO"
+
 export STATIC_LIVE_RELOAD=1
 
 export ENVIRONMENTS="tools staging preprod prodtools prod"
@@ -14,10 +17,7 @@ export LOG_DEBUG=1
 export REDIS_PORT=redis://localhost:6379
 export REDIS_DB=8
 
-export OKTA_ENTRYPOINT=https://airware.okta.com/app/entrypoint
-export OKTA_ISSUER=http://www.okta.com/issuer
-export OKTA_CERT="cert"
-export OKTA_DOMAIN=airware.com
+export SAML_METADATA_URL=https://airware.okta.com/app/metadata-url
 
 export HARDCODED_TOKEN_USERS="mytoken myusername"
 

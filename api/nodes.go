@@ -8,12 +8,12 @@ import (
 	"github.com/airware/vili/errors"
 	"github.com/airware/vili/kube"
 	"github.com/airware/vili/server"
-	echo "gopkg.in/labstack/echo.v1"
+	"github.com/labstack/echo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
-func nodesGetHandler(c *echo.Context) error {
+func nodesGetHandler(c echo.Context) error {
 	env := c.Param("env")
 
 	endpoint := kube.GetClient(env).Nodes()
@@ -31,7 +31,7 @@ func nodesGetHandler(c *echo.Context) error {
 	return c.JSON(http.StatusOK, resp)
 }
 
-func nodeStateEditHandler(c *echo.Context) error {
+func nodeStateEditHandler(c echo.Context) error {
 	env := c.Param("env")
 	node := c.Param("node")
 	state := c.Param("state")

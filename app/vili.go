@@ -22,7 +22,7 @@ import (
 	"github.com/airware/vili/stats"
 	"github.com/airware/vili/templates"
 	"github.com/airware/vili/util"
-	echo "gopkg.in/labstack/echo.v1"
+	"github.com/labstack/echo"
 )
 
 const appName = "vili"
@@ -187,12 +187,12 @@ func New() *App {
 		func() {
 			defer wg.Done()
 			switch config.GetString(config.AuthService) {
-			case "okta":
-				err := auth.InitOktaAuthService(&auth.OktaConfig{
-					Entrypoint: config.GetString(config.OktaEntrypoint),
-					Issuer:     config.GetString(config.OktaIssuer),
-					Cert:       config.GetString(config.OktaCert),
-					Domain:     config.GetString(config.OktaDomain),
+			case "saml":
+				err := auth.InitSAMLAuthService(&auth.SAMLConfig{
+					URL:            config.GetString(config.URI),
+					IDPMetadataURL: config.GetString(config.SAMLMetadataURL),
+					SPCert:         config.GetString(config.AppCert),
+					SPPrivateKey:   config.GetString(config.AppPrivateKey),
 				})
 				if err != nil {
 					log.Fatal(err)
@@ -238,9 +238,9 @@ func New() *App {
 
 	auth.AddHandlers(s)
 	api.AddHandlers(s)
-	s.Echo().Get("/static/:name", public.StaticHandler)
-	s.Echo().Get("/", homeHandler)
-	s.Echo().Get("/*", middleware.RequireUser(appHandler))
+	s.Echo().GET("/static/:name", public.StaticHandler)
+	s.Echo().GET("/", homeHandler)
+	s.Echo().GET("/*", middleware.RequireUser(appHandler))
 	return &App{
 		server: s,
 	}

@@ -60,11 +60,9 @@ spec:
             # firebase
             - name: "FIREBASE_URL"
               value: "https://myapp.firebaseio.com/"
-            # okta
-            - name: "OKTA_DOMAIN"
-              value: "mydomain.com"
-            - name: "OKTA_ENTRYPOINT"
-              value: "https://myteam.okta.com/entrypoint"
+            # saml
+            - name: "SAML_METADATA_URL"
+              value: "https://myteam.okta.com/metadata"
             # github
             - name: "GITHUB_OWNER"
               value: "myteam"

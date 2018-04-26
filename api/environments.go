@@ -11,7 +11,7 @@ import (
 	"github.com/airware/vili/templates"
 	"github.com/airware/vili/types"
 	"github.com/airware/vili/util"
-	echo "gopkg.in/labstack/echo.v1"
+	"github.com/labstack/echo"
 )
 
 // EnvironmentsGetResponse is a response to the get environments request
@@ -19,13 +19,13 @@ type EnvironmentsGetResponse struct {
 	Environments []*environments.Environment `json:"environments"`
 }
 
-func environmentsGetHandler(c *echo.Context) error {
+func environmentsGetHandler(c echo.Context) error {
 	envs := environments.Environments()
-	if c.Query("branch") != "" {
+	if c.QueryParam("branch") != "" {
 		allEnvs := envs
 		envs = []*environments.Environment{}
 		for _, env := range allEnvs {
-			if util.NewStringSet(env.AutodeployBranches).Contains(c.Query("branch")) {
+			if util.NewStringSet(env.AutodeployBranches).Contains(c.QueryParam("branch")) {
 				envs = append(envs, env)
 			}
 		}
@@ -49,7 +49,7 @@ type EnvironmentCreateResponse struct {
 	Release     *types.Release            `json:"release"`
 }
 
-func environmentCreateHandler(c *echo.Context) error {
+func environmentCreateHandler(c echo.Context) error {
 	envCreateRequest := &EnvironmentCreateRequest{}
 	decoder := json.NewDecoder(c.Request().Body)
 	err := decoder.Decode(envCreateRequest)
@@ -98,7 +98,7 @@ func environmentCreateHandler(c *echo.Context) error {
 	})
 }
 
-func environmentDeleteHandler(c *echo.Context) error {
+func environmentDeleteHandler(c echo.Context) error {
 	env := c.Param("env")
 
 	if err := environments.Delete(env); err != nil {
@@ -107,9 +107,9 @@ func environmentDeleteHandler(c *echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
-func environmentSpecHandler(c *echo.Context) error {
-	namespace := c.Query("name")
-	branch := c.Query("branch")
+func environmentSpecHandler(c echo.Context) error {
+	namespace := c.QueryParam("name")
+	branch := c.QueryParam("branch")
 	fields := environmentTemplateFields{
 		Namespace: namespace,
 		Branch:    branch,
