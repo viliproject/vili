@@ -1,7 +1,7 @@
-import Immutable from 'immutable'
+import Immutable from "immutable"
 
-import displayTime from '../lib/displayTime'
-import ReleaseRollout from './ReleaseRollout'
+import displayTime from "../lib/displayTime"
+import ReleaseRollout from "./ReleaseRollout"
 
 export default class Release extends Immutable.Record({
   targetEnv: undefined,
@@ -10,17 +10,16 @@ export default class Release extends Immutable.Record({
   waves: Immutable.List(),
   createdAt: undefined,
   createdBy: undefined,
-  rollouts: Immutable.List()
+  rollouts: Immutable.List(),
 }) {
-  get createdAtHumanize () {
-    return displayTime(new Date(this.get('createdAt')))
+  get createdAtHumanize() {
+    return displayTime(new Date(this.get("createdAt")))
   }
 
-  envRollouts (env) {
-    return this
-      .get('rollouts', Immutable.List())
-      .filter((r) => r.get('env') === env)
-      .map((r) => new ReleaseRollout(r))
-      .sortBy((r) => -r.get('rolloutAtDate'))
+  envRollouts(env) {
+    return this.get("rollouts", Immutable.List())
+      .filter(r => r.get("env") === env)
+      .map(r => new ReleaseRollout(r))
+      .sortBy(r => -r.get("rolloutAtDate"))
   }
 }

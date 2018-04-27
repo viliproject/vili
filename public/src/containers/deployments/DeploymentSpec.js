@@ -1,65 +1,67 @@
-import PropTypes from 'prop-types'
-import React from 'react'
-import { connect } from 'react-redux'
+import PropTypes from "prop-types"
+import React from "react"
+import { connect } from "react-redux"
 
-import Loading from '../../components/Loading'
-import { activateDeploymentTab } from '../../actions/app'
-import { getDeploymentSpec } from '../../actions/deployments'
+import Loading from "../../components/Loading"
+import { activateDeploymentTab } from "../../actions/app"
+import { getDeploymentSpec } from "../../actions/deployments"
 
-function mapStateToProps (state, ownProps) {
-  const { env, deployment: deploymentName } = ownProps.params
-  const deployment = state.deployments.lookUpData(env, deploymentName)
+function mapStateToProps(state, ownProps) {
+  const { envName, deploymentName } = ownProps
+  const deployment = state.deployments.lookUpData(envName, deploymentName)
   return {
-    deployment
+    deployment,
   }
 }
 
 const dispatchProps = {
   activateDeploymentTab,
-  getDeploymentSpec
+  getDeploymentSpec,
 }
 
 export class DeploymentSpec extends React.Component {
-  static propTypes = {
-    params: PropTypes.object,
-    location: PropTypes.object,
-    deployment: PropTypes.object,
-    activateDeploymentTab: PropTypes.func,
-    getDeploymentSpec: PropTypes.func
-  }
-
-  componentDidMount () {
-    this.props.activateDeploymentTab('spec')
+  componentDidMount() {
+    this.props.activateDeploymentTab("spec")
     this.fetchData()
   }
 
-  componentDidUpdate (prevProps) {
-    if (this.props.params !== prevProps.params) {
+  componentDidUpdate(prevProps) {
+    if (
+      this.props.envName !== prevProps.envName ||
+      this.props.deploymentName !== prevProps.deploymentName
+    ) {
       this.fetchData()
     }
   }
 
   fetchData = () => {
-    const { params, getDeploymentSpec } = this.props
-    getDeploymentSpec(params.env, params.deployment)
+    const { envName, deploymentName, getDeploymentSpec } = this.props
+    getDeploymentSpec(envName, deploymentName)
   }
 
-  render () {
+  render() {
     const { deployment } = this.props
-    if (!deployment || !deployment.get('spec')) {
-      return (<Loading />)
+    if (!deployment || !deployment.get("spec")) {
+      return <Loading />
     }
     return (
-      <div className='col-md-8'>
-        <div id='source-yaml'>
-          <pre><code>
-            {deployment.get('spec')}
-          </code></pre>
+      <div className="col-md-8">
+        <div id="source-yaml">
+          <pre>
+            <code>{deployment.get("spec")}</code>
+          </pre>
         </div>
       </div>
     )
   }
+}
 
+DeploymentSpec.propTypes = {
+  envName: PropTypes.string,
+  deploymentName: PropTypes.string,
+  deployment: PropTypes.object,
+  activateDeploymentTab: PropTypes.func,
+  getDeploymentSpec: PropTypes.func,
 }
 
 export default connect(mapStateToProps, dispatchProps)(DeploymentSpec)

@@ -1,5 +1,3 @@
-import { routerReducer } from "react-router-redux"
-
 import app from "./app"
 import envs from "./envs"
 import releases from "./releases"
@@ -16,7 +14,6 @@ function hardcodedValueReducer(state = null, action) {
 }
 
 const reducers = {
-  routing: routerReducer,
   user: hardcodedValueReducer,
   defaultEnv: hardcodedValueReducer,
   app,

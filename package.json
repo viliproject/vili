@@ -8,7 +8,8 @@
     "build": "./node_modules/.bin/webpack --config ./public/webpack.config.js",
     "watch": "npm run build -- --progress --colors --watch",
     "lint": "node_modules/.bin/eslint \"./public/src/**/*.js\"",
-    "lint:fix": "node_modules/.bin/eslint \"./public/src/**/*.js\" --fix | snazzy"
+    "lint:fix":
+      "node_modules/.bin/eslint \"./public/src/**/*.js\" --fix | snazzy"
   },
   "repository": {
     "type": "git",
@@ -27,7 +28,7 @@
     "react-dom": "16.3.2",
     "react-redux": "5.0.7",
     "react-router": "4.2.0",
-    "react-router-redux": "4.0.8",
+    "react-router-dom": "4.2.2",
     "redux": "4.0.0",
     "redux-thunk": "2.2.0",
     "reselect": "3.0.1",

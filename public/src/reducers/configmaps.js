@@ -1,11 +1,11 @@
-import { CHANGE_CONFIGMAP, SET_CONFIGMAP_FIELD } from '../constants'
-import ConfigMap from '../models/ConfigMap'
+import { CHANGE_CONFIGMAP, SET_CONFIGMAP_FIELD } from "../constants"
+import ConfigMap from "../models/ConfigMap"
 
-import { getInitialState, changeObject, setDataField } from './utils'
+import { getInitialState, changeObject, setDataField } from "./utils"
 
 const initialState = getInitialState()
 
-export default function (state = initialState, action) {
+export default function(state = initialState, action) {
   switch (action.type) {
     case CHANGE_CONFIGMAP:
       return changeObject(state, action, ConfigMap)

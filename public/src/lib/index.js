@@ -1,7 +1,7 @@
-import viliApi from './viliapi'
-import displayTime from './displayTime'
+import viliApi from "./viliapi"
+import displayTime from "./displayTime"
 
 export default {
   viliApi: viliApi,
-  displayTime: displayTime
+  displayTime: displayTime,
 }

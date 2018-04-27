@@ -1,11 +1,12 @@
 /* global WebSocket */
 
 export default class WebSocketClient {
-  constructor (opts) {
+  constructor(opts) {
     const loc = window.location
-    this.url = ((loc.protocol === 'https:') ? 'wss://' : 'ws://') + loc.host + opts.url
+    this.url =
+      (loc.protocol === "https:" ? "wss://" : "ws://") + loc.host + opts.url
     if (opts.qs) {
-      this.url += '?' + this.queryString(opts.qs)
+      this.url += "?" + this.queryString(opts.qs)
     }
     this.messageHandler = opts.messageHandler
 
@@ -13,39 +14,39 @@ export default class WebSocketClient {
     this.startWebSocket()
   }
 
-  startWebSocket () {
+  startWebSocket() {
     const self = this
     this.ws = new WebSocket(this.url)
-    this.ws.onmessage = function (event) {
+    this.ws.onmessage = function(event) {
       const data = JSON.parse(event.data)
-      if (data.type === 'CLOSED') {
+      if (data.type === "CLOSED") {
         self.close()
       } else {
         self.messageHandler(data)
       }
     }
-    this.ws.onclose = function (event) {
+    this.ws.onclose = function(event) {
       if (!self.closed) {
-        setTimeout(function () {
+        setTimeout(function() {
           self.startWebSocket()
         }, 5000)
       }
     }
   }
 
-  close () {
+  close() {
     this.closed = true
     this.ws.close()
   }
 
   // utils
-  queryString (query) {
+  queryString(query) {
     const str = []
     for (var p in query) {
       if (query.hasOwnProperty(p)) {
-        str.push(encodeURIComponent(p) + '=' + encodeURIComponent(query[p]))
+        str.push(encodeURIComponent(p) + "=" + encodeURIComponent(query[p]))
       }
     }
-    return str.join('&')
+    return str.join("&")
   }
 }

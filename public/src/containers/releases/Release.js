@@ -1,80 +1,61 @@
-import PropTypes from 'prop-types'
-import React from 'react'
-import { connect } from 'react-redux'
-import { Button, ButtonToolbar, Panel } from 'react-bootstrap'
-import { Link } from 'react-router'
-import _ from 'underscore'
+import React from "react"
+import PropTypes from "prop-types"
+import { connect } from "react-redux"
+import { Button, ButtonToolbar } from "react-bootstrap"
+import { Link } from "react-router-dom"
 
-import Table from '../../components/Table'
-import { activateNav } from '../../actions/app'
-import { deployRelease } from '../../actions/releases'
+import Table from "../../components/Table"
+import { activateNav } from "../../actions/app"
+import { deployRelease } from "../../actions/releases"
 
-const tableColumns = {
-  waveActions: [
-    {title: 'Action', key: 'name'},
-    {title: 'Branch', key: 'branch', style: {width: '200px', textAlign: 'right'}}
-  ],
-  waveJobs: [
-    {title: 'Job', key: 'name'},
-    {title: 'Branch', key: 'branch', style: {width: '200px', textAlign: 'right'}},
-    {title: 'Tag', key: 'tag', style: {width: '200px', textAlign: 'right'}}
-  ],
-  waveApps: [
-    {title: 'App', key: 'name'},
-    {title: 'Branch', key: 'branch', style: {width: '200px', textAlign: 'right'}},
-    {title: 'Tag', key: 'tag', style: {width: '200px', textAlign: 'right'}}
-  ]
-}
+import ReleaseWavePanel from "./ReleaseWavePanel"
 
-function mapStateToProps (state, ownProps) {
-  const { env: envName, release: releaseName } = ownProps.params
-  const env = state.envs.getIn(['envs', envName])
+function mapStateToProps(state, ownProps) {
+  const { envName, releaseName } = ownProps
+  const env = state.envs.getIn(["envs", envName])
   const release = state.releases.lookUpObject(envName, releaseName)
   return {
     env,
-    release
+    release,
   }
 }
 
 const dispatchProps = {
   activateNav,
-  deployRelease
+  deployRelease,
 }
 
-@connect(mapStateToProps, dispatchProps)
-export default class Release extends React.Component {
-  static propTypes = {
-    params: PropTypes.object,
-    location: PropTypes.object,
-    env: PropTypes.object,
-    release: PropTypes.object,
-    activateNav: PropTypes.func.isRequired,
-    deployRelease: PropTypes.func.isRequired
+export class Release extends React.Component {
+  componentDidMount() {
+    this.props.activateNav("releases")
   }
 
-  componentDidMount () {
-    this.props.activateNav('releases')
-  }
-
-  deployRelease = (event) => {
-    event.target.setAttribute('disabled', 'disabled')
+  deployRelease = event => {
+    event.target.setAttribute("disabled", "disabled")
     const { deployRelease, env, release } = this.props
     deployRelease(env.name, release.name)
   }
 
-  renderActions () {
+  renderActions() {
     const buttons = []
     buttons.push(
-      <Button key='deploy' onClick={this.deployRelease} bsStyle='primary' bsSize='small'>Deploy</Button>
+      <Button
+        key="deploy"
+        onClick={this.deployRelease}
+        bsStyle="primary"
+        bsSize="small"
+      >
+        Deploy
+      </Button>
     )
     return (
-      <ButtonToolbar key='toolbar' className='pull-right'>
+      <ButtonToolbar key="toolbar" className="pull-right">
         {buttons}
       </ButtonToolbar>
     )
   }
 
-  renderMetadata () {
+  renderMetadata() {
     const { env, release } = this.props
     if (!env || !release) {
       return null
@@ -82,59 +63,75 @@ export default class Release extends React.Component {
 
     const metadata = []
     if (env.approvedFromEnv) {
-      metadata.push(<h5 key='approved-env-title'>Approved From</h5>)
-      metadata.push(<div key='approved-env-value'>{env.approvedFromEnv}</div>)
+      metadata.push(<h5 key="approved-env-title">Approved From</h5>)
+      metadata.push(<div key="approved-env-value">{env.approvedFromEnv}</div>)
     }
 
     if (release.link) {
-      metadata.push(<h5 key='link-title'>Link</h5>)
+      metadata.push(<h5 key="link-title">Link</h5>)
       metadata.push(
-        <div key='link-value'><a href={release.link} target='_blank'>{release.link}</a></div>
+        <div key="link-value">
+          <a href={release.link} target="_blank">
+            {release.link}
+          </a>
+        </div>
       )
     }
 
-    metadata.push(<h5 key='approvedBy-title'>Approved By</h5>)
-    metadata.push(
-      <div key='approvedBy-value'>{release.createdBy}</div>
-    )
-    metadata.push(<h5 key='createdAt-title'>Created At</h5>)
-    metadata.push(
-      <div key='createdAt-value'>{release.createdAtHumanize}</div>
-    )
+    metadata.push(<h5 key="approvedBy-title">Approved By</h5>)
+    metadata.push(<div key="approvedBy-value">{release.createdBy}</div>)
+    metadata.push(<h5 key="createdAt-title">Created At</h5>)
+    metadata.push(<div key="createdAt-value">{release.createdAtHumanize}</div>)
 
     const rollouts = release.envRollouts(env.name)
     if (rollouts.size > 0) {
-      metadata.push(<h5 key='rollouts-title'>Rollouts</h5>)
+      metadata.push(<h5 key="rollouts-title">Rollouts</h5>)
 
       const columns = [
-        {title: 'ID', key: 'id', style: {width: '50px'}},
-        {title: 'Rollout At', key: 'rolloutAtHumanize'},
-        {title: 'Rollout By', key: 'rolloutBy', style: {width: '200px', textAlign: 'right'}},
-        {title: 'Status', key: 'status', style: {width: '200px', textAlign: 'right'}}
+        { title: "ID", key: "id", style: { width: "50px" } },
+        { title: "Rollout At", key: "rolloutAtHumanize" },
+        {
+          title: "Rollout By",
+          key: "rolloutBy",
+          style: { width: "200px", textAlign: "right" },
+        },
+        {
+          title: "Status",
+          key: "status",
+          style: { width: "200px", textAlign: "right" },
+        },
       ]
       const rows = []
-      rollouts.forEach((rollout) => {
+      rollouts.forEach(rollout => {
         rows.push({
-          id: (<Link to={`/${env.name}/releases/${release.name}/rollouts/${rollout.id}`}>{rollout.id}</Link>),
+          id: (
+            <Link
+              to={`/${env.name}/releases/${release.name}/rollouts/${
+                rollout.id
+              }`}
+            >
+              {rollout.id}
+            </Link>
+          ),
           rolloutAtHumanize: rollout.rolloutAtHumanize,
           rolloutBy: rollout.rolloutBy,
-          status: rollout.status
+          status: rollout.status,
         })
       })
       metadata.push(
-        <Table key='rollouts-value' columns={columns} rows={rows} />
+        <Table key="rollouts-value" columns={columns} rows={rows} />
       )
     }
     return metadata
   }
 
-  renderWavePanels () {
+  renderWavePanels() {
     const { env, release } = this.props
     if (release) {
       const panels = []
       release.waves.forEach((wave, ix) => {
         panels.push(
-          <WavePanel
+          <ReleaseWavePanel
             key={ix}
             ix={ix}
             env={env.name}
@@ -152,14 +149,18 @@ export default class Release extends React.Component {
     return null
   }
 
-  render () {
-    const { params } = this.props
+  render() {
+    const { envName, releaseName } = this.props
     const header = (
-      <div key='header' className='view-header'>
-        <ol className='breadcrumb'>
-          <li><Link to={`/${params.env}`}>{params.env}</Link></li>
-          <li><Link to={`/${params.env}/releases`}>Releases</Link></li>
-          <li className='active'>{params.release}</li>
+      <div key="header" className="view-header">
+        <ol className="breadcrumb">
+          <li>
+            <Link to={`/${envName}`}>{envName}</Link>
+          </li>
+          <li>
+            <Link to={`/${envName}/releases`}>Releases</Link>
+          </li>
+          <li className="active">{releaseName}</li>
         </ol>
         {this.renderActions()}
       </div>
@@ -173,88 +174,15 @@ export default class Release extends React.Component {
       </div>
     )
   }
-
 }
 
-class WavePanel extends React.Component {
-  static propTypes = {
-    env: PropTypes.string,
-    ix: PropTypes.number,
-    wave: PropTypes.object,
-    deployments: PropTypes.object,
-    replicaSets: PropTypes.object,
-    jobRuns: PropTypes.object
-  }
-
-  actionsTable () {
-    const { targets } = this.props.wave
-    const rows = _.map(
-      _.filter(targets, (target) => target.type === 'action'),
-      (target) => {
-        return {
-          name: target.name,
-          branch: target.branch
-        }
-      })
-    if (rows.length > 0) {
-      return (
-        <Table columns={tableColumns.waveActions} rows={rows} fill hover={false} />
-      )
-    }
-    return null
-  }
-
-  jobsTable () {
-    const { env } = this.props
-    const { targets } = this.props.wave
-    const rows = _.map(
-      _.filter(targets, (target) => target.type === 'job'),
-      (target) => {
-        return {
-          name: (<Link to={`/${env}/jobs/${target.name}`}>{target.name}</Link>),
-          branch: target.branch,
-          tag: target.tag,
-          runAt: target.runAt
-        }
-      })
-    if (rows.length > 0) {
-      return (
-        <Table columns={tableColumns.waveJobs} rows={rows} fill hover={false} />
-      )
-    }
-    return null
-  }
-
-  appsTable () {
-    const { env } = this.props
-    const { targets } = this.props.wave
-    const rows = _.map(
-      _.filter(targets, (target) => target.type === 'app'),
-      (target) => {
-        return {
-          name: (<Link to={`/${env}/deployments/${target.name}`}>{target.name}</Link>),
-          branch: target.branch,
-          tag: target.tag,
-          deployedAt: target.deployedAt
-        }
-      })
-    if (rows.length > 0) {
-      return (
-        <Table columns={tableColumns.waveApps} rows={rows} fill hover={false} />
-      )
-    }
-    return null
-  }
-
-  render () {
-    const { ix } = this.props
-    return (
-      <Panel header={`Wave ${ix + 1}`}>
-        {this.actionsTable()}
-        {this.jobsTable()}
-        {this.appsTable()}
-      </Panel>
-    )
-  }
-
+Release.propTypes = {
+  envName: PropTypes.string,
+  releaseName: PropTypes.string,
+  env: PropTypes.object,
+  release: PropTypes.object,
+  activateNav: PropTypes.func.isRequired,
+  deployRelease: PropTypes.func.isRequired,
 }
+
+export default connect(mapStateToProps, dispatchProps)(Release)

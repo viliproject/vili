@@ -1,62 +1,62 @@
-import PropTypes from 'prop-types'
-import React from 'react'
-import { connect } from 'react-redux'
-import { Link } from 'react-router'
+import React from "react"
+import PropTypes from "prop-types"
+import { connect } from "react-redux"
+import { Link } from "react-router-dom"
 
-import PodLog from '../../../components/PodLog'
-import { subPodLog, unsubPodLog } from '../../../actions/pods'
+import PodLog from "../../../components/PodLog"
+import { subPodLog, unsubPodLog } from "../../../actions/pods"
 
-function mapStateToProps (state, ownProps) {
-  const { env, podName } = ownProps
-  const pod = state.pods.lookUpData(env, podName)
+function mapStateToProps(state, ownProps) {
+  const { envName, podName } = ownProps
+  const pod = state.pods.lookUpData(envName, podName)
   return {
-    log: pod.get('log')
+    log: pod.get("log"),
   }
 }
 
 const dispatchProps = {
   subPodLog,
-  unsubPodLog
+  unsubPodLog,
 }
 
 export class JobRunPod extends React.Component {
-  static propTypes = {
-    subPodLog: PropTypes.func.isRequired,
-    unsubPodLog: PropTypes.func.isRequired,
-    env: PropTypes.string,
-    podName: PropTypes.string,
-    log: PropTypes.string
-  }
-
-  componentDidMount () {
+  componentDidMount() {
     this.subData()
   }
 
-  componentWillUnmount () {
+  componentWillUnmount() {
     this.unsubData()
   }
 
   subData = () => {
-    const { env, podName, subPodLog } = this.props
-    subPodLog(env, podName)
+    const { envName, podName, subPodLog } = this.props
+    subPodLog(envName, podName)
   }
 
   unsubData = () => {
-    const { env, podName, unsubPodLog } = this.props
-    unsubPodLog(env, podName)
+    const { envName, podName, unsubPodLog } = this.props
+    unsubPodLog(envName, podName)
   }
 
-  render () {
-    const { env, podName, log } = this.props
+  render() {
+    const { envName, podName, log } = this.props
     return (
       <div key={podName}>
         <h4>
-          <Link to={`/${env}/pods/${podName}`}>{podName}</Link>
+          <Link to={`/${envName}/pods/${podName}`}>{podName}</Link>
         </h4>
         <PodLog log={log} />
       </div>
     )
   }
+}
+
+JobRunPod.propTypes = {
+  envName: PropTypes.string,
+  podName: PropTypes.string,
+  log: PropTypes.string,
+  subPodLog: PropTypes.func.isRequired,
+  unsubPodLog: PropTypes.func.isRequired,
 }
 
 export default connect(mapStateToProps, dispatchProps)(JobRunPod)
