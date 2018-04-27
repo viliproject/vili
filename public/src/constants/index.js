@@ -3,6 +3,7 @@ export const SET_ENV = "SET_ENV"
 export const ACTIVATE_NAV = "ACTIVATE_NAV"
 export const ACTIVATE_DEPLOYMENT_TAB = "ACTIVATE_DEPLOYMENT_TAB"
 export const ACTIVATE_JOB_TAB = "ACTIVATE_JOB_TAB"
+export const ACTIVATE_FUNCTION_TAB = "ACTIVATE_FUNCTION_TAB"
 // environments
 export const INIT_ENVS = "INIT_ENVS"
 export const ADD_ENV = "ADD_ENV"
@@ -24,6 +25,9 @@ export const SET_JOB_FIELD = "SET_JOB_FIELD"
 // job runs
 export const CHANGE_JOB_RUN = "CHANGE_JOB_RUN"
 export const RUN_JOB = "RUN_JOB"
+// functions
+export const CHANGE_FUNCTION = "CHANGE_FUNCTION"
+export const SET_FUNCTION_FIELD = "SET_FUNCTION_FIELD"
 // configMaps
 export const CHANGE_CONFIGMAP = "CHANGE_CONFIGMAP"
 export const SET_CONFIGMAP_FIELD = "SET_CONFIGMAP_FIELD"

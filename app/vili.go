@@ -7,15 +7,16 @@ import (
 	"github.com/airware/vili/api"
 	"github.com/airware/vili/auth"
 	"github.com/airware/vili/config"
-	"github.com/airware/vili/docker"
 	"github.com/airware/vili/environments"
 	"github.com/airware/vili/firebase"
+	"github.com/airware/vili/functions"
 	"github.com/airware/vili/git"
 	"github.com/airware/vili/kube"
 	"github.com/airware/vili/log"
 	"github.com/airware/vili/middleware"
 	"github.com/airware/vili/public"
 	"github.com/airware/vili/redis"
+	"github.com/airware/vili/repository"
 	"github.com/airware/vili/server"
 	"github.com/airware/vili/session"
 	"github.com/airware/vili/slack"
@@ -137,12 +138,12 @@ func New() *App {
 			})
 		},
 
-		// set up the docker service
+		// set up the docker repository
 		func() {
 			defer wg.Done()
 			switch config.GetString(config.DockerMode) {
 			case "registry":
-				err := docker.InitRegistry(&docker.RegistryConfig{
+				err := repository.InitRegistry(&repository.RegistryConfig{
 					BaseURL:   config.GetString(config.RegistryURL),
 					Username:  config.GetString(config.RegistryUsername),
 					Password:  config.GetString(config.RegistryPassword),
@@ -157,7 +158,7 @@ func New() *App {
 				if ecrAccountID != "" {
 					registryID = &ecrAccountID
 				}
-				err := docker.InitECR(&docker.ECRConfig{
+				err := repository.InitECR(&repository.ECRConfig{
 					Region:          config.GetString(config.AWSRegion),
 					AccessKeyID:     config.GetString(config.AWSAccessKeyID),
 					SecretAccessKey: config.GetString(config.AWSSecretAccessKey),
@@ -169,6 +170,44 @@ func New() *App {
 				}
 			default:
 				log.Fatal("invalid docker mode provided")
+			}
+		},
+
+		// set up the bundle repository
+		func() {
+			defer wg.Done()
+			switch config.GetString(config.BundleMode) {
+			case "s3":
+				err := repository.InitS3(&repository.S3Config{
+					Region:          config.GetString(config.AWSRegion),
+					Bucket:          config.GetString(config.AWSRepositoryBucket),
+					Namespace:       config.GetString(config.BundleNamespace),
+					AccessKeyID:     config.GetString(config.AWSAccessKeyID),
+					SecretAccessKey: config.GetString(config.AWSSecretAccessKey),
+				})
+				if err != nil {
+					log.Fatal(err)
+				}
+			default:
+				// bundle repository is not required
+			}
+		},
+
+		// set up functions
+		func() {
+			defer wg.Done()
+			switch config.GetString(config.FunctionsMode) {
+			case "lambda":
+				err := functions.InitLambda(&functions.LambdaConfig{
+					Region:          config.GetString(config.AWSRegion),
+					AccessKeyID:     config.GetString(config.AWSAccessKeyID),
+					SecretAccessKey: config.GetString(config.AWSSecretAccessKey),
+				})
+				if err != nil {
+					log.Fatal(err)
+				}
+			default:
+				// functions support is not required
 			}
 		},
 

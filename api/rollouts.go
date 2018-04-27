@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"github.com/airware/vili/config"
-	"github.com/airware/vili/docker"
 	"github.com/airware/vili/errors"
 	"github.com/airware/vili/kube"
 	"github.com/airware/vili/log"
+	"github.com/airware/vili/repository"
 	"github.com/airware/vili/server"
 	"github.com/airware/vili/session"
 	"github.com/airware/vili/templates"
@@ -69,7 +69,7 @@ type Rollout struct {
 
 // Run initializes a deployment, checks to make sure it is valid, and runs it
 func (r *Rollout) Run(async bool) error {
-	digest, err := docker.GetTag(r.DeploymentName, r.Tag)
+	digest, err := repository.GetDockerTag(r.DeploymentName, r.Tag)
 	if err != nil {
 		return err
 	}
@@ -143,7 +143,7 @@ func (r *Rollout) createNewDeployment() (err error) {
 		deployment.Spec.Template.ObjectMeta.Annotations["vili/fromRevision"] = r.FromRevision
 	}
 
-	imageName, err := docker.FullName(r.DeploymentName, r.Tag)
+	imageName, err := repository.DockerFullName(r.DeploymentName, r.Tag)
 	if err != nil {
 		return
 	}

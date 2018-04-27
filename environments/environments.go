@@ -36,6 +36,7 @@ type Environment struct {
 	ApprovedFromEnv    string   `json:"approvedFromEnv,omitempty"`
 	Jobs               []string `json:"jobs"`
 	Deployments        []string `json:"deployments"`
+	Functions          []string `json:"functions"`
 	ConfigMaps         []string `json:"configmaps"`
 }
 
@@ -71,6 +72,11 @@ func (e *Environment) fillSpecs() {
 		log.Error(err)
 		return
 	}
+	functions, err := templates.Functions(e.Name, e.Branch)
+	if err != nil {
+		log.Error(err)
+		return
+	}
 	configMaps, err := templates.ConfigMaps(e.Name, e.Branch)
 	if err != nil {
 		log.Error(err)
@@ -78,6 +84,7 @@ func (e *Environment) fillSpecs() {
 	}
 	e.Jobs = jobs
 	e.Deployments = deployments
+	e.Functions = functions
 	e.ConfigMaps = configMaps
 }
 

@@ -16,6 +16,8 @@ type Service interface {
 	Job(env, branch, name string) (Template, error)
 	Deployments(env, branch string) ([]string, error)
 	Deployment(env, branch, name string) (Template, error)
+	Functions(env, branch string) ([]string, error)
+	Function(env, branch, name string) (Template, error)
 	ConfigMaps(env, branch string) ([]string, error)
 	ConfigMap(env, branch, name string) (Template, error)
 	Release(env, branch string) (Template, error)
@@ -40,6 +42,16 @@ func Deployments(env, branch string) ([]string, error) {
 // Deployment returns a deployment for the given environment
 func Deployment(env, branch, name string) (Template, error) {
 	return service.Deployment(env, branch, name)
+}
+
+// Functions returns a list of functions for the given environment
+func Functions(env, branch string) ([]string, error) {
+	return service.Functions(env, branch)
+}
+
+// Function returns a function for the given environment
+func Function(env, branch, name string) (Template, error) {
+	return service.Function(env, branch, name)
 }
 
 // ConfigMaps returns a list of configMaps for the given environment

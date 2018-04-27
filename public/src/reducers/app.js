@@ -4,11 +4,13 @@ import {
   ACTIVATE_NAV,
   ACTIVATE_DEPLOYMENT_TAB,
   ACTIVATE_JOB_TAB,
+  ACTIVATE_FUNCTION_TAB,
 } from "../constants"
 
 const initialState = Immutable.fromJS({
   deploymentTab: "home",
   jobTab: "home",
+  functionTab: "home",
 })
 
 export default function(state = initialState, action) {
@@ -21,6 +23,8 @@ export default function(state = initialState, action) {
       return state.set("deploymentTab", action.payload.tab)
     case ACTIVATE_JOB_TAB:
       return state.set("jobTab", action.payload.tab)
+    case ACTIVATE_FUNCTION_TAB:
+      return state.set("functionTab", action.payload.tab)
     default:
       return state
   }

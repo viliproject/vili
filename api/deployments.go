@@ -8,11 +8,11 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/airware/vili/docker"
 	"github.com/airware/vili/environments"
 	"github.com/airware/vili/errors"
 	"github.com/airware/vili/kube"
 	"github.com/airware/vili/log"
+	"github.com/airware/vili/repository"
 	"github.com/airware/vili/server"
 	"github.com/airware/vili/templates"
 	"github.com/labstack/echo"
@@ -40,7 +40,7 @@ func deploymentsGetHandler(c echo.Context) error {
 }
 
 type deploymentRepositoryResponse struct {
-	Images []*docker.Image `json:"images,omitempty"`
+	Images []*repository.Image `json:"images,omitempty"`
 }
 
 func deploymentRepositoryGetHandler(c echo.Context) error {
@@ -53,7 +53,7 @@ func deploymentRepositoryGetHandler(c echo.Context) error {
 	}
 
 	resp := new(deploymentRepositoryResponse)
-	images, err := docker.GetRepository(deployment, environment.RepositoryBranches)
+	images, err := repository.GetDockerRepository(deployment, environment.RepositoryBranches)
 	if err != nil {
 		return err
 	}

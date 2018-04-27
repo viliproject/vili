@@ -5,6 +5,7 @@ import deployments from "./deployments"
 import replicaSets from "./replicaSets"
 import jobs from "./jobs"
 import jobRuns from "./jobRuns"
+import functions from "./functions"
 import configmaps from "./configmaps"
 import pods from "./pods"
 import nodes from "./nodes"
@@ -23,6 +24,7 @@ const reducers = {
   replicaSets,
   jobs,
   jobRuns,
+  functions,
   configmaps,
   pods,
   nodes,

@@ -1,4 +1,4 @@
-package docker
+package repository
 
 import (
 	"errors"
@@ -51,7 +51,7 @@ func newECR(c *ECRConfig) *ECRService {
 
 // InitECR initializes the docker registry service
 func InitECR(c *ECRConfig) error {
-	service = newECR(c)
+	dockerService = newECR(c)
 	return nil
 }
 
@@ -156,8 +156,4 @@ func (s *ECRService) fullRepositoryName(repoName string) string {
 		return s.config.Namespace + "/" + repoName
 	}
 	return repoName
-}
-
-func slugFromBranch(branch string) string {
-	return strings.ToLower(strings.Replace(branch, "/", "-", -1))
 }

@@ -83,6 +83,31 @@ export class SideNav extends React.Component {
         })
       }
     }
+    if (env.functions && !env.functions.isEmpty()) {
+      items.push(
+        <LinkMenuItem
+          key="functions"
+          to={`/${env.name}/functions`}
+          active={nav.item === "functions" && !nav.subItem}
+        >
+          Functions
+        </LinkMenuItem>
+      )
+      if (nav.item === "functions") {
+        env.functions.forEach(func => {
+          items.push(
+            <LinkMenuItem
+              key={`functions-${func}`}
+              to={`/${env.name}/functions/${func}`}
+              subitem
+              active={nav.item === "functions" && nav.subItem === func}
+            >
+              {func}
+            </LinkMenuItem>
+          )
+        })
+      }
+    }
     if (env.configmaps && !env.configmaps.isEmpty()) {
       items.push(
         <LinkMenuItem

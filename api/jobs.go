@@ -3,9 +3,9 @@ package api
 import (
 	"net/http"
 
-	"github.com/airware/vili/docker"
 	"github.com/airware/vili/environments"
 	"github.com/airware/vili/kube"
+	"github.com/airware/vili/repository"
 	"github.com/airware/vili/templates"
 	"github.com/labstack/echo"
 )
@@ -42,7 +42,7 @@ func jobDeleteHandler(c echo.Context) error {
 }
 
 type jobRepositoryResponse struct {
-	Images []*docker.Image `json:"images,omitempty"`
+	Images []*repository.Image `json:"images,omitempty"`
 }
 
 func jobRepositoryGetHandler(c echo.Context) error {
@@ -55,7 +55,7 @@ func jobRepositoryGetHandler(c echo.Context) error {
 	}
 
 	resp := new(jobRepositoryResponse)
-	images, err := docker.GetRepository(job, environment.RepositoryBranches)
+	images, err := repository.GetDockerRepository(job, environment.RepositoryBranches)
 	if err != nil {
 		return err
 	}

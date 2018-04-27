@@ -49,6 +49,13 @@ export class EnvironmentHome extends React.Component {
         </li>
       )
     }
+    if (env.functions && !env.functions.isEmpty()) {
+      items.push(
+        <li key="functions">
+          <Link to={`/${envName}/functions`}>Functions</Link>
+        </li>
+      )
+    }
     if (env.configmaps && !env.configmaps.isEmpty()) {
       items.push(
         <li key="configmaps">

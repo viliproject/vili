@@ -6,6 +6,7 @@ import { Route, Switch } from "react-router"
 import EnvironmentHome from "../../handlers/EnvironmentHome"
 import Releases from "../../handlers/Releases"
 import Deployments from "../../handlers/Deployments"
+import Functions from "../../handlers/Functions"
 import Jobs from "../../handlers/Jobs"
 import ConfigMaps from "../../handlers/ConfigMaps"
 import Pods from "../../handlers/Pods"
@@ -17,6 +18,7 @@ import { subReleases } from "../../actions/releases"
 import { subDeployments } from "../../actions/deployments"
 import { subReplicaSets } from "../../actions/replicaSets"
 import { subJobRuns } from "../../actions/jobRuns"
+import { subFunctions } from "../../actions/functions"
 import { subConfigMaps } from "../../actions/configmaps"
 import { subPods } from "../../actions/pods"
 import { subNodes } from "../../actions/nodes"
@@ -27,6 +29,7 @@ const dispatchProps = {
   subDeployments,
   subReplicaSets,
   subJobRuns,
+  subFunctions,
   subConfigMaps,
   subPods,
   subNodes,
@@ -43,6 +46,11 @@ export class Environment extends React.Component {
     }
   }
 
+  componentWillUnmount() {
+    const { setEnv } = this.props
+    setEnv(null)
+  }
+
   subData = () => {
     const {
       match: { params: { env } },
@@ -51,6 +59,7 @@ export class Environment extends React.Component {
       subDeployments,
       subReplicaSets,
       subJobRuns,
+      subFunctions,
       subConfigMaps,
       subPods,
       subNodes,
@@ -60,6 +69,7 @@ export class Environment extends React.Component {
     subDeployments(env)
     subReplicaSets(env)
     subJobRuns(env)
+    subFunctions(env)
     subConfigMaps(env)
     subPods(env)
     subNodes(env)
@@ -74,6 +84,7 @@ export class Environment extends React.Component {
         <Route path={`${prefix}/releases`} component={Releases} />
         <Route path={`${prefix}/deployments`} component={Deployments} />
         <Route path={`${prefix}/jobs`} component={Jobs} />
+        <Route path={`${prefix}/functions`} component={Functions} />
         <Route path={`${prefix}/configmaps`} component={ConfigMaps} />
         <Route path={`${prefix}/pods`} component={Pods} />
         <Route path={`${prefix}/nodes`} component={Nodes} />
@@ -89,6 +100,7 @@ Environment.propTypes = {
   subDeployments: PropTypes.func.isRequired,
   subReplicaSets: PropTypes.func.isRequired,
   subJobRuns: PropTypes.func.isRequired,
+  subFunctions: PropTypes.func.isRequired,
   subConfigMaps: PropTypes.func.isRequired,
   subPods: PropTypes.func.isRequired,
   subNodes: PropTypes.func.isRequired,
