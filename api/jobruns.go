@@ -92,7 +92,7 @@ func (r *JobRun) Run(async bool) error {
 	r.ID = util.RandLowercaseString(16)
 	r.Time = time.Now()
 
-	digest, err := docker.GetTag(r.JobName, r.Branch, r.Tag)
+	digest, err := docker.GetTag(r.JobName, r.Tag)
 	if err != nil {
 		return err
 	}
@@ -132,7 +132,7 @@ func (r *JobRun) createNewJob() (err error) {
 		return fmt.Errorf("no containers in job")
 	}
 
-	imageName, err := docker.FullName(r.JobName, r.Branch, r.Tag)
+	imageName, err := docker.FullName(r.JobName, r.Tag)
 	if err != nil {
 		return
 	}

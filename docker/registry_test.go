@@ -10,11 +10,10 @@ import (
 func TestRegistryGetRepository(t *testing.T) {
 	testService := &RegistryService{
 		config: &RegistryConfig{
-			BaseURL:         os.Getenv("REGISTRY_URL"),
-			Username:        os.Getenv("REGISTRY_USERNAME"),
-			Password:        os.Getenv("REGISTRY_PASSWORD"),
-			Namespace:       os.Getenv("REGISTRY_NAMESPACE"),
-			BranchDelimiter: os.Getenv("REGISTRY_BRANCH_DELIMITER"),
+			BaseURL:   os.Getenv("REGISTRY_URL"),
+			Username:  os.Getenv("REGISTRY_USERNAME"),
+			Password:  os.Getenv("REGISTRY_PASSWORD"),
+			Namespace: os.Getenv("REGISTRY_NAMESPACE"),
 		},
 	}
 	images, err := testService.GetRepository("vili", []string{"master", "develop"})
@@ -29,14 +28,13 @@ func TestRegistryGetRepository(t *testing.T) {
 func TestRegistryGetTag(t *testing.T) {
 	testService := &RegistryService{
 		config: &RegistryConfig{
-			BaseURL:         os.Getenv("REGISTRY_URL"),
-			Username:        os.Getenv("REGISTRY_USERNAME"),
-			Password:        os.Getenv("REGISTRY_PASSWORD"),
-			Namespace:       os.Getenv("REGISTRY_NAMESPACE"),
-			BranchDelimiter: os.Getenv("REGISTRY_BRANCH_DELIMITER"),
+			BaseURL:   os.Getenv("REGISTRY_URL"),
+			Username:  os.Getenv("REGISTRY_USERNAME"),
+			Password:  os.Getenv("REGISTRY_PASSWORD"),
+			Namespace: os.Getenv("REGISTRY_NAMESPACE"),
 		},
 	}
-	digest, err := testService.GetTag("vili", "master", "master")
+	digest, err := testService.GetTag("vili", "master")
 	if err != nil {
 		log.Error(err)
 	}
@@ -62,9 +60,8 @@ func TestRegistryFullName(t *testing.T) {
 		},
 		{
 			RegistryConfig{
-				BaseURL:         "quay.io",
-				Namespace:       "airware",
-				BranchDelimiter: "-",
+				BaseURL:   "quay.io",
+				Namespace: "airware",
 			},
 			"vili",
 			"testbranch",
@@ -73,7 +70,7 @@ func TestRegistryFullName(t *testing.T) {
 		},
 	} {
 		testService := &RegistryService{&testCase.RegistryConfig}
-		fullName, err := testService.FullName(testCase.repo, testCase.branch, testCase.tag)
+		fullName, err := testService.FullName(testCase.repo, testCase.tag)
 		if err != nil {
 			t.Error(err)
 		} else if fullName != testCase.fullName {

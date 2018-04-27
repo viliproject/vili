@@ -77,9 +77,9 @@
 			"importpath": "github.com/aws/aws-sdk-go/aws",
 			"repository": "https://github.com/aws/aws-sdk-go",
 			"vcs": "git",
-			"revision": "090ac38629ae46c5ccc576820f7516e2f2389109",
-			"branch": "HEAD",
-			"path": "aws",
+			"revision": "8df786dd79b07878e6b6021e95b6e2417b06cbf4",
+			"branch": "master",
+			"path": "/aws",
 			"notests": true
 		},
 		{
@@ -89,6 +89,15 @@
 			"revision": "101d2e228fea0ab462a7e0180c607290c4850f15",
 			"branch": "master",
 			"path": "awstesting",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/aws/aws-sdk-go/internal/shareddefaults",
+			"repository": "https://github.com/aws/aws-sdk-go",
+			"vcs": "git",
+			"revision": "8df786dd79b07878e6b6021e95b6e2417b06cbf4",
+			"branch": "master",
+			"path": "internal/shareddefaults",
 			"notests": true
 		},
 		{
@@ -365,7 +374,7 @@
 			"importpath": "github.com/aws/aws-sdk-go/service/ecr",
 			"repository": "https://github.com/aws/aws-sdk-go",
 			"vcs": "git",
-			"revision": "101d2e228fea0ab462a7e0180c607290c4850f15",
+			"revision": "8df786dd79b07878e6b6021e95b6e2417b06cbf4",
 			"branch": "master",
 			"path": "service/ecr",
 			"notests": true

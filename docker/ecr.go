@@ -2,10 +2,7 @@ package docker
 
 import (
 	"errors"
-	"strconv"
 	"strings"
-	"sync"
-	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -21,7 +18,6 @@ type ECRConfig struct {
 	AccessKeyID     string
 	SecretAccessKey string
 	Namespace       string
-	BranchDelimiter string
 	RegistryID      *string
 }
 
@@ -61,31 +57,8 @@ func InitECR(c *ECRConfig) error {
 
 // GetRepository implements the Service interface
 func (s *ECRService) GetRepository(repo string, branches []string) ([]*Image, error) {
-	var waitGroup sync.WaitGroup
-	imagesChan := make(chan getImagesResult, len(branches))
-
-	for _, branch := range branches {
-		waitGroup.Add(1)
-		go func(branch string) {
-			defer waitGroup.Done()
-			images, err := s.getImagesForBranch(repo, branch)
-			imagesChan <- getImagesResult{images: images, err: err}
-		}(branch)
-	}
-
-	waitGroup.Wait()
-	close(imagesChan)
-
-	var images []*Image
-	var err error
-	for result := range imagesChan {
-		if result.err != nil {
-			err = result.err
-		}
-		images = append(images, result.images...)
-	}
-
-	if len(images) == 0 && err != nil {
+	images, err := s.getImagesForBranches(repo, branches)
+	if err != nil {
 		return nil, err
 	}
 
@@ -94,8 +67,8 @@ func (s *ECRService) GetRepository(repo string, branches []string) ([]*Image, er
 }
 
 // GetTag implements the Service interface
-func (s *ECRService) GetTag(repo, branch, tag string) (string, error) {
-	fullRepoName := s.getRepositoryForBranch(repo, branch)
+func (s *ECRService) GetTag(repo, tag string) (string, error) {
+	fullRepoName := s.fullRepositoryName(repo)
 
 	resp, err := s.ecr.BatchGetImage(&ecr.BatchGetImageInput{
 		ImageIds: []*ecr.ImageIdentifier{
@@ -118,10 +91,10 @@ func (s *ECRService) GetTag(repo, branch, tag string) (string, error) {
 }
 
 // FullName implements the Service interface
-func (s *ECRService) FullName(repo, branch, tag string) (string, error) {
+func (s *ECRService) FullName(repo, tag string) (string, error) {
 	resp, err := s.ecr.DescribeRepositories(&ecr.DescribeRepositoriesInput{
 		RepositoryNames: []*string{
-			aws.String(s.getRepositoryForBranch(repo, branch)),
+			aws.String(s.fullRepositoryName(repo)),
 		},
 		RegistryId: s.config.RegistryID,
 	})
@@ -134,38 +107,41 @@ func (s *ECRService) FullName(repo, branch, tag string) (string, error) {
 	return *resp.Repositories[0].RepositoryUri + ":" + tag, nil
 }
 
-func (s *ECRService) getImagesForBranch(repoName, branchName string) ([]*Image, error) {
-	fullRepoName := s.getRepositoryForBranch(repoName, branchName)
+func (s *ECRService) getImagesForBranches(repoName string, branchNames []string) ([]*Image, error) {
+	fullRepoName := s.fullRepositoryName(repoName)
 
 	var images []*Image
 	var nextToken *string
 
 	for {
-		resp, err := s.ecr.ListImages(&ecr.ListImagesInput{
-			RepositoryName: aws.String(fullRepoName),
+		resp, err := s.ecr.DescribeImages(&ecr.DescribeImagesInput{
+			RepositoryName: &fullRepoName,
 			NextToken:      nextToken,
 			RegistryId:     s.config.RegistryID,
+			Filter: &ecr.DescribeImagesFilter{
+				TagStatus: aws.String("TAGGED"),
+			},
 		})
 		if err != nil {
 			return images, err
 		}
-		for _, imageID := range resp.ImageIds {
-			if imageID.ImageTag != nil {
+		for _, imageDetails := range resp.ImageDetails {
+			for _, tag := range imageDetails.ImageTags {
 				image := &Image{
-					Tag:    *imageID.ImageTag,
-					Branch: branchName,
+					Tag:          *tag,
+					LastModified: *imageDetails.ImagePushedAt,
 				}
-				sepIndex := strings.LastIndex(*imageID.ImageTag, "-")
+				sepIndex := strings.LastIndex(*tag, "-")
 				if sepIndex != -1 {
-					dateComponent, shaComponent := (*imageID.ImageTag)[:sepIndex], (*imageID.ImageTag)[sepIndex+1:]
-					unixSecs, err := strconv.ParseInt(dateComponent, 10, 0)
-					if err != nil {
-						continue
-					}
+					branchComponent, shaComponent := (*tag)[:sepIndex], (*tag)[sepIndex+1:]
 					image.Revision = shaComponent
-					image.LastModified = time.Unix(unixSecs, 0)
+					for _, branchName := range branchNames {
+						if branchComponent == slugFromBranch(branchName) {
+							image.Branch = branchName
+							images = append(images, image)
+						}
+					}
 				}
-				images = append(images, image)
 			}
 		}
 		if resp.NextToken == nil {
@@ -175,12 +151,13 @@ func (s *ECRService) getImagesForBranch(repoName, branchName string) ([]*Image, 
 	}
 }
 
-func (s *ECRService) getRepositoryForBranch(repoName, branchName string) string {
+func (s *ECRService) fullRepositoryName(repoName string) string {
 	if s.config.Namespace != "" {
-		repoName = s.config.Namespace + "/" + repoName
+		return s.config.Namespace + "/" + repoName
 	}
-	if branchName == "master" {
-		return repoName
-	}
-	return repoName + s.config.BranchDelimiter + strings.ToLower(branchName)
+	return repoName
+}
+
+func slugFromBranch(branch string) string {
+	return strings.ToLower(strings.Replace(branch, "/", "-", -1))
 }
