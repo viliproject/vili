@@ -20,15 +20,15 @@ jobs:
           keys:
             # Find a cache corresponding to this specific package.json checksum
             # when this file is changed, this key will fail
-            - npm-deps-{{ checksum "package.json" }}
+            - npm-deps-v5-{{ checksum "package.json" }}
             # Find the most recent cache used from any branch
-            - npm-deps
+            - npm-deps-v5-
       - run:
           name: Install dependencies
           command: |
             npm install
       - save_cache:
-          key: npm-deps-{{ checksum "package.json" }}
+          key: npm-deps-v5-{{ checksum "package.json" }}
           paths:
             - node_modules
       - run:
