@@ -1,4 +1,4 @@
-FROM golang:1.9.1-alpine3.6
+FROM golang:1.10.1-alpine3.7
 
 RUN apk add -U --no-cache \
     musl-dev \
@@ -27,7 +27,7 @@ RUN CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags '-s' -o main
 RUN npm run build
 
 # second stage, just have the compiled binary
-FROM alpine:3.6
+FROM alpine:3.7
 
 RUN apk --no-cache add curl ca-certificates xmlsec && update-ca-certificates
 

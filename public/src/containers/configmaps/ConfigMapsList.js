@@ -1,65 +1,70 @@
-import PropTypes from 'prop-types'
-import React from 'react'
-import { connect } from 'react-redux'
-import { Link } from 'react-router'
+import PropTypes from "prop-types"
+import React from "react"
+import { connect } from "react-redux"
+import { Link } from "react-router-dom"
 
-import Table from '../../components/Table'
-import { activateNav } from '../../actions/app'
-import { makeLookUpObjects } from '../../selectors'
-import ConfigMapRow from './ConfigMapRow'
+import Table from "../../components/Table"
+import { activateNav } from "../../actions/app"
+import { makeLookUpObjects } from "../../selectors"
 
-function makeMapStateToProps () {
+import ConfigMapsListRow from "./ConfigMapsListRow"
+
+function makeMapStateToProps() {
   const lookUpObjects = makeLookUpObjects()
   return (state, ownProps) => {
-    const { env: envName } = ownProps.params
-    const env = state.envs.getIn(['envs', envName])
-    const configmaps = lookUpObjects(state.configmaps, env.name)
+    const { envName } = ownProps
+    const env = state.envs.getIn(["envs", envName])
+    const configmaps = lookUpObjects(state.configmaps, envName)
     return {
       env,
-      configmaps
+      configmaps,
     }
   }
 }
 
 const dispatchProps = {
-  activateNav
+  activateNav,
 }
 
 export class ConfigMapsList extends React.Component {
-  componentDidMount () {
-    this.props.activateNav('configmaps')
+  componentDidMount() {
+    this.props.activateNav("configmaps")
   }
 
-  render () {
-    const { params, env, configmaps } = this.props
+  render() {
+    const { envName, env, configmaps } = this.props
     const header = (
-      <div className='view-header'>
-        <ol className='breadcrumb'>
-          <li><Link to={`/${params.env}`}>{params.env}</Link></li>
-          <li className='active'>Config Maps</li>
+      <div className="view-header">
+        <ol className="breadcrumb">
+          <li>
+            <Link to={`/${envName}`}>{envName}</Link>
+          </li>
+          <li className="active">Config Maps</li>
         </ol>
       </div>
     )
 
     const columns = [
-      {title: 'Name', key: 'name'},
-      {title: 'Key Count', key: 'key-count'},
-      {title: 'Created', key: 'created'}
+      { title: "Name", key: "name" },
+      { title: "Key Count", key: "key-count" },
+      { title: "Created", key: "created" },
     ]
 
     const rows = []
-    env.configmaps.forEach((configmapName) => {
-      const configmap = configmaps.find((d) => d.getIn(['metadata', 'name']) === configmapName)
+    env.configmaps.forEach(configmapName => {
+      const configmap = configmaps.find(
+        d => d.getIn(["metadata", "name"]) === configmapName
+      )
       rows.push({
         component: (
-          <ConfigMapRow
+          <ConfigMapsListRow
             key={configmapName}
-            env={params.env}
+            envName={envName}
             name={configmapName}
             configmap={configmap}
           />
         ),
-        key: configmapName
+        key: configmapName,
       })
     })
 
@@ -70,15 +75,13 @@ export class ConfigMapsList extends React.Component {
       </div>
     )
   }
-
 }
 
 ConfigMapsList.propTypes = {
-  activateNav: PropTypes.func,
-  params: PropTypes.object,
-  location: PropTypes.object,
+  envName: PropTypes.string,
   env: PropTypes.object,
-  configmaps: PropTypes.object
+  configmaps: PropTypes.object,
+  activateNav: PropTypes.func,
 }
 
 export default connect(makeMapStateToProps, dispatchProps)(ConfigMapsList)

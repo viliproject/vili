@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/airware/vili/log"
+	"github.com/labstack/echo"
 	"golang.org/x/net/websocket"
-	echo "gopkg.in/labstack/echo.v1"
 	extv1beta1 "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -21,7 +21,7 @@ var (
 	}
 )
 
-func parseQueryFields(c *echo.Context) map[string]bool {
+func parseQueryFields(c echo.Context) map[string]bool {
 	queryFields := make(map[string]bool)
 	requestFields := c.Request().URL.Query().Get("fields")
 	if requestFields != "" {
@@ -32,7 +32,7 @@ func parseQueryFields(c *echo.Context) map[string]bool {
 	return queryFields
 }
 
-func getListOptionsFromRequest(c *echo.Context) metav1.ListOptions {
+func getListOptionsFromRequest(c echo.Context) metav1.ListOptions {
 	return metav1.ListOptions{
 		LabelSelector:   c.Request().URL.Query().Get("labelSelector"),
 		FieldSelector:   c.Request().URL.Query().Get("fieldSelector"),
@@ -87,7 +87,7 @@ type apiEvent struct {
 	Object runtime.Object  `json:"object"`
 }
 
-func apiWatchWebsocket(c *echo.Context, query metav1.ListOptions, watchFunc apiWatcher) (err error) {
+func apiWatchWebsocket(c echo.Context, query metav1.ListOptions, watchFunc apiWatcher) (err error) {
 	websocket.Handler(func(ws *websocket.Conn) {
 		err = apiWatchHandler(ws, query, watchFunc)
 		ws.Close()

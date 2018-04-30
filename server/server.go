@@ -11,9 +11,9 @@ import (
 	"github.com/airware/vili/errors"
 	"github.com/airware/vili/log"
 	"github.com/airware/vili/middleware"
+	"github.com/labstack/echo"
+	mw "github.com/labstack/echo/middleware"
 	"github.com/tylerb/graceful"
-	"gopkg.in/labstack/echo.v1"
-	mw "gopkg.in/labstack/echo.v1/middleware"
 	kubeErrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
@@ -46,16 +46,16 @@ func New(config *Config) *Server {
 		e.Use(echo.MiddlewareFunc(middleware))
 	}
 
-	e.Get("/admin/health", makeHealthCheck(config.HealthCheck))
+	e.GET("/admin/health", makeHealthCheck(config.HealthCheck))
 	// TODO admin health details
-	e.Get("/admin/stats", statsHandler)
-	e.Post("/admin/logging/:level", logHandler)
+	e.GET("/admin/stats", statsHandler)
+	e.POST("/admin/logging/:level", logHandler)
 
 	s := &Server{
 		e: e,
 		c: config,
 	}
-	s.e.SetHTTPErrorHandler(s.httpErrorHandler)
+	s.e.HTTPErrorHandler = s.httpErrorHandler
 	return s
 }
 
@@ -91,7 +91,7 @@ func (s *Server) StopTest() {
 }
 
 // httpErrorHandler is identical to echo.DefaultHTTPErrorHandler except for using the right logger
-func (s *Server) httpErrorHandler(err error, c *echo.Context) {
+func (s *Server) httpErrorHandler(err error, c echo.Context) {
 	code := http.StatusInternalServerError
 	switch e := err.(type) {
 	case *kubeErrors.StatusError:
@@ -101,7 +101,7 @@ func (s *Server) httpErrorHandler(err error, c *echo.Context) {
 		ErrorResponse(c, e)
 		return
 	case *echo.HTTPError:
-		code = e.Code()
+		code = e.Code
 		if code == http.StatusNotFound {
 			c.JSON(code, errors.NotFound(""))
 			return
@@ -114,13 +114,13 @@ func (s *Server) httpErrorHandler(err error, c *echo.Context) {
 	}
 	msg := http.StatusText(code)
 	if he, ok := err.(*echo.HTTPError); ok {
-		code = he.Code()
+		code = he.Code
 		msg = he.Error()
 	}
-	if s.e.Debug() {
+	if s.e.Debug {
 		msg = err.Error()
 	}
-	if !c.Response().Committed() {
+	if !c.Response().Committed {
 		http.Error(c.Response(), msg, code)
 	}
 }
@@ -130,8 +130,8 @@ func (s *Server) Echo() *echo.Echo {
 	return s.e
 }
 
-func makeHealthCheck(hcFunc func() error) func(c *echo.Context) error {
-	return func(c *echo.Context) error {
+func makeHealthCheck(hcFunc func() error) func(c echo.Context) error {
+	return func(c echo.Context) error {
 		if hcFunc == nil {
 			return echo.NewHTTPError(http.StatusNotImplemented, "Not Implemented")
 		}
@@ -145,7 +145,7 @@ func makeHealthCheck(hcFunc func() error) func(c *echo.Context) error {
 	}
 }
 
-func statsHandler(c *echo.Context) error {
+func statsHandler(c echo.Context) error {
 	c.Response().Header().Set("Content-Type", "application/json; charset=utf-8")
 	fmt.Fprintf(c.Response(), "{\n")
 	first := true
@@ -160,7 +160,7 @@ func statsHandler(c *echo.Context) error {
 	return nil
 }
 
-func logHandler(c *echo.Context) error {
+func logHandler(c echo.Context) error {
 	logLevel := c.Param("level")
 	err := log.SetLevel(logLevel)
 	if err != nil {

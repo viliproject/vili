@@ -1,24 +1,24 @@
-import Immutable from 'immutable'
+import Immutable from "immutable"
 
-import displayTime from '../lib/displayTime'
-import { defaultFields } from './utils'
+import displayTime from "../lib/displayTime"
+import { defaultFields } from "./utils"
 
 export default class Job extends Immutable.Record({
-  ...defaultFields
+  ...defaultFields,
 }) {
-  getLabel (key) {
-    return this.getIn(['metadata', 'labels', key])
+  getLabel(key) {
+    return this.getIn(["metadata", "labels", key])
   }
 
-  hasLabel (key, value) {
+  hasLabel(key, value) {
     return this.getLabel(key) === value
   }
 
-  get creationTimestamp () {
-    return new Date(this.getIn(['metadata', 'creationTimestamp']))
+  get creationTimestamp() {
+    return new Date(this.getIn(["metadata", "creationTimestamp"]))
   }
 
-  get createdAt () {
+  get createdAt() {
     return displayTime(this.creationTimestamp)
   }
 }

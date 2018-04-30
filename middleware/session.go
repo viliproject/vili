@@ -6,13 +6,13 @@ import (
 	"strings"
 
 	"github.com/airware/vili/session"
-	echo "gopkg.in/labstack/echo.v1"
+	"github.com/labstack/echo"
 )
 
 // Session logs the user in using the configured session service
 func Session() echo.MiddlewareFunc {
 	return func(h echo.HandlerFunc) echo.HandlerFunc {
-		return func(c *echo.Context) error {
+		return func(c echo.Context) error {
 			if !strings.HasPrefix(c.Request().URL.Path, "/admin/") {
 				user, err := session.GetUser(c.Request())
 				if err != nil {
@@ -33,7 +33,7 @@ func Session() echo.MiddlewareFunc {
 
 // RequireUser redirects to the login page if the user is not logged in
 func RequireUser(h echo.HandlerFunc) echo.HandlerFunc {
-	return func(c *echo.Context) error {
+	return func(c echo.Context) error {
 		if c.Get("user") == nil {
 			redirectTo := c.Request().URL.String()
 			if redirectTo == "/logout" {

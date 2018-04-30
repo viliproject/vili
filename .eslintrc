@@ -1,7 +1,7 @@
 {
-  "extends": ["standard", "standard-react"],
+  "extends": ["pretty-standard"],
   "parser": "babel-eslint",
-  "plugins": ["react", "import"],
+  "plugins": ["react", "import", "prettier"],
   "rules": {
     "import/no-unresolved": ["error"],
     "import/named": ["error"],
@@ -23,6 +23,7 @@
     "react/jsx-no-bind": ["warn"],
     "react/require-render-return": ["warn"],
     "react/no-multi-comp": ["warn", { "ignoreStateless": true }],
-    "react/prefer-es6-class": ["warn"]
+    "react/prefer-es6-class": ["warn"],
+    "prettier/prettier": ["error", {"semi": false, "trailingComma": "es5"}]
   }
 }

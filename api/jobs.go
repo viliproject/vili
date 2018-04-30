@@ -7,10 +7,10 @@ import (
 	"github.com/airware/vili/environments"
 	"github.com/airware/vili/kube"
 	"github.com/airware/vili/templates"
-	echo "gopkg.in/labstack/echo.v1"
+	"github.com/labstack/echo"
 )
 
-func jobsGetHandler(c *echo.Context) error {
+func jobsGetHandler(c echo.Context) error {
 	env := c.Param("env")
 
 	endpoint := kube.GetClient(env).Jobs()
@@ -28,7 +28,7 @@ func jobsGetHandler(c *echo.Context) error {
 	return c.JSON(http.StatusOK, resp)
 }
 
-func jobDeleteHandler(c *echo.Context) error {
+func jobDeleteHandler(c echo.Context) error {
 	env := c.Param("env")
 	job := c.Param("job")
 
@@ -45,7 +45,7 @@ type jobRepositoryResponse struct {
 	Images []*docker.Image `json:"images,omitempty"`
 }
 
-func jobRepositoryGetHandler(c *echo.Context) error {
+func jobRepositoryGetHandler(c echo.Context) error {
 	env := c.Param("env")
 	job := c.Param("job")
 
@@ -68,7 +68,7 @@ type jobSpecResponse struct {
 	Spec string `json:"spec,omitempty"`
 }
 
-func jobSpecGetHandler(c *echo.Context) error {
+func jobSpecGetHandler(c echo.Context) error {
 	env := c.Param("env")
 	job := c.Param("job")
 

@@ -8,8 +8,8 @@ import (
 
 	"github.com/airware/vili/kube"
 	"github.com/airware/vili/log"
+	"github.com/labstack/echo"
 	"golang.org/x/net/websocket"
-	echo "gopkg.in/labstack/echo.v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/rest"
 )
@@ -18,7 +18,7 @@ var (
 	podLogQueryParams = []string{"sinceSeconds", "sinceTime"}
 )
 
-func podsHandler(c *echo.Context) error {
+func podsHandler(c echo.Context) error {
 	env := c.Param("env")
 
 	endpoint := kube.GetClient(env).Pods()
@@ -36,7 +36,7 @@ func podsHandler(c *echo.Context) error {
 	return c.JSON(http.StatusOK, resp)
 }
 
-func podLogHandler(c *echo.Context) error {
+func podLogHandler(c echo.Context) error {
 	env := c.Param("env")
 	name := c.Param("pod")
 
@@ -61,7 +61,7 @@ func podLogHandler(c *echo.Context) error {
 	return c.String(http.StatusOK, string(output))
 }
 
-func parsePodLogOptions(c *echo.Context) *corev1.PodLogOptions {
+func parsePodLogOptions(c echo.Context) *corev1.PodLogOptions {
 	urlQuery := c.Request().URL.Query()
 	query := &corev1.PodLogOptions{}
 	query.Follow, _ = strconv.ParseBool(urlQuery.Get("follow"))
@@ -113,7 +113,7 @@ func podLogWatchHandler(ws *websocket.Conn, request *rest.Request) error {
 	return nil
 }
 
-func podDeleteHandler(c *echo.Context) error {
+func podDeleteHandler(c echo.Context) error {
 	env := c.Param("env")
 	pod := c.Param("pod")
 

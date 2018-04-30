@@ -1,15 +1,14 @@
-import Immutable from 'immutable'
+import Immutable from "immutable"
 
 export default class Environment extends Immutable.Record({
-  name: '',
-  branch: '',
+  name: "",
+  branch: "",
   repositoryBranches: Immutable.List(),
   autodeployBranches: Immutable.List(),
   protected: false,
-  deployedToEnv: '',
-  approvedFromEnv: '',
+  deployedToEnv: "",
+  approvedFromEnv: "",
   jobs: Immutable.List(),
   deployments: Immutable.List(),
-  configmaps: Immutable.List()
-}) {
-}
+  configmaps: Immutable.List(),
+}) {}

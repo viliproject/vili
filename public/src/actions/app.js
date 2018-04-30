@@ -1,29 +1,43 @@
-import * as Constants from '../constants'
+import {
+  SET_ENV,
+  ACTIVATE_NAV,
+  ACTIVATE_DEPLOYMENT_TAB,
+  ACTIVATE_JOB_TAB,
+} from "../constants"
 
-export function activateNav (item, subItem) {
+export function setEnv(env) {
   return {
-    type: Constants.ACTIVATE_NAV,
+    type: SET_ENV,
     payload: {
-      item: item,
-      subItem: subItem
-    }
+      env,
+    },
   }
 }
 
-export function activateDeploymentTab (tab) {
+export function activateNav(item, subItem) {
   return {
-    type: Constants.ACTIVATE_DEPLOYMENT_TAB,
+    type: ACTIVATE_NAV,
     payload: {
-      tab: tab
-    }
+      item,
+      subItem,
+    },
   }
 }
 
-export function activateJobTab (tab) {
+export function activateDeploymentTab(tab) {
   return {
-    type: Constants.ACTIVATE_JOB_TAB,
+    type: ACTIVATE_DEPLOYMENT_TAB,
     payload: {
-      tab: tab
-    }
+      tab,
+    },
+  }
+}
+
+export function activateJobTab(tab) {
+  return {
+    type: ACTIVATE_JOB_TAB,
+    payload: {
+      tab,
+    },
   }
 }

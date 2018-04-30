@@ -4,10 +4,10 @@ import (
 	"net/http"
 
 	"github.com/airware/vili/git"
-	echo "gopkg.in/labstack/echo.v1"
+	"github.com/labstack/echo"
 )
 
-func branchesGetHandler(c *echo.Context) error {
+func branchesGetHandler(c echo.Context) error {
 	branches, err := git.Branches()
 	if err != nil {
 		return err

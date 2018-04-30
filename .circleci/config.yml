@@ -3,7 +3,7 @@ version: 2
 jobs:
   go:
     docker:
-      - image: circleci/golang:1.8
+      - image: circleci/golang:1.10
     working_directory: /go/src/github.com/airware/vili
     steps:
       - checkout
@@ -13,28 +13,32 @@ jobs:
             go build -a
   js:
     docker:
-      - image: circleci/node:7
+      - image: circleci/node:8
     steps:
       - checkout
       - restore_cache:
           keys:
             # Find a cache corresponding to this specific package.json checksum
             # when this file is changed, this key will fail
-            - npm-deps-{{ checksum "package.json" }}
+            - npm-deps-v5-{{ checksum "package.json" }}
             # Find the most recent cache used from any branch
-            - npm-deps
+            - npm-deps-v5-
       - run:
           name: Install dependencies
           command: |
             npm install
       - save_cache:
-          key: npm-deps-{{ checksum "package.json" }}
+          key: npm-deps-v5-{{ checksum "package.json" }}
           paths:
             - node_modules
       - run:
           name: Build
           command: |
             npm run build
+      - run:
+          name: Lint
+          command: |
+            npm run lint
 
   release:
     docker:

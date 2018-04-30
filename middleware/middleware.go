@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"gopkg.in/labstack/echo.v1"
+	"github.com/labstack/echo"
 )
 
 // Func wraps the echo middleware func

@@ -5,8 +5,7 @@ import (
 
 	"github.com/airware/vili/server"
 	"github.com/airware/vili/session"
-
-	"gopkg.in/labstack/echo.v1"
+	"github.com/labstack/echo"
 )
 
 // Null implements a the auth Service interface and always auths
@@ -20,7 +19,7 @@ func InitNullAuthService() error {
 
 // AddHandlers implements the Service interface
 func (s *Null) AddHandlers(srv *server.Server) {
-	srv.Echo().Get("/login", s.loginHandler)
+	srv.Echo().GET("/login", s.loginHandler)
 }
 
 // Cleanup is a noop with the null handler
@@ -28,7 +27,7 @@ func (s *Null) Cleanup() {
 	return
 }
 
-func (s *Null) loginHandler(c *echo.Context) error {
+func (s *Null) loginHandler(c echo.Context) error {
 	err := session.Login(c.Request(), c.Response(), &session.User{
 		Email:     "dev@dev.local",
 		Username:  "dev@dev.local",

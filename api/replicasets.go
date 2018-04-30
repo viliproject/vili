@@ -4,10 +4,10 @@ import (
 	"net/http"
 
 	"github.com/airware/vili/kube"
-	echo "gopkg.in/labstack/echo.v1"
+	"github.com/labstack/echo"
 )
 
-func replicaSetsGetHandler(c *echo.Context) error {
+func replicaSetsGetHandler(c echo.Context) error {
 	env := c.Param("env")
 
 	endpoint := kube.GetClient(env).ReplicaSets()

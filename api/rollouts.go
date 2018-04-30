@@ -14,14 +14,14 @@ import (
 	"github.com/airware/vili/server"
 	"github.com/airware/vili/session"
 	"github.com/airware/vili/templates"
-	echo "gopkg.in/labstack/echo.v1"
+	"github.com/labstack/echo"
 	extv1beta1 "k8s.io/api/extensions/v1beta1"
 	kubeErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 )
 
-func rolloutCreateHandler(c *echo.Context) error {
+func rolloutCreateHandler(c echo.Context) error {
 	env := c.Param("env")
 	deploymentName := c.Param("deployment")
 

@@ -5,7 +5,7 @@ import (
 
 	"github.com/airware/vili/server"
 	"github.com/airware/vili/session"
-	"gopkg.in/labstack/echo.v1"
+	"github.com/labstack/echo"
 )
 
 var service Service
@@ -19,7 +19,7 @@ type Service interface {
 // AddHandlers adds auth handlers to the server
 func AddHandlers(s *server.Server) {
 	service.AddHandlers(s)
-	s.Echo().Get("/logout", logoutHandler)
+	s.Echo().GET("/logout", logoutHandler)
 }
 
 // Cleanup cleans up the auth service
@@ -27,7 +27,7 @@ func Cleanup() {
 	service.Cleanup()
 }
 
-func logoutHandler(c *echo.Context) error {
+func logoutHandler(c echo.Context) error {
 	err := session.Logout(c.Request(), c.Response())
 	if err != nil {
 		return err

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	echo "gopkg.in/labstack/echo.v1"
+	"github.com/labstack/echo"
 
 	"github.com/airware/vili/config"
 	"github.com/airware/vili/environments"
@@ -34,7 +34,7 @@ type AppConfig struct {
 	Envs       []*environments.Environment `json:"envs"`
 }
 
-func homeHandler(c *echo.Context) error {
+func homeHandler(c echo.Context) error {
 	if c.Get("user") == nil {
 		staticLiveReload := config.GetBool(config.StaticLiveReload)
 		return c.HTML(
@@ -45,7 +45,7 @@ func homeHandler(c *echo.Context) error {
 	return appHandler(c)
 }
 
-func appHandler(c *echo.Context) error {
+func appHandler(c echo.Context) error {
 	envs := environments.Environments()
 	user, _ := c.Get("user").(*session.User)
 

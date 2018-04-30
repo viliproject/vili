@@ -22,12 +22,12 @@ import (
 	"github.com/airware/vili/templates"
 	"github.com/airware/vili/types"
 	"github.com/asaskevich/govalidator"
-	echo "gopkg.in/labstack/echo.v1"
+	"github.com/labstack/echo"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func releasesGetHandler(c *echo.Context) error {
+func releasesGetHandler(c echo.Context) error {
 	env := c.Param("env")
 
 	environment, err := environments.Get(env)
@@ -143,7 +143,7 @@ func getReleaseEvent(firebaseEvent firebase.Event) *ReleaseEvent {
 	return nil
 }
 
-func releaseSpecGetHandler(c *echo.Context) error {
+func releaseSpecGetHandler(c echo.Context) error {
 	env := c.Param("env")
 
 	environment, err := environments.Get(env)
@@ -164,7 +164,7 @@ func releaseSpecGetHandler(c *echo.Context) error {
 	return c.JSON(http.StatusOK, release)
 }
 
-func releaseCreateHandler(c *echo.Context) error {
+func releaseCreateHandler(c echo.Context) error {
 	env := c.Param("env")
 	environment, err := environments.Get(env)
 	if err != nil {
@@ -172,7 +172,7 @@ func releaseCreateHandler(c *echo.Context) error {
 	}
 
 	release := new(types.Release)
-	if c.Query("latest") == "" {
+	if c.QueryParam("latest") == "" {
 		// get release metadata from the request
 		err = json.NewDecoder(c.Request().Body).Decode(release)
 		if err != nil {
@@ -235,7 +235,7 @@ func releaseCreateHandler(c *echo.Context) error {
 	return c.JSON(http.StatusOK, release)
 }
 
-func releaseDeleteHandler(c *echo.Context) error {
+func releaseDeleteHandler(c echo.Context) error {
 	env := c.Param("env")
 	name := c.Param("release")
 	environment, err := environments.Get(env)
@@ -260,7 +260,7 @@ func releaseDeleteHandler(c *echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
-func releaseDeployHandler(c *echo.Context) error {
+func releaseDeployHandler(c echo.Context) error {
 	env := c.Param("env")
 	name := c.Param("release")
 	environment, err := environments.Get(env)

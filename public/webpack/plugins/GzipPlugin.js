@@ -1,23 +1,23 @@
-'use strict'
-const zlib = require('zlib')
-const RawSource = require('webpack/lib/RawSource')
+"use strict"
+const zlib = require("zlib")
+const RawSource = require("webpack-sources").RawSource
 
 class GzipPlugin {
-  constructor () {
+  constructor() {
     this.regExp = /\.js$|\.css$/
     this.compress = this.compress.bind(this)
   }
 
-  apply (compiler) {
-    compiler.plugin('this-compilation', (compilation) => {
-      compilation.plugin('optimize-assets', this.compress)
+  apply(compiler) {
+    compiler.plugin("this-compilation", compilation => {
+      compilation.plugin("optimize-assets", this.compress)
     })
   }
 
-  compress (assets, cb) {
+  compress(assets, cb) {
     var tasks = []
 
-    Object.keys(assets).forEach((file) => {
+    Object.keys(assets).forEach(file => {
       const task = new Promise((resolve, reject) => {
         if (!this.regExp.test(file)) {
           return resolve()
@@ -35,9 +35,9 @@ class GzipPlugin {
             return reject(err)
           }
 
-          const fileParts = file.split('.')
+          const fileParts = file.split(".")
           const ext = fileParts.pop()
-          assets[fileParts.join('.') + '.gz.' + ext] = new RawSource(result)
+          assets[fileParts.join(".") + ".gz." + ext] = new RawSource(result)
           return resolve()
         })
       })

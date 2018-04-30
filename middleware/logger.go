@@ -5,20 +5,20 @@ import (
 	"time"
 
 	"github.com/airware/vili/log"
-	"gopkg.in/labstack/echo.v1"
+	"github.com/labstack/echo"
 )
 
 // Logger logs relevant information about the request and the response
 func Logger(name string) echo.MiddlewareFunc {
 	return func(h echo.HandlerFunc) echo.HandlerFunc {
-		return func(c *echo.Context) error {
+		return func(c echo.Context) error {
 			req := c.Request()
 			res := c.Response()
 
 			remoteAddr := req.RemoteAddr
-			if ip := req.Header.Get(echo.XRealIP); ip != "" {
+			if ip := req.Header.Get(echo.HeaderXRealIP); ip != "" {
 				remoteAddr = ip
-			} else if ip = req.Header.Get(echo.XForwardedFor); ip != "" {
+			} else if ip = req.Header.Get(echo.HeaderXForwardedFor); ip != "" {
 				remoteAddr = ip
 			}
 			remoteAddr, _, _ = net.SplitHostPort(remoteAddr)
@@ -39,12 +39,12 @@ func Logger(name string) echo.MiddlewareFunc {
 				"uri":        req.RequestURI,
 				"path":       path,
 				"remoteAddr": remoteAddr,
-				"status":     res.Status(),
+				"status":     res.Status,
 				"duration":   stop.Sub(start),
-				"size":       res.Size(),
+				"size":       res.Size,
 			}
 
-			n := res.Status()
+			n := res.Status
 			switch {
 			case n >= 500:
 				log.WithFields(fields).Error(name + ".request")

@@ -1,41 +1,45 @@
-import Immutable from 'immutable'
+import Immutable from "immutable"
 
-import displayTime from '../lib/displayTime'
-import { defaultFields } from './utils'
+import displayTime from "../lib/displayTime"
+import { defaultFields } from "./utils"
 
 export default class Pod extends Immutable.Record({
-  ...defaultFields
+  ...defaultFields,
 }) {
-  getLabel (key) {
-    return this.getIn(['metadata', 'labels', key])
+  getLabel(key) {
+    return this.getIn(["metadata", "labels", key])
   }
 
-  hasLabel (key, value) {
+  hasLabel(key, value) {
     return this.getLabel(key) === value
   }
 
-  getAnnotation (key) {
-    return this.getIn(['metadata', 'annotations', key])
+  getAnnotation(key) {
+    return this.getIn(["metadata", "annotations", key])
   }
 
-  get createdAt () {
-    return displayTime(new Date(this.getIn(['metadata', 'creationTimestamp'])))
+  get createdAt() {
+    return displayTime(new Date(this.getIn(["metadata", "creationTimestamp"])))
   }
 
-  get imageTag () {
-    return this.getIn(['spec', 'containers', 0, 'image'], ':').split(':')[1]
+  get imageTag() {
+    return this.getIn(["spec", "containers", 0, "image"], ":").split(":")[1]
   }
 
-  get imageBranch () {
-    return this.getAnnotation('vili/branch')
+  get imageBranch() {
+    return this.getAnnotation("vili/branch")
   }
 
-  get deployedBy () {
-    return this.getAnnotation('vili/deployedBy')
+  get deployedBy() {
+    return this.getAnnotation("vili/deployedBy")
   }
 
-  get isReady () {
-    return this.getIn(['status', 'phase']) === 'Running' &&
-           this.getIn(['status', 'containerStatuses'], Immutable.List()).every((cs) => cs.get('ready'))
+  get isReady() {
+    return (
+      this.getIn(["status", "phase"]) === "Running" &&
+      this.getIn(["status", "containerStatuses"], Immutable.List()).every(cs =>
+        cs.get("ready")
+      )
+    )
   }
 }

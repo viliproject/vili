@@ -1,9 +1,9 @@
-import querystring from 'querystring'
-import request from 'browser-request'
-import WebSocketClient from './WebSocketClient'
+import querystring from "querystring"
+import request from "browser-request"
+import WebSocketClient from "./WebSocketClient"
 
 class Response {
-  constructor (results, error, res) {
+  constructor(results, error, res) {
     this.results = results || null
     this.error = error || null
     this.res = res
@@ -11,65 +11,69 @@ class Response {
 }
 
 export default class HttpClient {
-  static all = function (httpRequests) {
+  static all = function(httpRequests) {
     return Promise.all(httpRequests)
-  };
+  }
 
-  static series = function (httpRequestPairs) {
-    return Promise.reduce(httpRequestPairs, (i, pair) => {
-      const [httpRequest, params] = pair
-      return httpRequest.apply(null, params)
-    }, 0)
-  };
+  static series = function(httpRequestPairs) {
+    return Promise.reduce(
+      httpRequestPairs,
+      (i, pair) => {
+        const [httpRequest, params] = pair
+        return httpRequest.apply(null, params)
+      },
+      0
+    )
+  }
 
-  constructor (baseURL) {
-    this.baseURL = baseURL || ''
+  constructor(baseURL) {
+    this.baseURL = baseURL || ""
     this.hooks = []
   }
 
-  addHook (cb) {
+  addHook(cb) {
     this.hooks.push(cb)
   }
 
-  get (opts) {
-    return this.send('GET', opts)
+  get(opts) {
+    return this.send("GET", opts)
   }
 
-  post (opts) {
-    return this.send('POST', opts)
+  post(opts) {
+    return this.send("POST", opts)
   }
 
-  postForm (opts) {
+  postForm(opts) {
     let o = Object.assign({}, opts)
     delete o.form
     let form = opts.form
     o.body = querystring.stringify(form)
 
     o.headers = Object.assign({}, o.headers, {
-      'content-type': 'application/x-www-form-urlencoded'
+      "content-type": "application/x-www-form-urlencoded",
     })
 
-    return this.send('POST', o)
+    return this.send("POST", o)
   }
 
-  put (opts) {
-    return this.send('PUT', opts)
+  put(opts) {
+    return this.send("PUT", opts)
   }
 
-  delete (opts) {
-    return this.send('DELETE', opts)
+  delete(opts) {
+    return this.send("DELETE", opts)
   }
 
-  ws (opts) {
+  ws(opts) {
     opts.url = this.baseURL + opts.url
     return new WebSocketClient(opts)
   }
 
-  isErrorCode (statusCode) {
+  isErrorCode(statusCode) {
     return statusCode >= 400
   }
 
-  send (method, opts) {
+  send(method, opts) {
     if (!opts.body && opts.json) {
       opts.body = JSON.stringify(opts.json)
     }
@@ -78,13 +82,16 @@ export default class HttpClient {
       method: method,
       qs: opts.query || {},
       body: opts.body,
-      headers: opts.headers
+      headers: opts.headers,
     }
 
-    if (o.method.toLowerCase() === 'get') {
-      if (opts.pagination && typeof opts.pagination.next_offset === 'number') {
+    if (o.method.toLowerCase() === "get") {
+      if (opts.pagination && typeof opts.pagination.next_offset === "number") {
         o.qs.offset = opts.pagination.next_offset
-      } else if (opts.pagination && typeof opts.pagination.previous_offset === 'number') {
+      } else if (
+        opts.pagination &&
+        typeof opts.pagination.previous_offset === "number"
+      ) {
         o.qs.offset = opts.pagination.previous_offset
       }
 

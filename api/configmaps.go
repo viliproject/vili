@@ -8,7 +8,7 @@ import (
 	"github.com/airware/vili/errors"
 	"github.com/airware/vili/kube"
 	"github.com/airware/vili/templates"
-	echo "gopkg.in/labstack/echo.v1"
+	"github.com/labstack/echo"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -17,7 +17,7 @@ var (
 	configmapsQueryParams = []string{"labelSelector", "fieldSelector", "resourceVersion"}
 )
 
-func configmapsGetHandler(c *echo.Context) error {
+func configmapsGetHandler(c echo.Context) error {
 	env := c.Param("env")
 
 	endpoint := kube.GetClient(env).ConfigMaps()
@@ -35,7 +35,7 @@ func configmapsGetHandler(c *echo.Context) error {
 	return c.JSON(http.StatusOK, resp)
 }
 
-func configmapSpecGetHandler(c *echo.Context) error {
+func configmapSpecGetHandler(c echo.Context) error {
 	env := c.Param("env")
 	configmapName := c.Param("configmap")
 
@@ -53,7 +53,7 @@ func configmapSpecGetHandler(c *echo.Context) error {
 	return c.JSON(http.StatusOK, configmap)
 }
 
-func configmapCreateHandler(c *echo.Context) error {
+func configmapCreateHandler(c echo.Context) error {
 	env := c.Param("env")
 	configmapName := c.Param("configmap")
 
@@ -78,7 +78,7 @@ func configmapCreateHandler(c *echo.Context) error {
 	return c.JSON(http.StatusOK, configmap)
 }
 
-func configmapDeleteHandler(c *echo.Context) error {
+func configmapDeleteHandler(c echo.Context) error {
 	env := c.Param("env")
 	configmapName := c.Param("configmap")
 
@@ -91,7 +91,7 @@ func configmapDeleteHandler(c *echo.Context) error {
 	return c.NoContent(http.StatusNoContent) // TODO return status?
 }
 
-func configmapSetKeysHandler(c *echo.Context) error {
+func configmapSetKeysHandler(c echo.Context) error {
 	env := c.Param("env")
 	configmapName := c.Param("configmap")
 
@@ -117,7 +117,7 @@ func configmapSetKeysHandler(c *echo.Context) error {
 	return c.JSON(http.StatusOK, configmap)
 }
 
-func configmapDeleteKeyHandler(c *echo.Context) error {
+func configmapDeleteKeyHandler(c echo.Context) error {
 	env := c.Param("env")
 	configmapName := c.Param("configmap")
 	key := c.Param("key")

@@ -8,12 +8,10 @@ import (
 	"os"
 	"path"
 	"runtime"
+	"strconv"
 	"sync"
 	"time"
 
-	"strconv"
-
-	"github.com/mattn/go-colorable"
 	"github.com/mattn/go-isatty"
 	"github.com/valyala/fasttemplate"
 
@@ -38,17 +36,18 @@ type (
 )
 
 const (
-	DEBUG Lvl = iota
+	DEBUG Lvl = iota + 1
 	INFO
 	WARN
 	ERROR
-	FATAL
 	OFF
+	panicLevel
+	fatalLevel
 )
 
 var (
 	global        = New("-")
-	defaultHeader = `{"time":"${time_rfc3339}","level":"${level}","prefix":"${prefix}",` +
+	defaultHeader = `{"time":"${time_rfc3339_nano}","level":"${level}","prefix":"${prefix}",` +
 		`"file":"${short_file}","line":"${line}"}`
 )
 
@@ -65,17 +64,20 @@ func New(prefix string) (l *Logger) {
 		},
 	}
 	l.initLevels()
-	l.SetOutput(colorable.NewColorableStdout())
+	l.SetOutput(output())
 	return
 }
 
 func (l *Logger) initLevels() {
 	l.levels = []string{
+		"-",
 		l.color.Blue("DEBUG"),
 		l.color.Green("INFO"),
 		l.color.Yellow("WARN"),
 		l.color.Red("ERROR"),
-		l.color.RedBg("FATAL"),
+		"",
+		l.color.Yellow("PANIC", color.U),
+		l.color.Red("FATAL", color.U),
 	}
 }
 
@@ -113,10 +115,6 @@ func (l *Logger) Output() io.Writer {
 	return l.output
 }
 
-func (l *Logger) SetHeader(h string) {
-	l.template = l.newTemplate(h)
-}
-
 func (l *Logger) SetOutput(w io.Writer) {
 	l.output = w
 	if w, ok := w.(*os.File); !ok || !isatty.IsTerminal(w.Fd()) {
@@ -124,17 +122,25 @@ func (l *Logger) SetOutput(w io.Writer) {
 	}
 }
 
+func (l *Logger) Color() *color.Color {
+	return l.color
+}
+
+func (l *Logger) SetHeader(h string) {
+	l.template = l.newTemplate(h)
+}
+
 func (l *Logger) Print(i ...interface{}) {
-	fmt.Fprintln(l.output, i...)
+	l.log(0, "", i...)
+	// fmt.Fprintln(l.output, i...)
 }
 
 func (l *Logger) Printf(format string, args ...interface{}) {
-	f := fmt.Sprintf("%s\n", format)
-	fmt.Fprintf(l.output, f, args...)
+	l.log(0, format, args...)
 }
 
 func (l *Logger) Printj(j JSON) {
-	json.NewEncoder(l.output).Encode(j)
+	l.log(0, "json", j)
 }
 
 func (l *Logger) Debug(i ...interface{}) {
@@ -186,17 +192,33 @@ func (l *Logger) Errorj(j JSON) {
 }
 
 func (l *Logger) Fatal(i ...interface{}) {
-	l.log(FATAL, "", i...)
+	l.log(fatalLevel, "", i...)
 	os.Exit(1)
 }
 
 func (l *Logger) Fatalf(format string, args ...interface{}) {
-	l.log(FATAL, format, args...)
+	l.log(fatalLevel, format, args...)
 	os.Exit(1)
 }
 
 func (l *Logger) Fatalj(j JSON) {
-	l.log(FATAL, "json", j)
+	l.log(fatalLevel, "json", j)
+	os.Exit(1)
+}
+
+func (l *Logger) Panic(i ...interface{}) {
+	l.log(panicLevel, "", i...)
+	panic(fmt.Sprint(i...))
+}
+
+func (l *Logger) Panicf(format string, args ...interface{}) {
+	l.log(panicLevel, format, args...)
+	panic(fmt.Sprintf(format, args))
+}
+
+func (l *Logger) Panicj(j JSON) {
+	l.log(panicLevel, "json", j)
+	panic(j)
 }
 
 func DisableColor() {
@@ -307,15 +329,27 @@ func Fatalj(j JSON) {
 	global.Fatalj(j)
 }
 
+func Panic(i ...interface{}) {
+	global.Panic(i...)
+}
+
+func Panicf(format string, args ...interface{}) {
+	global.Panicf(format, args...)
+}
+
+func Panicj(j JSON) {
+	global.Panicj(j)
+}
+
 func (l *Logger) log(v Lvl, format string, args ...interface{}) {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 	buf := l.bufferPool.Get().(*bytes.Buffer)
 	buf.Reset()
 	defer l.bufferPool.Put(buf)
-	_, file, line, _ := runtime.Caller(3)
+	_, file, line, _ := runtime.Caller(2)
 
-	if v >= l.level {
+	if v >= l.level || v == 0 {
 		message := ""
 		if format == "" {
 			message = fmt.Sprint(args...)
@@ -329,14 +363,12 @@ func (l *Logger) log(v Lvl, format string, args ...interface{}) {
 			message = fmt.Sprintf(format, args...)
 		}
 
-		if v >= ERROR {
-			// panic(message)
-		}
-
 		_, err := l.template.ExecuteFunc(buf, func(w io.Writer, tag string) (int, error) {
 			switch tag {
 			case "time_rfc3339":
 				return w.Write([]byte(time.Now().Format(time.RFC3339)))
+			case "time_rfc3339_nano":
+				return w.Write([]byte(time.Now().Format(time.RFC3339Nano)))
 			case "level":
 				return w.Write([]byte(l.levels[v]))
 			case "prefix":
@@ -361,9 +393,9 @@ func (l *Logger) log(v Lvl, format string, args ...interface{}) {
 				if format == "json" {
 					buf.WriteString(message[1:])
 				} else {
-					buf.WriteString(`"message":"`)
-					buf.WriteString(message)
-					buf.WriteString(`"}`)
+					buf.WriteString(`"message":`)
+					buf.WriteString(strconv.Quote(message))
+					buf.WriteString(`}`)
 				}
 			} else {
 				// Text header

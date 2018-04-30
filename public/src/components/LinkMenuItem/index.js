@@ -1,6 +1,6 @@
-import React from 'react'
-import PropTypes from 'prop-types'
-import { Link } from 'react-router'
+import React from "react"
+import PropTypes from "prop-types"
+import { Link } from "react-router-dom"
 
 export default class LinkMenuItem extends React.Component {
   static propTypes = {
@@ -8,36 +8,41 @@ export default class LinkMenuItem extends React.Component {
     subitem: PropTypes.bool,
     onRemove: PropTypes.func,
     to: PropTypes.string,
-    children: PropTypes.node
+    children: PropTypes.node,
   }
 
-  constructor (props) {
+  constructor(props) {
     super(props)
 
     this.onRemove = this.onRemove.bind(this)
   }
 
-  onRemove (event) {
+  onRemove(event) {
     this.props.onRemove(event)
     event.preventDefault()
     event.stopPropagation()
   }
 
-  render () {
-    var className = ''
+  render() {
+    var className = ""
     if (this.props.active) {
-      className += ' active'
+      className += " active"
     }
     if (this.props.subitem) {
-      className += ' subitem'
+      className += " subitem"
     }
     var removeButton = null
     if (this.props.onRemove) {
-      removeButton = <span className='glyphicon glyphicon-remove remove-item' onClick={this.onRemove} />
+      removeButton = (
+        <span
+          className="glyphicon glyphicon-remove remove-item"
+          onClick={this.onRemove}
+        />
+      )
     }
     return (
-      <li className={className} role='presentation'>
-        <Link to={this.props.to} style={{ position: 'relative' }}>
+      <li className={className} role="presentation">
+        <Link to={this.props.to} style={{ position: "relative" }}>
           {this.props.children}
           {removeButton}
         </Link>

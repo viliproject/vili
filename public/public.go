@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"gopkg.in/labstack/echo.v1"
+	"github.com/labstack/echo"
 )
 
 // Assets is the variable that stores assets
@@ -50,7 +50,7 @@ func GetHash(reload bool) string {
 }
 
 // StaticHandler serves static files
-func StaticHandler(c *echo.Context) error {
+func StaticHandler(c echo.Context) error {
 	name := c.Param("name")
 	if strings.HasPrefix(name, ".") {
 		return c.String(http.StatusNotFound, "Not Found")

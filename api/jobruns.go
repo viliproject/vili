@@ -15,13 +15,13 @@ import (
 	"github.com/airware/vili/session"
 	"github.com/airware/vili/templates"
 	"github.com/airware/vili/util"
-	echo "gopkg.in/labstack/echo.v1"
+	"github.com/labstack/echo"
 	batchv1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 )
 
-func jobRunsGetHandler(c *echo.Context) error {
+func jobRunsGetHandler(c echo.Context) error {
 	env := c.Param("env")
 	job := c.Param("job")
 
@@ -44,7 +44,7 @@ func jobRunsGetHandler(c *echo.Context) error {
 	return c.JSON(http.StatusOK, resp)
 }
 
-func jobRunCreateHandler(c *echo.Context) error {
+func jobRunCreateHandler(c echo.Context) error {
 	env := c.Param("env")
 	jobName := c.Param("job")
 

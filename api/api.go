@@ -7,7 +7,7 @@ import (
 	"github.com/airware/vili/errors"
 	"github.com/airware/vili/middleware"
 	"github.com/airware/vili/server"
-	echo "gopkg.in/labstack/echo.v1"
+	"github.com/labstack/echo"
 )
 
 // WaitGroup is the wait group to synchronize deployment rollouts
@@ -20,69 +20,69 @@ var ExitingChan = make(chan struct{})
 func AddHandlers(s *server.Server) {
 	envPrefix := "/api/v1/envs/:env/"
 	// deployments
-	s.Echo().Get(envPrefix+"deployments", envMiddleware(deploymentsGetHandler))
-	s.Echo().Get(envPrefix+"deployments/:deployment/repository", envMiddleware(deploymentRepositoryGetHandler))
-	s.Echo().Get(envPrefix+"deployments/:deployment/spec", envMiddleware(deploymentSpecGetHandler))
-	s.Echo().Get(envPrefix+"deployments/:deployment/service", envMiddleware(deploymentServiceGetHandler))
-	s.Echo().Post(envPrefix+"deployments/:deployment/service", envMiddleware(deploymentServiceCreateHandler))
-	s.Echo().Put(envPrefix+"deployments/:deployment/:action", envMiddleware(deploymentActionHandler))
+	s.Echo().GET(envPrefix+"deployments", envMiddleware(deploymentsGetHandler))
+	s.Echo().GET(envPrefix+"deployments/:deployment/repository", envMiddleware(deploymentRepositoryGetHandler))
+	s.Echo().GET(envPrefix+"deployments/:deployment/spec", envMiddleware(deploymentSpecGetHandler))
+	s.Echo().GET(envPrefix+"deployments/:deployment/service", envMiddleware(deploymentServiceGetHandler))
+	s.Echo().POST(envPrefix+"deployments/:deployment/service", envMiddleware(deploymentServiceCreateHandler))
+	s.Echo().PUT(envPrefix+"deployments/:deployment/:action", envMiddleware(deploymentActionHandler))
 
 	// rollouts
-	s.Echo().Post(envPrefix+"deployments/:deployment/rollouts", envMiddleware(rolloutCreateHandler))
+	s.Echo().POST(envPrefix+"deployments/:deployment/rollouts", envMiddleware(rolloutCreateHandler))
 
 	// replica sets
-	s.Echo().Get(envPrefix+"replicasets", envMiddleware(replicaSetsGetHandler))
+	s.Echo().GET(envPrefix+"replicasets", envMiddleware(replicaSetsGetHandler))
 
 	// jobs
-	s.Echo().Get(envPrefix+"jobs", envMiddleware(jobsGetHandler))
-	s.Echo().Delete(envPrefix+"jobs/:job", envMiddleware(jobDeleteHandler))
-	s.Echo().Get(envPrefix+"jobs/:job/repository", envMiddleware(jobRepositoryGetHandler))
-	s.Echo().Get(envPrefix+"jobs/:job/spec", envMiddleware(jobSpecGetHandler))
+	s.Echo().GET(envPrefix+"jobs", envMiddleware(jobsGetHandler))
+	s.Echo().DELETE(envPrefix+"jobs/:job", envMiddleware(jobDeleteHandler))
+	s.Echo().GET(envPrefix+"jobs/:job/repository", envMiddleware(jobRepositoryGetHandler))
+	s.Echo().GET(envPrefix+"jobs/:job/spec", envMiddleware(jobSpecGetHandler))
 
 	// runs
-	s.Echo().Post(envPrefix+"jobs/:job/runs", envMiddleware(jobRunCreateHandler))
-	// s.Echo().Get(envPrefix+"jobs/:job/runs", envMiddleware(jobRunsGetHandler))
-	// s.Echo().Post(envPrefix+"jobs/:job/runs/:run/:action", envMiddleware(jobRunActionHandler))
+	s.Echo().POST(envPrefix+"jobs/:job/runs", envMiddleware(jobRunCreateHandler))
+	// s.Echo().GET(envPrefix+"jobs/:job/runs", envMiddleware(jobRunsGetHandler))
+	// s.Echo().POST(envPrefix+"jobs/:job/runs/:run/:action", envMiddleware(jobRunActionHandler))
 
 	// configmaps
-	s.Echo().Get(envPrefix+"configmaps", envMiddleware(configmapsGetHandler))
-	s.Echo().Get(envPrefix+"configmaps/:configmap/spec", envMiddleware(configmapSpecGetHandler))
-	s.Echo().Post(envPrefix+"configmaps/:configmap", envMiddleware(configmapCreateHandler))
-	s.Echo().Delete(envPrefix+"configmaps/:configmap", envMiddleware(configmapDeleteHandler))
-	s.Echo().Put(envPrefix+"configmaps/:configmap/keys", envMiddleware(configmapSetKeysHandler))
-	s.Echo().Delete(envPrefix+"configmaps/:configmap/:key", envMiddleware(configmapDeleteKeyHandler))
+	s.Echo().GET(envPrefix+"configmaps", envMiddleware(configmapsGetHandler))
+	s.Echo().GET(envPrefix+"configmaps/:configmap/spec", envMiddleware(configmapSpecGetHandler))
+	s.Echo().POST(envPrefix+"configmaps/:configmap", envMiddleware(configmapCreateHandler))
+	s.Echo().DELETE(envPrefix+"configmaps/:configmap", envMiddleware(configmapDeleteHandler))
+	s.Echo().PUT(envPrefix+"configmaps/:configmap/keys", envMiddleware(configmapSetKeysHandler))
+	s.Echo().DELETE(envPrefix+"configmaps/:configmap/:key", envMiddleware(configmapDeleteKeyHandler))
 
 	// pods
-	s.Echo().Get(envPrefix+"pods", envMiddleware(podsHandler))
-	s.Echo().Get(envPrefix+"pods/:pod/log", envMiddleware(podLogHandler))
-	s.Echo().Delete(envPrefix+"pods/:pod", envMiddleware(podDeleteHandler))
+	s.Echo().GET(envPrefix+"pods", envMiddleware(podsHandler))
+	s.Echo().GET(envPrefix+"pods/:pod/log", envMiddleware(podLogHandler))
+	s.Echo().DELETE(envPrefix+"pods/:pod", envMiddleware(podDeleteHandler))
 
 	// nodes
-	s.Echo().Get(envPrefix+"nodes", envMiddleware(nodesGetHandler))
-	s.Echo().Put(envPrefix+"nodes/:node/:state", envMiddleware(nodeStateEditHandler))
+	s.Echo().GET(envPrefix+"nodes", envMiddleware(nodesGetHandler))
+	s.Echo().PUT(envPrefix+"nodes/:node/:state", envMiddleware(nodeStateEditHandler))
 
 	// releases
-	s.Echo().Get(envPrefix+"releases", envMiddleware(releasesGetHandler))
-	s.Echo().Get(envPrefix+"releases/spec", envMiddleware(releaseSpecGetHandler))
-	s.Echo().Post(envPrefix+"releases", envMiddleware(releaseCreateHandler))
-	s.Echo().Delete(envPrefix+"releases/:release", envMiddleware(releaseDeleteHandler))
-	s.Echo().Put(envPrefix+"releases/:release/deploy", envMiddleware(releaseDeployHandler))
+	s.Echo().GET(envPrefix+"releases", envMiddleware(releasesGetHandler))
+	s.Echo().GET(envPrefix+"releases/spec", envMiddleware(releaseSpecGetHandler))
+	s.Echo().POST(envPrefix+"releases", envMiddleware(releaseCreateHandler))
+	s.Echo().DELETE(envPrefix+"releases/:release", envMiddleware(releaseDeleteHandler))
+	s.Echo().PUT(envPrefix+"releases/:release/deploy", envMiddleware(releaseDeployHandler))
 
 	// branches
-	s.Echo().Get("/api/v1/branches", middleware.RequireUser(branchesGetHandler))
+	s.Echo().GET("/api/v1/branches", middleware.RequireUser(branchesGetHandler))
 
 	// environments
-	s.Echo().Get("/api/v1/environments", middleware.RequireUser(environmentsGetHandler))
-	s.Echo().Post("/api/v1/environments", middleware.RequireUser(environmentCreateHandler))
-	s.Echo().Delete("/api/v1/environments/:env", middleware.RequireUser(environmentDeleteHandler))
-	s.Echo().Get("/api/v1/environments/spec", middleware.RequireUser(environmentSpecHandler))
+	s.Echo().GET("/api/v1/environments", middleware.RequireUser(environmentsGetHandler))
+	s.Echo().POST("/api/v1/environments", middleware.RequireUser(environmentCreateHandler))
+	s.Echo().DELETE("/api/v1/environments/:env", middleware.RequireUser(environmentDeleteHandler))
+	s.Echo().GET("/api/v1/environments/spec", middleware.RequireUser(environmentSpecHandler))
 
 	// catchall not found handler
-	s.Echo().Get("/api/**", middleware.RequireUser(notFoundHandler))
+	s.Echo().GET("/api/**", middleware.RequireUser(notFoundHandler))
 }
 
 func envMiddleware(h echo.HandlerFunc) echo.HandlerFunc {
-	return middleware.RequireUser(func(c *echo.Context) error {
+	return middleware.RequireUser(func(c echo.Context) error {
 		if _, err := environments.Get(c.Param("env")); err != nil {
 			return notFoundHandler(c)
 		}
@@ -90,6 +90,6 @@ func envMiddleware(h echo.HandlerFunc) echo.HandlerFunc {
 	})
 }
 
-func notFoundHandler(c *echo.Context) error {
+func notFoundHandler(c echo.Context) error {
 	return server.ErrorResponse(c, errors.NotFound(""))
 }
