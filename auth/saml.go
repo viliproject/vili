@@ -146,7 +146,7 @@ func (s *SAMLAuthService) loginCallbackHandler(c echo.Context) error {
 
 	secretBlock := x509.MarshalPKCS1PrivateKey(s.samlMiddleware.ServiceProvider.Key)
 
-	redirectURI := "/"
+	var redirectURI string
 	if relayState := r.FormValue("RelayState"); relayState != "" {
 		stateValue := s.samlMiddleware.ClientState.GetState(r, relayState)
 		if stateValue == "" {
@@ -169,6 +169,9 @@ func (s *SAMLAuthService) loginCallbackHandler(c echo.Context) error {
 
 		// delete the cookie
 		s.samlMiddleware.ClientState.DeleteState(c.Response(), r, relayState)
+	}
+	if redirectURI == "" {
+		redirectURI = "/"
 	}
 
 	email := a.GetAttributeValue("email")
