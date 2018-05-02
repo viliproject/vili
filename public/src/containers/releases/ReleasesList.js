@@ -9,6 +9,7 @@ import { makeLookUpObjects } from "../../selectors"
 import Table from "../../components/Table"
 import { activateNav } from "../../actions/app"
 import { createReleaseFromLatest } from "../../actions/releases"
+import history from "../../lib/history"
 
 import ReleasesListRow from "./ReleasesListRow"
 
@@ -36,7 +37,7 @@ export class ReleasesList extends React.Component {
   }
 
   goToCreate = () => {
-    const { envName, history } = this.props
+    const { envName } = this.props
     history.push(`/${envName}/releases/create`)
   }
 
@@ -125,7 +126,6 @@ export class ReleasesList extends React.Component {
 }
 
 ReleasesList.propTypes = {
-  history: PropTypes.object,
   envName: PropTypes.string,
   env: PropTypes.object,
   releases: PropTypes.object,
