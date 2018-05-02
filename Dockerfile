@@ -5,7 +5,6 @@ RUN apk add -U --no-cache \
     make \
     git \
     ca-certificates \
-    xmlsec \
     nodejs-dev \
     nodejs-npm
 
@@ -29,7 +28,7 @@ RUN npm run build
 # second stage, just have the compiled binary
 FROM alpine:3.7
 
-RUN apk --no-cache add curl ca-certificates xmlsec && update-ca-certificates
+RUN apk --no-cache add curl ca-certificates && update-ca-certificates
 
 # Install kubectl
 RUN curl -L https://storage.googleapis.com/kubernetes-release/release/v1.8.1/bin/linux/amd64/kubectl -o /usr/local/bin/kubectl \
