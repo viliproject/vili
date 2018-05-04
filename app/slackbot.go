@@ -8,10 +8,10 @@ import (
 	"unicode"
 
 	"github.com/airware/vili/api"
-	"github.com/airware/vili/docker"
 	"github.com/airware/vili/environments"
 	"github.com/airware/vili/log"
 	"github.com/airware/vili/redis"
+	"github.com/airware/vili/repository"
 	"github.com/airware/vili/slack"
 	"github.com/airware/vili/util"
 )
@@ -172,7 +172,7 @@ func rolloutDeployment(env, deployment, tag, branch, username string) {
 		switch e := err.(type) {
 		case api.RolloutInitError:
 			slack.PostLogMessage(e.Error(), log.ErrorLevel)
-		case *docker.NotFoundError:
+		case *repository.NotFoundError:
 			slack.PostLogMessage(fmt.Sprintf("Deployment *%s* with tag *%s* not found", deployment, tag), log.ErrorLevel)
 		default:
 			log.Error(e)

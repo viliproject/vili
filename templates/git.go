@@ -110,6 +110,32 @@ func (s *gitService) Deployment(env, branch, name string) (Template, error) {
 	return Template(fileContent), nil
 }
 
+// Functions returns a list of functions for the given environment
+func (s *gitService) Functions(env, branch string) ([]string, error) {
+	directoryContent, err := s.listDirectory(env, branch, "functions")
+	if err != nil {
+		return nil, err
+	}
+	functions := []string{}
+	for _, filePath := range directoryContent {
+		parts := strings.Split(filePath, ".")
+		if len(parts) != 2 || parts[1] != "yaml" {
+			continue
+		}
+		functions = append(functions, parts[0])
+	}
+	return functions, nil
+}
+
+// Function returns a function for the given environment
+func (s *gitService) Function(env, branch, name string) (Template, error) {
+	fileContent, err := s.getContents(env, branch, "functions/"+name+".yaml")
+	if err != nil {
+		return "", err
+	}
+	return Template(fileContent), nil
+}
+
 // ConfigMaps returns a list of configMaps for the given environment
 func (s *gitService) ConfigMaps(env, branch string) ([]string, error) {
 	directoryContent, err := s.listDirectory(env, branch, "configmaps/"+env)

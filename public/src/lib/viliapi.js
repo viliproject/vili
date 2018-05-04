@@ -196,6 +196,40 @@ export default {
     },
   },
 
+  functions: {
+    watch(handler, env, qs) {
+      qs = qs || {}
+      qs.watch = "true"
+      return httpClient.ws({
+        url: `envs/${env}/functions`,
+        qs: qs,
+        messageHandler: handler,
+      })
+    },
+    async getRepository(env, name) {
+      return await httpClient.get({
+        url: `envs/${env}/functions/${name}/repository`,
+      })
+    },
+    async getSpec(env, name) {
+      return await httpClient.get({
+        url: `envs/${env}/functions/${name}/spec`,
+      })
+    },
+    async deploy(env, name, spec) {
+      return await httpClient.put({
+        url: `envs/${env}/functions/${name}/deploy`,
+        json: spec,
+      })
+    },
+    async rollback(env, name, toVersion) {
+      return await httpClient.put({
+        url: `envs/${env}/functions/${name}/rollback`,
+        json: { toVersion },
+      })
+    },
+  },
+
   releases: {
     watch(handler, env) {
       return httpClient.ws({

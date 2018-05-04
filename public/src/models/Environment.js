@@ -10,5 +10,6 @@ export default class Environment extends Immutable.Record({
   approvedFromEnv: "",
   jobs: Immutable.List(),
   deployments: Immutable.List(),
+  functions: Immutable.List(),
   configmaps: Immutable.List(),
 }) {}

@@ -1,10 +1,11 @@
-package docker
+package repository
 
 import (
 	"os"
 	"testing"
 
 	"github.com/airware/vili/log"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestRegistryGetRepository(t *testing.T) {
@@ -56,7 +57,7 @@ func TestRegistryFullName(t *testing.T) {
 			"redis",
 			"master",
 			"1.9.1",
-			"registry-1.docker.io/redis:1.9.1",
+			"registry-1.docker.io/redis:master-1.9.1",
 		},
 		{
 			RegistryConfig{
@@ -66,15 +67,12 @@ func TestRegistryFullName(t *testing.T) {
 			"vili",
 			"testbranch",
 			"abcdef",
-			"quay.io/airware/vili-testbranch:abcdef",
+			"quay.io/airware/vili:testbranch-abcdef",
 		},
 	} {
 		testService := &RegistryService{&testCase.RegistryConfig}
-		fullName, err := testService.FullName(testCase.repo, testCase.tag)
-		if err != nil {
-			t.Error(err)
-		} else if fullName != testCase.fullName {
-			t.Errorf("%s != %s", fullName, testCase.fullName)
-		}
+		fullName, err := testService.FullName(testCase.repo, testCase.branch+"-"+testCase.tag)
+		assert.NoError(t, err)
+		assert.Equal(t, testCase.fullName, fullName)
 	}
 }

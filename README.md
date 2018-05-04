@@ -45,10 +45,10 @@ You are all set! Vili will use the GitHub and Docker Registry APIs to discover y
 
 1. Follow the example [sample_devenv.sh](sample_devenv.sh) to create your own environment file with relevant configration.
 
-1. Install `redis` and `xmlsec1`
+1. Install `redis`
 
    ```
-   > brew install redis xmlsec1
+   > brew install redis
    ```
 
 1. Start `redis`
@@ -76,7 +76,7 @@ You are all set! Vili will use the GitHub and Docker Registry APIs to discover y
    > go run main.go
    ```
 
-1. Direct your browser to `https://localhost:4001`.  Viola!
+1. Direct your browser to `https://localhost:4001`.  Voila!
 
 
 ## Concepts

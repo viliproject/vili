@@ -1,4 +1,4 @@
-package docker
+package repository
 
 import (
 	"os"
@@ -68,7 +68,7 @@ func TestECRFullName(t *testing.T) {
 		},
 	} {
 		testService := newECR(&testCase.ECRConfig)
-		fullName, err := testService.FullName(testCase.repo, testCase.branch, testCase.tag)
+		fullName, err := testService.FullName(testCase.repo, testCase.tag)
 		if err != nil {
 			t.Error(err)
 		} else if fullName != testCase.fullName {

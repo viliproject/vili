@@ -11,12 +11,12 @@ import (
 
 	"golang.org/x/net/websocket"
 
-	"github.com/airware/vili/docker"
 	"github.com/airware/vili/environments"
 	"github.com/airware/vili/errors"
 	"github.com/airware/vili/firebase"
 	"github.com/airware/vili/kube"
 	"github.com/airware/vili/log"
+	"github.com/airware/vili/repository"
 	"github.com/airware/vili/session"
 	"github.com/airware/vili/slack"
 	"github.com/airware/vili/templates"
@@ -317,7 +317,7 @@ func populateReleaseTargetLatestVersion(environment *environments.Environment, t
 		target.Branch = environment.Branch
 		return nil
 	case types.ReleaseTargetTypeApp, types.ReleaseTargetTypeJob:
-		images, err := docker.GetRepository(target.Name, environment.RepositoryBranches)
+		images, err := repository.GetDockerRepository(target.Name, environment.RepositoryBranches)
 		if err != nil {
 			return err
 		}

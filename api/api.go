@@ -44,6 +44,12 @@ func AddHandlers(s *server.Server) {
 	// s.Echo().GET(envPrefix+"jobs/:job/runs", envMiddleware(jobRunsGetHandler))
 	// s.Echo().POST(envPrefix+"jobs/:job/runs/:run/:action", envMiddleware(jobRunActionHandler))
 
+	// functions
+	s.Echo().GET(envPrefix+"functions", envMiddleware(functionsGetHandler))
+	s.Echo().GET(envPrefix+"functions/:function/repository", envMiddleware(functionRepositoryGetHandler))
+	s.Echo().GET(envPrefix+"functions/:function/spec", envMiddleware(functionSpecGetHandler))
+	s.Echo().PUT(envPrefix+"functions/:function/:action", envMiddleware(functionActionHandler))
+
 	// configmaps
 	s.Echo().GET(envPrefix+"configmaps", envMiddleware(configmapsGetHandler))
 	s.Echo().GET(envPrefix+"configmaps/:configmap/spec", envMiddleware(configmapSpecGetHandler))

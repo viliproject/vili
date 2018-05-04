@@ -1,4 +1,4 @@
-package docker
+package repository
 
 import (
 	"net/http"
@@ -32,7 +32,7 @@ type RegistryService struct {
 
 // InitRegistry initializes the docker registry service
 func InitRegistry(c *RegistryConfig) error {
-	service = &RegistryService{
+	dockerService = &RegistryService{
 		config: c,
 	}
 	return nil

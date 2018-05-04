@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"github.com/airware/vili/config"
-	"github.com/airware/vili/docker"
 	"github.com/airware/vili/errors"
 	"github.com/airware/vili/kube"
 	"github.com/airware/vili/log"
+	"github.com/airware/vili/repository"
 	"github.com/airware/vili/server"
 	"github.com/airware/vili/session"
 	"github.com/airware/vili/templates"
@@ -92,7 +92,7 @@ func (r *JobRun) Run(async bool) error {
 	r.ID = util.RandLowercaseString(16)
 	r.Time = time.Now()
 
-	digest, err := docker.GetTag(r.JobName, r.Tag)
+	digest, err := repository.GetDockerTag(r.JobName, r.Tag)
 	if err != nil {
 		return err
 	}
@@ -132,7 +132,7 @@ func (r *JobRun) createNewJob() (err error) {
 		return fmt.Errorf("no containers in job")
 	}
 
-	imageName, err := docker.FullName(r.JobName, r.Tag)
+	imageName, err := repository.DockerFullName(r.JobName, r.Tag)
 	if err != nil {
 		return
 	}
