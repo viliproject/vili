@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"fmt"
+	"context"
 	"path/filepath"
 	"strings"
 
@@ -13,17 +13,17 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 )
 
+var s3Service *S3Service
+
 // S3Config is the S3 service configuration
 type S3Config struct {
 	Region          string
-	Bucket          string
-	Namespace       string
 	AccessKeyID     string
 	SecretAccessKey string
 }
 
-// S3Service is an implementation of the docker Service interface
-// It fetches docker images
+// S3Service is an implementation of the bundle Service interface
+// It fetches bundles from S3
 type S3Service struct {
 	config *S3Config
 	s3     *s3.S3
@@ -52,13 +52,13 @@ func newS3(c *S3Config) *S3Service {
 
 // InitS3 initializes the docker registry service
 func InitS3(c *S3Config) error {
-	bundleService = newS3(c)
+	s3Service = newS3(c)
 	return nil
 }
 
 // GetRepository implements the Service interface
-func (s *S3Service) GetRepository(repo string, branches []string) ([]*Image, error) {
-	images, err := s.getImagesForBranches(repo, branches)
+func (s *S3Service) GetRepository(ctx context.Context, bucket, key string, branches []string) ([]*Image, error) {
+	images, err := s.getImagesForBranches(ctx, bucket, key, branches)
 	if err != nil {
 		return nil, err
 	}
@@ -67,15 +67,10 @@ func (s *S3Service) GetRepository(repo string, branches []string) ([]*Image, err
 	return images, nil
 }
 
-// FullName implements the Service interface
-func (s *S3Service) FullName(repo, tag string) (string, error) {
-	return fmt.Sprintf("s3://%s/%s/%s.zip", s.config.Bucket, s.fullRepositoryName(repo), tag), nil
-}
-
-func (s *S3Service) getImagesForBranches(repoName string, branchNames []string) (images []*Image, err error) {
-	prefix := s.fullRepositoryName(repoName) + "/"
+func (s *S3Service) getImagesForBranches(ctx context.Context, bucket, key string, branchNames []string) (images []*Image, err error) {
+	prefix := strings.TrimSuffix(strings.TrimPrefix(key, "/"), "/") + "/"
 	err = s.s3.ListObjectsV2Pages(&s3.ListObjectsV2Input{
-		Bucket: aws.String(s.config.Bucket),
+		Bucket: aws.String(bucket),
 		Prefix: aws.String(prefix),
 	}, func(output *s3.ListObjectsV2Output, lastPage bool) bool {
 		for _, obj := range output.Contents {
@@ -99,11 +94,4 @@ func (s *S3Service) getImagesForBranches(repoName string, branchNames []string) 
 		return true
 	})
 	return
-}
-
-func (s *S3Service) fullRepositoryName(repoName string) string {
-	if s.config.Namespace != "" {
-		return s.config.Namespace + "/" + repoName
-	}
-	return repoName
 }

@@ -82,7 +82,7 @@ func environmentCreateHandler(c echo.Context) error {
 	release.TargetEnv = environment.Name
 	release.CreatedAt = time.Now()
 	release.CreatedBy = c.Get("user").(*session.User).Username
-	if populateReleaseLatestVersions(environment, release) {
+	if populateReleaseLatestVersions(c.Request().Context(), environment, release) {
 		return errors.InternalServerError()
 	}
 	// save release to the database

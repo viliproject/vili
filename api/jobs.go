@@ -54,8 +54,13 @@ func jobRepositoryGetHandler(c echo.Context) error {
 		return err
 	}
 
+	imageRepo, err := getJobImageRepo(job, env, environment.RepositoryBranches[0])
+	if err != nil {
+		return err
+	}
+
 	resp := new(jobRepositoryResponse)
-	images, err := repository.GetDockerRepository(job, environment.RepositoryBranches)
+	images, err := repository.GetDockerRepository(c.Request().Context(), imageRepo, environment.RepositoryBranches)
 	if err != nil {
 		return err
 	}

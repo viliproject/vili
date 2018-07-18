@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -13,7 +14,6 @@ import (
 	"github.com/airware/vili/repository"
 	"github.com/airware/vili/server"
 	"github.com/airware/vili/session"
-	"github.com/airware/vili/templates"
 	"github.com/airware/vili/util"
 	"github.com/labstack/echo"
 	batchv1 "k8s.io/api/batch/v1"
@@ -45,11 +45,12 @@ func jobRunsGetHandler(c echo.Context) error {
 }
 
 func jobRunCreateHandler(c echo.Context) error {
+	req := c.Request()
 	env := c.Param("env")
 	jobName := c.Param("job")
 
 	jobRun := new(JobRun)
-	if err := json.NewDecoder(c.Request().Body).Decode(jobRun); err != nil {
+	if err := json.NewDecoder(req.Body).Decode(jobRun); err != nil {
 		return err
 	}
 	if jobRun.Branch == "" {
@@ -62,7 +63,7 @@ func jobRunCreateHandler(c echo.Context) error {
 	jobRun.JobName = jobName
 	jobRun.Username = c.Get("user").(*session.User).Username
 
-	err := jobRun.Run(c.Request().URL.Query().Get("async") != "")
+	err := jobRun.Run(req.Context(), req.URL.Query().Get("async") != "")
 	if err != nil {
 		switch e := err.(type) {
 		case JobRunInitError:
@@ -88,21 +89,11 @@ type JobRun struct {
 }
 
 // Run initializes a job, checks to make sure it is valid, and runs it
-func (r *JobRun) Run(async bool) error {
+func (r *JobRun) Run(ctx context.Context, async bool) error {
 	r.ID = util.RandLowercaseString(16)
 	r.Time = time.Now()
 
-	digest, err := repository.GetDockerTag(r.JobName, r.Tag)
-	if err != nil {
-		return err
-	}
-	if digest == "" {
-		return JobRunInitError{
-			message: fmt.Sprintf("Tag %s not found for job %s", r.Tag, r.JobName),
-		}
-	}
-
-	err = r.createNewJob()
+	err := r.createNewJob(ctx)
 	if err != nil {
 		return err
 	}
@@ -114,29 +105,28 @@ func (r *JobRun) Run(async bool) error {
 	return r.watchJob()
 }
 
-func (r *JobRun) createNewJob() (err error) {
+func (r *JobRun) createNewJob(ctx context.Context) (err error) {
 	// get the spec
-	jobTemplate, err := templates.Job(r.Env, r.Branch, r.JobName)
+	job, err := getJobWithTag(r.Env, r.Branch, r.JobName, r.Tag)
 	if err != nil {
-		return
+		return err
 	}
 
-	job := new(batchv1.Job)
-	err = jobTemplate.Parse(job)
+	imageRepo, err := getImageRepoFromJob(job)
 	if err != nil {
-		return
+		return err
 	}
 
-	containers := job.Spec.Template.Spec.Containers
-	if len(containers) == 0 {
-		return fmt.Errorf("no containers in job")
-	}
-
-	imageName, err := repository.DockerFullName(r.JobName, r.Tag)
+	// check to see if tag is valid
+	digest, err := repository.GetDockerTag(ctx, imageRepo, r.Tag)
 	if err != nil {
-		return
+		return err
 	}
-	containers[0].Image = imageName
+	if digest == "" {
+		return JobRunInitError{
+			message: fmt.Sprintf("Tag %s not found for job %s", r.Tag, r.JobName),
+		}
+	}
 
 	job.ObjectMeta.Name = r.JobName + "-" + r.ID
 

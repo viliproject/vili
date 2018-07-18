@@ -1,23 +1,22 @@
 package repository
 
 import (
+	"context"
 	"os"
 	"testing"
 
 	"github.com/airware/vili/log"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestRegistryGetRepository(t *testing.T) {
+	ctx := context.Background()
 	testService := &RegistryService{
 		config: &RegistryConfig{
-			BaseURL:   os.Getenv("REGISTRY_URL"),
-			Username:  os.Getenv("REGISTRY_USERNAME"),
-			Password:  os.Getenv("REGISTRY_PASSWORD"),
-			Namespace: os.Getenv("REGISTRY_NAMESPACE"),
+			Username: os.Getenv("REGISTRY_USERNAME"),
+			Password: os.Getenv("REGISTRY_PASSWORD"),
 		},
 	}
-	images, err := testService.GetRepository("vili", []string{"master", "develop"})
+	images, err := testService.GetRepository(ctx, "vili", []string{"master", "develop"})
 	if err != nil {
 		log.Error(err)
 	}
@@ -27,52 +26,21 @@ func TestRegistryGetRepository(t *testing.T) {
 }
 
 func TestRegistryGetTag(t *testing.T) {
+	ctx := context.Background()
 	testService := &RegistryService{
 		config: &RegistryConfig{
-			BaseURL:   os.Getenv("REGISTRY_URL"),
-			Username:  os.Getenv("REGISTRY_USERNAME"),
-			Password:  os.Getenv("REGISTRY_PASSWORD"),
-			Namespace: os.Getenv("REGISTRY_NAMESPACE"),
+			Username: os.Getenv("REGISTRY_USERNAME"),
+			Password: os.Getenv("REGISTRY_PASSWORD"),
 		},
 	}
-	digest, err := testService.GetTag("vili", "master")
+	digest, err := testService.GetTag(ctx, "mysql", "master")
 	if err != nil {
 		log.Error(err)
 	}
 	log.Info(digest)
-}
-
-func TestRegistryFullName(t *testing.T) {
-	for _, testCase := range []struct {
-		RegistryConfig
-		repo     string
-		branch   string
-		tag      string
-		fullName string
-	}{
-		{
-			RegistryConfig{
-				BaseURL: "registry-1.docker.io",
-			},
-			"redis",
-			"master",
-			"1.9.1",
-			"registry-1.docker.io/redis:master-1.9.1",
-		},
-		{
-			RegistryConfig{
-				BaseURL:   "quay.io",
-				Namespace: "airware",
-			},
-			"vili",
-			"testbranch",
-			"abcdef",
-			"quay.io/airware/vili:testbranch-abcdef",
-		},
-	} {
-		testService := &RegistryService{&testCase.RegistryConfig}
-		fullName, err := testService.FullName(testCase.repo, testCase.branch+"-"+testCase.tag)
-		assert.NoError(t, err)
-		assert.Equal(t, testCase.fullName, fullName)
+	digest, err = testService.GetTag(ctx, "quay.io/airware/vili", "1525471521-48b26ad")
+	if err != nil {
+		log.Error(err)
 	}
+	log.Info(digest)
 }

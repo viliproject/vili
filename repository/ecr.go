@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"errors"
 	"strings"
 
@@ -12,13 +13,13 @@ import (
 	"github.com/aws/aws-sdk-go/service/ecr"
 )
 
+var ecrService *ECRService
+
 // ECRConfig is the ECR service configuration
 type ECRConfig struct {
 	Region          string
 	AccessKeyID     string
 	SecretAccessKey string
-	Namespace       string
-	RegistryID      *string
 }
 
 // ECRService is an implementation of the docker Service interface
@@ -51,13 +52,13 @@ func newECR(c *ECRConfig) *ECRService {
 
 // InitECR initializes the docker registry service
 func InitECR(c *ECRConfig) error {
-	dockerService = newECR(c)
+	ecrService = newECR(c)
 	return nil
 }
 
 // GetRepository implements the Service interface
-func (s *ECRService) GetRepository(repo string, branches []string) ([]*Image, error) {
-	images, err := s.getImagesForBranches(repo, branches)
+func (s *ECRService) GetRepository(ctx context.Context, accountID, repoName string, branches []string) ([]*Image, error) {
+	images, err := s.getImagesForBranches(ctx, accountID, repoName, branches)
 	if err != nil {
 		return nil, err
 	}
@@ -67,17 +68,15 @@ func (s *ECRService) GetRepository(repo string, branches []string) ([]*Image, er
 }
 
 // GetTag implements the Service interface
-func (s *ECRService) GetTag(repo, tag string) (string, error) {
-	fullRepoName := s.fullRepositoryName(repo)
-
-	resp, err := s.ecr.BatchGetImage(&ecr.BatchGetImageInput{
+func (s *ECRService) GetTag(ctx context.Context, accountID, repoName, tag string) (string, error) {
+	resp, err := s.ecr.BatchGetImageWithContext(ctx, &ecr.BatchGetImageInput{
 		ImageIds: []*ecr.ImageIdentifier{
 			{
 				ImageTag: aws.String(tag),
 			},
 		},
-		RepositoryName: aws.String(fullRepoName),
-		RegistryId:     s.config.RegistryID,
+		RegistryId:     aws.String(accountID),
+		RepositoryName: aws.String(repoName),
 	})
 	if err != nil {
 		return "", err
@@ -90,41 +89,14 @@ func (s *ECRService) GetTag(repo, tag string) (string, error) {
 	return *resp.Images[0].ImageId.ImageDigest, nil
 }
 
-// FullName implements the Service interface
-func (s *ECRService) FullName(repo, tag string) (string, error) {
-	resp, err := s.ecr.DescribeRepositories(&ecr.DescribeRepositoriesInput{
-		RepositoryNames: []*string{
-			aws.String(s.fullRepositoryName(repo)),
+func (s *ECRService) getImagesForBranches(ctx context.Context, accountID, repoName string, branchNames []string) (images []*Image, err error) {
+	err = s.ecr.DescribeImagesPagesWithContext(ctx, &ecr.DescribeImagesInput{
+		RegistryId:     aws.String(accountID),
+		RepositoryName: aws.String(repoName),
+		Filter: &ecr.DescribeImagesFilter{
+			TagStatus: aws.String("TAGGED"),
 		},
-		RegistryId: s.config.RegistryID,
-	})
-	if err != nil {
-		return "", err
-	}
-	if len(resp.Repositories) < 1 {
-		return "", errors.New("Repository not found")
-	}
-	return *resp.Repositories[0].RepositoryUri + ":" + tag, nil
-}
-
-func (s *ECRService) getImagesForBranches(repoName string, branchNames []string) ([]*Image, error) {
-	fullRepoName := s.fullRepositoryName(repoName)
-
-	var images []*Image
-	var nextToken *string
-
-	for {
-		resp, err := s.ecr.DescribeImages(&ecr.DescribeImagesInput{
-			RepositoryName: &fullRepoName,
-			NextToken:      nextToken,
-			RegistryId:     s.config.RegistryID,
-			Filter: &ecr.DescribeImagesFilter{
-				TagStatus: aws.String("TAGGED"),
-			},
-		})
-		if err != nil {
-			return images, err
-		}
+	}, func(resp *ecr.DescribeImagesOutput, lastPage bool) bool {
 		for _, imageDetails := range resp.ImageDetails {
 			for _, tag := range imageDetails.ImageTags {
 				image := &Image{
@@ -144,16 +116,7 @@ func (s *ECRService) getImagesForBranches(repoName string, branchNames []string)
 				}
 			}
 		}
-		if resp.NextToken == nil {
-			return images, nil
-		}
-		nextToken = resp.NextToken
-	}
-}
-
-func (s *ECRService) fullRepositoryName(repoName string) string {
-	if s.config.Namespace != "" {
-		return s.config.Namespace + "/" + repoName
-	}
-	return repoName
+		return true
+	})
+	return
 }

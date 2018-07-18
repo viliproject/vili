@@ -2,7 +2,7 @@ package templates
 
 import (
 	"bytes"
-	"html/template"
+	"text/template"
 
 	"k8s.io/apimachinery/pkg/util/yaml"
 )

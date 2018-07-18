@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -13,7 +14,6 @@ import (
 	"github.com/airware/vili/repository"
 	"github.com/airware/vili/server"
 	"github.com/airware/vili/session"
-	"github.com/airware/vili/templates"
 	"github.com/labstack/echo"
 	extv1beta1 "k8s.io/api/extensions/v1beta1"
 	kubeErrors "k8s.io/apimachinery/pkg/api/errors"
@@ -22,11 +22,12 @@ import (
 )
 
 func rolloutCreateHandler(c echo.Context) error {
+	req := c.Request()
 	env := c.Param("env")
 	deploymentName := c.Param("deployment")
 
 	rollout := new(Rollout)
-	if err := json.NewDecoder(c.Request().Body).Decode(rollout); err != nil {
+	if err := json.NewDecoder(req.Body).Decode(rollout); err != nil {
 		return err
 	}
 	if rollout.Branch == "" {
@@ -39,7 +40,7 @@ func rolloutCreateHandler(c echo.Context) error {
 	rollout.DeploymentName = deploymentName
 	rollout.Username = c.Get("user").(*session.User).Username
 
-	err := rollout.Run(c.Request().URL.Query().Get("async") != "")
+	err := rollout.Run(req.Context(), req.URL.Query().Get("async") != "")
 	if err != nil {
 		switch e := err.(type) {
 		case RolloutInitError:
@@ -68,31 +69,8 @@ type Rollout struct {
 }
 
 // Run initializes a deployment, checks to make sure it is valid, and runs it
-func (r *Rollout) Run(async bool) error {
-	digest, err := repository.GetDockerTag(r.DeploymentName, r.Tag)
-	if err != nil {
-		return err
-	}
-	if digest == "" {
-		return RolloutInitError{
-			message: fmt.Sprintf("Tag %s not found for deployment %s", r.Tag, r.DeploymentName),
-		}
-	}
-
-	fromDeployment, err := kube.GetClient(r.Env).Deployments().Get(r.DeploymentName, metav1.GetOptions{})
-	if err != nil {
-		if statusError, ok := err.(*kubeErrors.StatusError); !ok || statusError.Status().Code != http.StatusNotFound {
-			// only return error if the error is something other than NotFound
-			return err
-		}
-	} else {
-		r.FromDeployment = fromDeployment
-		if revision, ok := r.FromDeployment.ObjectMeta.Annotations["deployment.kubernetes.io/revision"]; ok {
-			r.FromRevision = revision
-		}
-	}
-
-	err = r.createNewDeployment()
+func (r *Rollout) Run(ctx context.Context, async bool) error {
+	err := r.createNewDeployment(ctx)
 	if err != nil {
 		return err
 	}
@@ -105,18 +83,41 @@ func (r *Rollout) Run(async bool) error {
 	return r.watchRollout()
 }
 
-func (r *Rollout) createNewDeployment() (err error) {
-	endpoint := kube.GetClient(r.Env).Deployments()
+func (r *Rollout) createNewDeployment(ctx context.Context) (err error) {
 	// get the spec
-	deploymentTemplate, err := templates.Deployment(r.Env, r.Branch, r.DeploymentName)
+	deployment, err := getDeploymentWithTag(r.Env, r.Branch, r.DeploymentName, r.Tag)
 	if err != nil {
-		return
+		return err
 	}
 
-	deployment := new(extv1beta1.Deployment)
-	err = deploymentTemplate.Parse(deployment)
+	imageRepo, err := getImageRepoFromDeployment(deployment)
 	if err != nil {
-		return
+		return err
+	}
+
+	// check to see if tag is valid
+	digest, err := repository.GetDockerTag(ctx, imageRepo, r.Tag)
+	if err != nil {
+		return err
+	}
+	if digest == "" {
+		return RolloutInitError{
+			message: fmt.Sprintf("Tag %s not found for deployment %s", r.Tag, r.DeploymentName),
+		}
+	}
+
+	// get previous deployment
+	fromDeployment, err := kube.GetClient(r.Env).Deployments().Get(r.DeploymentName, metav1.GetOptions{})
+	if err != nil {
+		if statusError, ok := err.(*kubeErrors.StatusError); !ok || statusError.Status().Code != http.StatusNotFound {
+			// only return error if the error is something other than NotFound
+			return err
+		}
+	} else {
+		r.FromDeployment = fromDeployment
+		if revision, ok := r.FromDeployment.ObjectMeta.Annotations["deployment.kubernetes.io/revision"]; ok {
+			r.FromRevision = revision
+		}
 	}
 
 	// add labels
@@ -143,12 +144,6 @@ func (r *Rollout) createNewDeployment() (err error) {
 		deployment.Spec.Template.ObjectMeta.Annotations["vili/fromRevision"] = r.FromRevision
 	}
 
-	imageName, err := repository.DockerFullName(r.DeploymentName, r.Tag)
-	if err != nil {
-		return
-	}
-	deployment.Spec.Template.Spec.Containers[0].Image = imageName
-
 	if r.FromDeployment != nil {
 		*deployment.Spec.Replicas = *r.FromDeployment.Spec.Replicas
 	}
@@ -156,6 +151,7 @@ func (r *Rollout) createNewDeployment() (err error) {
 	deployment.Spec.Strategy.Type = extv1beta1.RollingUpdateDeploymentStrategyType
 
 	// create/update deployment
+	endpoint := kube.GetClient(r.Env).Deployments()
 	r.ToDeployment, err = endpoint.Update(deployment)
 	if err != nil {
 		if statusError, ok := err.(*kubeErrors.StatusError); ok && statusError.Status().Code == http.StatusNotFound {

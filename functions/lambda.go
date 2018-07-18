@@ -12,7 +12,6 @@ import (
 
 	"github.com/airware/vili/environments"
 	"github.com/airware/vili/log"
-	"github.com/airware/vili/repository"
 	"github.com/airware/vili/templates"
 	"github.com/airware/vili/util"
 	"github.com/aws/aws-sdk-go/aws"
@@ -187,32 +186,15 @@ func (s *LambdaService) Get(ctx context.Context, env, name string) (function Fun
 
 // Deploy implements the Service interface
 func (s *LambdaService) Deploy(ctx context.Context, env, name string, spec *FunctionDeploySpec) (err error) {
-	functionName := makeFunctionName(env, name)
-
-	// get the bucket and key from bundle name
-	bundleName, err := repository.BundleFullName(name, spec.Tag)
-	if err != nil {
-		return
-	}
-	bundleURL, err := url.Parse(bundleName)
-	if err != nil {
-		return
-	}
-
-	updateFunctionCode := &lambda.UpdateFunctionCodeInput{
-		FunctionName: aws.String(functionName),
-		S3Bucket:     aws.String(bundleURL.Host),
-		S3Key:        aws.String(strings.TrimPrefix(bundleURL.Path, "/")),
-	}
-
 	// get the spec and populate it
 	functionTemplate, err := templates.Function(env, spec.Branch, name)
 	if err != nil {
 		return
 	}
 	functionTemplate, err = functionTemplate.Populate(map[string]string{
-		"Namespace":       env,
-		"AWSAcountNumber": s.accountNumber,
+		"Tag":              spec.Tag,
+		"Namespace":        env,
+		"AWSAccountNumber": s.accountNumber,
 	})
 	if err != nil {
 		return
@@ -222,6 +204,20 @@ func (s *LambdaService) Deploy(ctx context.Context, env, name string, spec *Func
 	err = functionTemplate.Parse(functionSpec)
 	if err != nil {
 		return
+	}
+
+	// create or update function
+	functionName := makeFunctionName(env, name)
+
+	bundleURL, err := url.Parse(functionSpec.Code)
+	if err != nil {
+		return
+	}
+
+	updateFunctionCode := &lambda.UpdateFunctionCodeInput{
+		FunctionName: aws.String(functionName),
+		S3Bucket:     aws.String(bundleURL.Host),
+		S3Key:        aws.String(strings.TrimPrefix(bundleURL.Path, "/")),
 	}
 
 	function, err := s.Get(ctx, env, name)
@@ -462,6 +458,7 @@ func makeFunctionName(env, name string) string {
 
 // LambdaFunctionSpec is the spec for the lambda function configuration
 type LambdaFunctionSpec struct {
+	Code          string                           `json:"code"`
 	Runtime       string                           `json:"runtime"`
 	Handler       string                           `json:"handler"`
 	Role          string                           `json:"role"`

@@ -61,6 +61,11 @@ func (NotFoundError) Error() string {
 	return "Function not found"
 }
 
+// FunctionSpec is the spec for a generic function configuration
+type FunctionSpec struct {
+	Code string `json:"code"`
+}
+
 // FunctionDeploySpec is used to deploy a function
 type FunctionDeploySpec struct {
 	Tag        string `json:"tag"`

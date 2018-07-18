@@ -138,58 +138,45 @@ func New() *App {
 			})
 		},
 
-		// set up the docker repository
+		// set up the docker registry
 		func() {
 			defer wg.Done()
-			switch config.GetString(config.DockerMode) {
-			case "registry":
-				err := repository.InitRegistry(&repository.RegistryConfig{
-					BaseURL:   config.GetString(config.RegistryURL),
-					Username:  config.GetString(config.RegistryUsername),
-					Password:  config.GetString(config.RegistryPassword),
-					Namespace: config.GetString(config.RegistryNamespace),
-				})
-				if err != nil {
-					log.Fatal(err)
-				}
-			case "ecr":
-				ecrAccountID := config.GetString(config.ECRAccountID)
-				var registryID *string
-				if ecrAccountID != "" {
-					registryID = &ecrAccountID
-				}
+			err := repository.InitRegistry(&repository.RegistryConfig{
+				Username: config.GetString(config.RegistryUsername),
+				Password: config.GetString(config.RegistryPassword),
+			})
+			if err != nil {
+				log.Fatal(err)
+			}
+		},
+
+		// set up the ECR registry
+		func() {
+			defer wg.Done()
+			if config.IsSet(config.AWSRegion) && config.IsSet(config.AWSAccessKeyID) && config.IsSet(config.AWSSecretAccessKey) {
 				err := repository.InitECR(&repository.ECRConfig{
 					Region:          config.GetString(config.AWSRegion),
 					AccessKeyID:     config.GetString(config.AWSAccessKeyID),
 					SecretAccessKey: config.GetString(config.AWSSecretAccessKey),
-					Namespace:       config.GetString(config.RegistryNamespace),
-					RegistryID:      registryID,
 				})
 				if err != nil {
 					log.Fatal(err)
 				}
-			default:
-				log.Fatal("invalid docker mode provided")
 			}
 		},
 
-		// set up the bundle repository
+		// set up the S3 repository
 		func() {
 			defer wg.Done()
-			switch config.GetString(config.BundleMode) {
-			case "s3":
+			if config.IsSet(config.AWSRegion) && config.IsSet(config.AWSAccessKeyID) && config.IsSet(config.AWSSecretAccessKey) {
 				err := repository.InitS3(&repository.S3Config{
 					Region:          config.GetString(config.AWSRegion),
-					Bucket:          config.GetString(config.AWSRepositoryBucket),
-					Namespace:       config.GetString(config.BundleNamespace),
 					AccessKeyID:     config.GetString(config.AWSAccessKeyID),
 					SecretAccessKey: config.GetString(config.AWSSecretAccessKey),
 				})
 				if err != nil {
 					log.Fatal(err)
 				}
-			default:
-				// bundle repository is not required
 			}
 		},
 

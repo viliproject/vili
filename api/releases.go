@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -193,7 +194,7 @@ func releaseCreateHandler(c echo.Context) error {
 		}
 		release.Name = time.Now().Format("latest-20060102150405")
 		// get waves by selecting the latest version of each job and app
-		if populateReleaseLatestVersions(environment, release) {
+		if populateReleaseLatestVersions(c.Request().Context(), environment, release) {
 			return errors.InternalServerError()
 		}
 	}
@@ -285,7 +286,7 @@ func releaseDeployHandler(c echo.Context) error {
 	}
 	// deploy release
 	go func() {
-		err = deployRelease(release, releaseRollout)
+		err = deployRelease(c.Request().Context(), release, releaseRollout)
 		if err != nil {
 			log.WithError(err).Error("failed release rollout")
 		}
@@ -293,13 +294,13 @@ func releaseDeployHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, releaseRollout)
 }
 
-func populateReleaseLatestVersions(environment *environments.Environment, release *types.Release) (failed bool) {
+func populateReleaseLatestVersions(ctx context.Context, environment *environments.Environment, release *types.Release) (failed bool) {
 	var wg sync.WaitGroup
 	for _, wave := range release.Waves {
 		for _, target := range wave.Targets {
 			wg.Add(1)
 			go func(target *types.ReleaseTarget) {
-				if err := populateReleaseTargetLatestVersion(environment, target); err != nil {
+				if err := populateReleaseTargetLatestVersion(ctx, environment, target); err != nil {
 					log.WithError(err).Error("failed populating latest versions for release target")
 					failed = true
 				}
@@ -311,13 +312,33 @@ func populateReleaseLatestVersions(environment *environments.Environment, releas
 	return
 }
 
-func populateReleaseTargetLatestVersion(environment *environments.Environment, target *types.ReleaseTarget) error {
+func populateReleaseTargetLatestVersion(ctx context.Context, environment *environments.Environment, target *types.ReleaseTarget) error {
 	switch target.Type {
 	case types.ReleaseTargetTypeAction:
 		target.Branch = environment.Branch
 		return nil
-	case types.ReleaseTargetTypeApp, types.ReleaseTargetTypeJob:
-		images, err := repository.GetDockerRepository(target.Name, environment.RepositoryBranches)
+	case types.ReleaseTargetTypeApp:
+		imageRepo, err := getDeploymentImageRepo(target.Name, environment.Name, environment.RepositoryBranches[0])
+		if err != nil {
+			return err
+		}
+		images, err := repository.GetDockerRepository(ctx, imageRepo, environment.RepositoryBranches)
+		if err != nil {
+			return err
+		}
+		if len(images) == 0 {
+			return fmt.Errorf("Target %s does not have any images in the repository", target.Name)
+		}
+		image := images[0]
+		target.Tag = image.Tag
+		target.Branch = image.Branch
+		return nil
+	case types.ReleaseTargetTypeJob:
+		imageRepo, err := getJobImageRepo(target.Name, environment.Name, environment.RepositoryBranches[0])
+		if err != nil {
+			return err
+		}
+		images, err := repository.GetDockerRepository(ctx, imageRepo, environment.RepositoryBranches)
 		if err != nil {
 			return err
 		}
@@ -351,7 +372,7 @@ func createReleaseRollout(release *types.Release, env, username string) (*types.
 	return releaseRollout, setReleaseValue(release)
 }
 
-func deployRelease(release *types.Release, releaseRollout *types.ReleaseRollout) error {
+func deployRelease(ctx context.Context, release *types.Release, releaseRollout *types.ReleaseRollout) error {
 	// deploy each wave in order
 	for ix, wave := range release.Waves {
 		// set status to deploying
@@ -361,7 +382,7 @@ func deployRelease(release *types.Release, releaseRollout *types.ReleaseRollout)
 			return err
 		}
 		// deploy
-		if deployReleaseWave(wave, releaseRollout) {
+		if deployReleaseWave(ctx, wave, releaseRollout) {
 			releaseRollout.Status = types.RolloutStatusFailed
 			releaseRolloutWave.Status = types.RolloutStatusFailed
 			return setReleaseValue(release)
@@ -376,7 +397,7 @@ func deployRelease(release *types.Release, releaseRollout *types.ReleaseRollout)
 	return setReleaseValue(release)
 }
 
-func deployReleaseWave(wave *types.ReleaseWave, releaseRollout *types.ReleaseRollout) bool {
+func deployReleaseWave(ctx context.Context, wave *types.ReleaseWave, releaseRollout *types.ReleaseRollout) bool {
 	log.Debugf("Deploying wave with %d targets", len(wave.Targets))
 	// deploy targets in parallel
 	var wg sync.WaitGroup
@@ -385,7 +406,7 @@ func deployReleaseWave(wave *types.ReleaseWave, releaseRollout *types.ReleaseRol
 		wg.Add(1)
 		go func(target *types.ReleaseTarget) {
 			defer wg.Done()
-			if err := deployReleaseTarget(target, releaseRollout); err != nil {
+			if err := deployReleaseTarget(ctx, target, releaseRollout); err != nil {
 				log.WithError(err).Error("failed deploying target")
 				failed = true
 			}
@@ -396,7 +417,7 @@ func deployReleaseWave(wave *types.ReleaseWave, releaseRollout *types.ReleaseRol
 	return failed
 }
 
-func deployReleaseTarget(target *types.ReleaseTarget, releaseRollout *types.ReleaseRollout) error {
+func deployReleaseTarget(ctx context.Context, target *types.ReleaseTarget, releaseRollout *types.ReleaseRollout) error {
 	switch target.Type {
 	case types.ReleaseTargetTypeAction:
 		log.Debugf(
@@ -417,7 +438,7 @@ func deployReleaseTarget(target *types.ReleaseTarget, releaseRollout *types.Rele
 			Branch:         target.Branch,
 			Tag:            target.Tag,
 		}
-		return rollout.Run(false)
+		return rollout.Run(ctx, false)
 	case types.ReleaseTargetTypeJob:
 		log.Debugf(
 			"Running job %s, tag %s to env %s, requested by %s",
@@ -429,7 +450,7 @@ func deployReleaseTarget(target *types.ReleaseTarget, releaseRollout *types.Rele
 			Branch:   target.Branch,
 			Tag:      target.Tag,
 		}
-		return jobRun.Run(false)
+		return jobRun.Run(ctx, false)
 	}
 	return nil
 }

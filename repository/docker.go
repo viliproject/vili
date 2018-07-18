@@ -1,25 +1,26 @@
 package repository
 
-var dockerService DockerService
+import (
+	"context"
+	"regexp"
+)
 
-// DockerService is a docker service instance that fetches images from a repository
-type DockerService interface {
-	GetRepository(repo string, branches []string) ([]*Image, error)
-	GetTag(repo, tag string) (string, error)
-	FullName(repo, tag string) (string, error)
-}
+var ecrRegexp = regexp.MustCompile(`^([^.]+).dkr.ecr.([^.]+).amazonaws.com/(.+)$`)
 
 // GetDockerRepository returns the images in the given repository for the provided branch names
-func GetDockerRepository(repo string, branches []string) ([]*Image, error) {
-	return dockerService.GetRepository(repo, branches)
+func GetDockerRepository(ctx context.Context, repo string, branches []string) ([]*Image, error) {
+	ecrMatch := ecrRegexp.FindStringSubmatch(repo)
+	if len(ecrMatch) > 0 {
+		return ecrService.GetRepository(ctx, ecrMatch[1], ecrMatch[3], branches)
+	}
+	return registryService.GetRepository(ctx, repo, branches)
 }
 
 // GetDockerTag returns an image digest for the given tag
-func GetDockerTag(repo, tag string) (string, error) {
-	return dockerService.GetTag(repo, tag)
-}
-
-// DockerFullName returns the complete docker image name
-func DockerFullName(repo, tag string) (string, error) {
-	return dockerService.FullName(repo, tag)
+func GetDockerTag(ctx context.Context, repo, tag string) (string, error) {
+	ecrMatch := ecrRegexp.FindStringSubmatch(repo)
+	if len(ecrMatch) > 0 {
+		return ecrService.GetTag(ctx, ecrMatch[1], ecrMatch[3], tag)
+	}
+	return registryService.GetTag(ctx, repo, tag)
 }

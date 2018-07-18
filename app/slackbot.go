@@ -1,6 +1,7 @@
 package vili
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"strings"
@@ -34,6 +35,7 @@ func runDeployBot() {
 		publishedRegexp: publishes,
 	})
 
+	ctx := context.Background()
 	for {
 		select {
 		case mention, ok := <-mentions:
@@ -52,7 +54,7 @@ func runDeployBot() {
 				if !locked {
 					continue
 				}
-				err = handleCommand(strings.Fields(mention.Matches[0]), mention.Username)
+				err = handleCommand(ctx, strings.Fields(mention.Matches[0]), mention.Username)
 				if err != nil {
 					log.Error(err)
 				}
@@ -79,7 +81,7 @@ func runDeployBot() {
 				})
 				tag := publish.Matches[1]
 				branch := publish.Matches[2]
-				err = handlePublish(images, tag, branch, publish.Username)
+				err = handlePublish(ctx, images, tag, branch, publish.Username)
 				if err != nil {
 					log.Error(err)
 				}
@@ -92,7 +94,7 @@ func runDeployBot() {
 	}
 }
 
-func handleCommand(command []string, username string) error {
+func handleCommand(ctx context.Context, command []string, username string) error {
 	if len(command) == 0 {
 		log.Debug("Skipping empty command")
 		return nil
@@ -127,7 +129,7 @@ func handleCommand(command []string, username string) error {
 				return nil
 			}
 		}
-		rolloutDeployment(env, deployment, tag, branch, username)
+		rolloutDeployment(ctx, env, deployment, tag, branch, username)
 	default:
 		// TODO print usage?
 		log.Debugf("Ignoring unknown command", command[0])
@@ -135,7 +137,7 @@ func handleCommand(command []string, username string) error {
 	return nil
 }
 
-func handlePublish(images []string, tag, branch, username string) error {
+func handlePublish(ctx context.Context, images []string, tag, branch, username string) error {
 	if len(images) == 0 {
 		log.Debug("Skipping empty publish")
 		return nil
@@ -150,7 +152,7 @@ func handlePublish(images []string, tag, branch, username string) error {
 			}
 		}
 		if env != "" {
-			rolloutDeployment(env, image, tag, branch, username)
+			rolloutDeployment(ctx, env, image, tag, branch, username)
 		} else {
 			log.Debugf("No deployment found for branch %s with name %s", branch, image)
 		}
@@ -158,7 +160,7 @@ func handlePublish(images []string, tag, branch, username string) error {
 	return nil
 }
 
-func rolloutDeployment(env, deployment, tag, branch, username string) {
+func rolloutDeployment(ctx context.Context, env, deployment, tag, branch, username string) {
 	log.Debugf("Rolling out deployment %s, tag %s to env %s, requested by %s", deployment, tag, env, username)
 	rollout := &api.Rollout{
 		Env:            env,
@@ -167,7 +169,7 @@ func rolloutDeployment(env, deployment, tag, branch, username string) {
 		Branch:         branch,
 		Tag:            tag,
 	}
-	err := rollout.Run(true)
+	err := rollout.Run(ctx, true)
 	if err != nil {
 		switch e := err.(type) {
 		case api.RolloutInitError:

@@ -31,20 +31,14 @@ const (
 	GithubRepo              = "github-repo"
 	GithubDefaultBranch     = "github-default-branch"
 	GithubContentsPath      = "github-contents-path"
-	DockerMode              = "docker-mode"
-	BundleMode              = "bundle-mode"
 	FunctionsMode           = "functions-mode"
 	AWSRegion               = "aws-region"
 	AWSRepositoryBucket     = "aws-repository-bucket"
 	AWSAccessKeyID          = "aws-access-key-id"
 	AWSSecretAccessKey      = "aws-secret-access-key"
-	RegistryURL             = "registry-url"
 	RegistryBranchDelimiter = "registry-branch-delimiter"
-	RegistryNamespace       = "registry-namespace"
 	RegistryUsername        = "registry-username"
 	RegistryPassword        = "registry-password"
-	BundleNamespace         = "bundle-namespace"
-	ECRAccountID            = "ecr-account-id"
 	FirebaseURL             = "firebase-url"
 	FirebaseSecret          = "firebase-secret"
 	SlackToken              = "slack-token"
@@ -80,7 +74,6 @@ func InitApp() error {
 	SetDefault(SlackUsername, "vili")
 	SetDefault(ApprovalProdEnvs, "preprod prod")
 	SetDefault(RegistryBranchDelimiter, "-")
-	SetDefault(DockerMode, "registry")
 	SetDefault(RolloutTimeout, 10*time.Minute)
 	SetDefault(JobRunTimeout, 10*time.Minute)
 	return Require(

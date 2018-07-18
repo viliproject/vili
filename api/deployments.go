@@ -52,8 +52,13 @@ func deploymentRepositoryGetHandler(c echo.Context) error {
 		return err
 	}
 
+	imageRepo, err := getDeploymentImageRepo(deployment, env, environment.RepositoryBranches[0])
+	if err != nil {
+		return err
+	}
+
 	resp := new(deploymentRepositoryResponse)
-	images, err := repository.GetDockerRepository(deployment, environment.RepositoryBranches)
+	images, err := repository.GetDockerRepository(c.Request().Context(), imageRepo, environment.RepositoryBranches)
 	if err != nil {
 		return err
 	}

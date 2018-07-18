@@ -1,27 +1,25 @@
 package repository
 
 import (
+	"context"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
-	"sync"
-	"time"
 
 	"github.com/docker/distribution"
-	"github.com/docker/distribution/context"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/client"
 	"github.com/docker/distribution/registry/client/auth"
+	"github.com/docker/distribution/registry/client/auth/challenge"
 	"github.com/docker/distribution/registry/client/transport"
 )
 
+var registryService *RegistryService
+
 // RegistryConfig is the registry service configuration
 type RegistryConfig struct {
-	BaseURL   string
-	Username  string
-	Password  string
-	Namespace string
+	Username string
+	Password string
 }
 
 // RegistryService is an implementation of the docker Service interface
@@ -32,39 +30,16 @@ type RegistryService struct {
 
 // InitRegistry initializes the docker registry service
 func InitRegistry(c *RegistryConfig) error {
-	dockerService = &RegistryService{
+	registryService = &RegistryService{
 		config: c,
 	}
 	return nil
 }
 
 // GetRepository implements the Service interface
-func (s *RegistryService) GetRepository(repo string, branches []string) ([]*Image, error) {
-	var waitGroup sync.WaitGroup
-	imagesChan := make(chan getImagesResult, len(branches))
-
-	for _, branch := range branches {
-		waitGroup.Add(1)
-		go func(branch string) {
-			defer waitGroup.Done()
-			images, err := s.getImagesForBranch(repo, branch)
-			imagesChan <- getImagesResult{images: images, err: err}
-		}(branch)
-	}
-
-	waitGroup.Wait()
-	close(imagesChan)
-
-	var images []*Image
-	var err error
-	for result := range imagesChan {
-		if result.err != nil {
-			err = result.err
-		}
-		images = append(images, result.images...)
-	}
-
-	if len(images) == 0 && err != nil {
+func (s *RegistryService) GetRepository(ctx context.Context, repo string, branches []string) ([]*Image, error) {
+	images, err := s.getImagesForBranches(ctx, repo, branches)
+	if err != nil {
 		return nil, err
 	}
 
@@ -73,13 +48,13 @@ func (s *RegistryService) GetRepository(repo string, branches []string) ([]*Imag
 }
 
 // GetTag implements the Service interface
-func (s *RegistryService) GetTag(repo, tag string) (string, error) {
-	repository, err := s.getRepository(repo)
+func (s *RegistryService) GetTag(ctx context.Context, repo, tag string) (string, error) {
+	repository, err := s.getRepository(ctx, repo)
 	if err != nil {
 		return "", err
 	}
 
-	desc, err := repository.Tags(context.Background()).Get(context.Background(), tag)
+	desc, err := repository.Tags(ctx).Get(ctx, tag)
 	if err != nil {
 		return "", err
 	}
@@ -87,21 +62,13 @@ func (s *RegistryService) GetTag(repo, tag string) (string, error) {
 	return desc.Digest.String(), nil
 }
 
-// FullName implements the Service interface
-func (s *RegistryService) FullName(repo, tag string) (string, error) {
-	if s.config.Namespace != "" {
-		repo = s.config.Namespace + "/" + repo
-	}
-	return s.config.BaseURL + "/" + repo + ":" + tag, nil
-}
-
-func (s *RegistryService) getImagesForBranch(repoName, branchName string) ([]*Image, error) {
-	repo, err := s.getRepository(repoName)
+func (s *RegistryService) getImagesForBranches(ctx context.Context, repoName string, branchNames []string) ([]*Image, error) {
+	repo, err := s.getRepository(ctx, repoName)
 	if err != nil {
 		return nil, err
 	}
 
-	tags, err := repo.Tags(context.Background()).All(context.Background())
+	tags, err := repo.Tags(ctx).All(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -109,31 +76,34 @@ func (s *RegistryService) getImagesForBranch(repoName, branchName string) ([]*Im
 	var images []*Image
 	for _, tag := range tags {
 		image := &Image{
-			Tag:    tag,
-			Branch: branchName,
+			Tag: tag,
 		}
 		sepIndex := strings.LastIndex(tag, "-")
 		if sepIndex != -1 {
-			dateComponent, shaComponent := tag[:sepIndex], tag[sepIndex+1:]
-			unixSecs, err := strconv.ParseInt(dateComponent, 10, 0)
-			if err != nil {
-				continue
-			}
+			branchComponent, shaComponent := tag[:sepIndex], tag[sepIndex+1:]
 			image.Revision = shaComponent
-			image.LastModified = time.Unix(unixSecs, 0)
+			for _, branchName := range branchNames {
+				if branchComponent == slugFromBranch(branchName) {
+					image.Branch = branchName
+					images = append(images, image)
+				}
+			}
 		}
-		images = append(images, image)
 	}
 	return images, nil
 }
 
-func (s *RegistryService) getRepository(repoName string) (distribution.Repository, error) {
-	if s.config.Namespace != "" {
-		repoName = s.config.Namespace + "/" + repoName
-	}
-	repoNameRef, err := reference.ParseNamed(repoName)
+func (s *RegistryService) getRepository(ctx context.Context, repoName string) (distribution.Repository, error) {
+	repoNameRef, err := reference.ParseNormalizedNamed(repoName)
 	if err != nil {
 		return nil, err
+	}
+	domain := reference.Domain(repoNameRef)
+	path := reference.Path(repoNameRef)
+
+	baseURL := "https://" + domain
+	if domain == "docker.io" {
+		baseURL = "https://registry-1.docker.io"
 	}
 
 	credentialStore := &basicCredentialStore{
@@ -141,8 +111,8 @@ func (s *RegistryService) getRepository(repoName string) (distribution.Repositor
 		Password: s.config.Password,
 	}
 
-	challengeManager := auth.NewSimpleChallengeManager()
-	resp, err := http.Get(s.config.BaseURL + "/v2/")
+	challengeManager := challenge.NewSimpleManager()
+	resp, err := http.Get(baseURL + "/v2/")
 	if err != nil {
 		return nil, err
 	}
@@ -152,11 +122,11 @@ func (s *RegistryService) getRepository(repoName string) (distribution.Repositor
 
 	transport := transport.NewTransport(http.DefaultTransport, auth.NewAuthorizer(
 		challengeManager,
-		auth.NewTokenHandler(http.DefaultTransport, credentialStore, repoName, "pull"),
+		auth.NewTokenHandler(http.DefaultTransport, credentialStore, path, "pull"),
 		auth.NewBasicHandler(credentialStore),
 	))
 
-	repo, err := client.NewRepository(context.Background(), repoNameRef, s.config.BaseURL, transport)
+	repo, err := client.NewRepository(repoNameRef, baseURL, transport)
 	if err != nil {
 		return nil, err
 	}

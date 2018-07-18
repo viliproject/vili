@@ -6,9 +6,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/airware/vili/functions"
 	"github.com/airware/vili/log"
+	"github.com/airware/vili/templates"
 	"github.com/labstack/echo"
 	"golang.org/x/net/websocket"
+	batchv1 "k8s.io/api/batch/v1"
 	extv1beta1 "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -50,6 +53,40 @@ func getListOptionsForDeployment(deployment *extv1beta1.Deployment) metav1.ListO
 	}
 }
 
+func getDeploymentWithTag(deploymentName, env, branch, tag string) (*extv1beta1.Deployment, error) {
+	deploymentTemplate, err := templates.Deployment(env, branch, deploymentName)
+	if err != nil {
+		return nil, err
+	}
+	deploymentTemplate, err = deploymentTemplate.Populate(map[string]string{
+		"Tag":       tag,
+		"Namespace": "",
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	deployment := new(extv1beta1.Deployment)
+	err = deploymentTemplate.Parse(deployment)
+	if err != nil {
+		return nil, err
+	}
+	return deployment, nil
+}
+
+func getImageRepoFromDeployment(deployment *extv1beta1.Deployment) (string, error) {
+	containers := deployment.Spec.Template.Spec.Containers
+	if len(containers) == 0 {
+		return "", fmt.Errorf("no containers in controller")
+	}
+	image := deployment.Spec.Template.Spec.Containers[0].Image
+	imageSplit := strings.Split(image, ":")
+	if len(imageSplit) != 2 {
+		return "", fmt.Errorf("invalid image: %s", image)
+	}
+	return imageSplit[0], nil
+}
+
 func getPortFromDeployment(deployment *extv1beta1.Deployment) (int32, error) {
 	containers := deployment.Spec.Template.Spec.Containers
 	if len(containers) == 0 {
@@ -62,17 +99,80 @@ func getPortFromDeployment(deployment *extv1beta1.Deployment) (int32, error) {
 	return ports[0].ContainerPort, nil
 }
 
-func getImageTagFromDeployment(deployment *extv1beta1.Deployment) (string, error) {
-	containers := deployment.Spec.Template.Spec.Containers
-	if len(containers) == 0 {
-		return "", fmt.Errorf("no containers in deployment")
+func getDeploymentImageRepo(deploymentName, env, branch string) (string, error) {
+	deployment, err := getDeploymentWithTag(deploymentName, env, branch, "tag")
+	if err != nil {
+		return "", err
 	}
-	image := containers[0].Image
+	return getImageRepoFromDeployment(deployment)
+}
+
+func getJobWithTag(jobName, env, branch, tag string) (*batchv1.Job, error) {
+	jobTemplate, err := templates.Job(env, branch, jobName)
+	if err != nil {
+		return nil, err
+	}
+	jobTemplate, err = jobTemplate.Populate(map[string]string{
+		"Tag":       tag,
+		"Namespace": "",
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	job := new(batchv1.Job)
+	err = jobTemplate.Parse(job)
+	if err != nil {
+		return nil, err
+	}
+	return job, nil
+}
+
+func getImageRepoFromJob(job *batchv1.Job) (string, error) {
+	containers := job.Spec.Template.Spec.Containers
+	if len(containers) == 0 {
+		return "", fmt.Errorf("no containers in controller")
+	}
+	image := job.Spec.Template.Spec.Containers[0].Image
 	imageSplit := strings.Split(image, ":")
 	if len(imageSplit) != 2 {
 		return "", fmt.Errorf("invalid image: %s", image)
 	}
-	return imageSplit[1], nil
+	return imageSplit[0], nil
+}
+
+func getJobImageRepo(jobName, env, branch string) (string, error) {
+	job, err := getJobWithTag(jobName, env, branch, "tag")
+	if err != nil {
+		return "", err
+	}
+	return getImageRepoFromJob(job)
+}
+
+func getFunctionCodeRepo(functionName, env, branch string) (string, error) {
+	functionTemplate, err := templates.Function(env, branch, functionName)
+	if err != nil {
+		return "", err
+	}
+	functionTemplate, err = functionTemplate.Populate(map[string]string{
+		"Tag":              "tag",
+		"Namespace":        "",
+		"AWSAccountNumber": "",
+	})
+	if err != nil {
+		return "", err
+	}
+
+	function := new(functions.FunctionSpec)
+	err = functionTemplate.Parse(function)
+	if err != nil {
+		return "", err
+	}
+	codeSplit := strings.Split(function.Code, "/")
+	if len(codeSplit) < 1 {
+		return "", fmt.Errorf("invalid function code: %s", function.Code)
+	}
+	return strings.Join(codeSplit[0:len(codeSplit)-1], "/"), nil
 }
 
 func humanizeDuration(d time.Duration) string {

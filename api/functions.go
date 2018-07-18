@@ -80,8 +80,13 @@ func functionRepositoryGetHandler(c echo.Context) error {
 		return err
 	}
 
+	codeRepo, err := getFunctionCodeRepo(function, env, environment.RepositoryBranches[0])
+	if err != nil {
+		return err
+	}
+
 	resp := new(functionRepositoryResponse)
-	images, err := repository.GetBundleRepository(function, environment.RepositoryBranches)
+	images, err := repository.GetBundleRepository(c.Request().Context(), codeRepo, environment.RepositoryBranches)
 	if err != nil {
 		return err
 	}
