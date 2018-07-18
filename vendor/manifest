@@ -142,7 +142,7 @@
 			"importpath": "github.com/docker/distribution",
 			"repository": "https://github.com/docker/distribution",
 			"vcs": "git",
-			"revision": "b49f8ed894f134a00b2db9bbf3f98c41617daed4",
+			"revision": "749f6afb4572201e3c37325d0ffedb6f32be8950",
 			"branch": "master",
 			"notests": true
 		},
