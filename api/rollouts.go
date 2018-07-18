@@ -221,6 +221,8 @@ func (r *Rollout) watchRollout() (err error) {
 	watcher, err := kube.GetClient(r.Env).Deployments().Watch(metav1.ListOptions{
 		FieldSelector: "metadata.name=" + r.DeploymentName,
 	})
+	fromDeployment, err := kube.GetClient(r.Env).Deployments().Get(r.DeploymentName, metav1.GetOptions{})
+	fmt.Println(fromDeployment)
 	if err != nil {
 		return err
 	}
@@ -246,6 +248,7 @@ eventLoop:
 					replicas := *deployment.Spec.Replicas
 					if deployment.Status.UpdatedReplicas >= replicas && deployment.Status.AvailableReplicas >= replicas {
 						r.logMessage(fmt.Sprintf("Successfully completed rollout in %s", humanizeDuration(elapsed)), log.InfoLevel)
+
 						watcher.Stop()
 						break eventLoop
 					}
