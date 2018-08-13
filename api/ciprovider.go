@@ -34,14 +34,14 @@ func PostRolloutWebhook(ciProvider string, env string) error {
 		environment, err := environments.Get(env)
 		namespace, err := kube.GetClient(environment.DeployedToEnv).Core().Namespaces().Get(environment.Name, metav1.GetOptions{})
 		if err != nil {
-			log.Errorf("Namespace with name %s doesn't exist", environment.Name)
-		} else {
-			slack.PostLogMessage(fmt.Sprintf("Webhook invoked for *%s*", environment.Name), log.InfoLevel)
-			buildParameters["CIRCLE_JOB"] = namespace.Annotations["vili.environment-testjob"]
-			_, err = circleci.CircleBuild(config.GetString(config.GithubOwner), config.GetString(config.GithubRepo), environment.Branch, buildParameters)
-			if err != nil {
-				return err
-			}
+			log.Warnf("Namespace with name %s doesn't exist", environment.Name)
+			return nil
+		}
+		slack.PostLogMessage(fmt.Sprintf("Webhook invoked for *%s*", environment.Name), log.InfoLevel)
+		buildParameters["CIRCLE_JOB"] = namespace.Annotations["vili.environment-webhook"]
+		_, err = circleci.CircleBuild(config.GetString(config.GithubOwner), config.GetString(config.GithubRepo), environment.Branch, buildParameters)
+		if err != nil {
+			return err
 		}
 	default:
 		log.Info("Define the post rollout webhook for you CI here")
