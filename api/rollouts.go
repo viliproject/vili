@@ -221,8 +221,6 @@ func (r *Rollout) watchRollout() (err error) {
 	watcher, err := kube.GetClient(r.Env).Deployments().Watch(metav1.ListOptions{
 		FieldSelector: "metadata.name=" + r.DeploymentName,
 	})
-	fromDeployment, err := kube.GetClient(r.Env).Deployments().Get(r.DeploymentName, metav1.GetOptions{})
-	fmt.Printf("Deploment name: %s \n %+v", r.DeploymentName, fromDeployment)
 	if err != nil {
 		return err
 	}

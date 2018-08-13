@@ -38,6 +38,20 @@ To setup Vili on your Kubernetes cluster, follow these steps:
 6. Create a [secret](http://kubernetes.io/v1.1/docs/user-guide/secrets.html) in your Kubernetes cluster that stores your GitHub, Docker, Firebase, and Slack credentials following this [example](https://github.com/airware/vili/blob/master/docs/examples/simple/secret.yaml). Populate the values in the secret using the Docker, GitHub, Firebase, and Slack information you wrote down in the previous steps. Don't forget to base64 encode them as required by Kubernetes!
 7. Create a deployment in your Kubernetes cluster following this [example](docs/examples/simple/deployment.yaml). Populate the environment variables using the Okta, Docker, GitHub, Firebase, and Slack information you wrote down in the previous steps.
 8. Create a [service](http://kubernetes.io/v1.1/docs/user-guide/services.html) for this replication controller, and allow external access to this service under the domain name you chose in step 1.
+9. If you want to integrate a Continuous Integration service with Vili, you can do so by adding CI_PROVIDER config variable with value (name of the ci provider in small letters) and other required CI parameters to your config file. 
+10. Currently, we are supporting integration only with CircleCI. To integrate with Circle ci, you will need below 3 parameters:
+
+  ```
+    CI_PROVIDER="circleci"
+    CIRCLECI_TOKEN=XXXX
+    CIRCLECI_BASEURL="https://circleci.com/api/v1.1/"
+  ```
+
+   You will also have to add a circle job name to your kubernetes namespace's annotations to run after successfull deployment which can be used to run tests or any other post deployment tasks:
+
+  ```
+    vili.environment-webhook="circle_jobname"
+  ```
 
 You are all set! Vili will use the GitHub and Docker Registry APIs to discover your apps and help you deploy them.
 
