@@ -21,7 +21,7 @@ func InitializeCiClient(ciProvider string) error {
 			BaseURL: config.GetString(config.CircleciBaseurl),
 		})
 	default:
-		log.WithField("CiProvider", ciProvider).Warn("You can configure your Ci webhook here with param: CiProvider in config file")
+		log.WithField("CiProvider", ciProvider).Errorf("Unsupported ci Provider: %s", ciProvider)
 	}
 	return nil
 }

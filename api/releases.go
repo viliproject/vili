@@ -300,9 +300,11 @@ func releaseDeployHandler(c echo.Context) error {
 					break
 				}
 			}
-			if rolloutFailed == false {
-				InitializeCiClient(config.GetString(config.CiProvider))
-				PostRolloutWebhook(config.GetString(config.CiProvider), env)
+			if !rolloutFailed {
+				err = PostRolloutWebhook(config.GetString(config.CiProvider), env)
+				if err != nil {
+					log.WithError(err).Error("failed to initialize post rollout webhook")
+				}
 			}
 		}
 	}()
