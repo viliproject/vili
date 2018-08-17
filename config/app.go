@@ -56,7 +56,6 @@ const (
 	JobRunTimeout           = "job-run-timeout"
 	CiProvider              = "ci-provider"
 	CircleciToken           = "circleci-token"
-	CircleciBaseurl         = "circleci-baseurl"
 )
 
 // EnvRepositoryBranches returns the config variable name for the
