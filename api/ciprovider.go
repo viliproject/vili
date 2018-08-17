@@ -25,7 +25,6 @@ func InitializeCiClient(ciProvider string) error {
 	case "":
 		log.Warn("You can configure a CI tool with vili in your config file with key CI_PROVIDER")
 	default:
-		// log.WithField("CiProvider", ciProvider).Errorf("Unsupported ci Provider: %s", ciProvider)
 		return fmt.Errorf("Unsupported ci Provider: %s", ciProvider)
 	}
 	return nil
