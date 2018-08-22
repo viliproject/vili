@@ -33,9 +33,5 @@ func (c *Config) Printf(format string, args ...interface{}) {
 
 // CircleBuild runs a build on circle ci for the defined branch
 func CircleBuild(account, repo, branch string, buildParameters map[string]string) (*circleci.Build, error) {
-	build, err := client.ParameterizedBuild(account, repo, branch, buildParameters)
-	if err != nil {
-		return nil, err
-	}
-	return build, nil
+	return client.ParameterizedBuild(account, repo, branch, buildParameters)
 }

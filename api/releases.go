@@ -290,7 +290,7 @@ func releaseDeployHandler(c echo.Context) error {
 		if err != nil {
 			log.WithError(err).Error("failed release rollout")
 		}
-		if config.GetString(config.CiProvider) != "" {
+		if config.GetString(config.CIProvider) != "" {
 			rolloutFailed := false
 			for ix := range release.Waves {
 				releaseRolloutWave := releaseRollout.Waves[ix]
@@ -301,7 +301,7 @@ func releaseDeployHandler(c echo.Context) error {
 				}
 			}
 			if !rolloutFailed {
-				err = PostRolloutWebhook(config.GetString(config.CiProvider), env)
+				err = PostRolloutWebhook(config.GetString(config.CIProvider), env)
 				if err != nil {
 					log.WithError(err).Error("failed to initialize post rollout webhook")
 				}

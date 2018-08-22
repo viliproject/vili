@@ -47,7 +47,7 @@ To setup Vili on your Kubernetes cluster, follow these steps:
     CIRCLECI_BASEURL="https://circleci.com/api/v1.1/"
   ```
 
-   You will also have to add a circle job name to your kubernetes namespace's annotations to run after successfull deployment which can be used to run tests or any other post deployment tasks:
+   You will also have to add a circle job name to your kubernetes namespace's annotations to run after successful deployment which can be used to run tests or any other post deployment tasks:
 
   ```
     vili.environment-webhook="circle_jobname"

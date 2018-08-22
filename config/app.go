@@ -54,8 +54,8 @@ const (
 	SlackDeployUsernames    = "slack-deploy-usernames"
 	RolloutTimeout          = "rollout-timeout"
 	JobRunTimeout           = "job-run-timeout"
-	CiProvider              = "ci-provider"
-	CircleciToken           = "circleci-token"
+	CIProvider              = "ci-provider"
+	CircleCIToken           = "circleci-token"
 )
 
 // EnvRepositoryBranches returns the config variable name for the

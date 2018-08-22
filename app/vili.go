@@ -259,7 +259,7 @@ func New() *App {
 		// set up the ci client
 		func() {
 			defer wg.Done()
-			err := api.InitializeCiClient(config.GetString(config.CiProvider))
+			err := api.InitializeCiClient(config.GetString(config.CIProvider))
 			if err != nil {
 				log.Fatal(err)
 			}

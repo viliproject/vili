@@ -17,15 +17,15 @@ func InitializeCiClient(ciProvider string) error {
 	switch ciProvider {
 	case "circleci":
 		err := circleci.Init(&circleci.Config{
-			Token: config.GetString(config.CircleciToken),
+			Token: config.GetString(config.CircleCIToken),
 		})
 		if err != nil {
 			return err
 		}
 	case "":
-		log.Warn("You can configure a CI tool with vili in your config file with key CI_PROVIDER")
+		return nil
 	default:
-		return fmt.Errorf("Unsupported ci Provider: %s", ciProvider)
+		return fmt.Errorf("Unsupported CI Provider: %s", ciProvider)
 	}
 	return nil
 }
