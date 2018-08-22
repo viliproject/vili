@@ -59,3 +59,6 @@ export KUBE_PREPROD_URL=https://kubemasters-staging.airware.io
 export KUBE_PRODTOOLS_URL=https://kubemasters-prod.airware.io
 export KUBE_PRODTOOLS_NAMESPACE=tools
 export KUBE_PROD_URL=https://kubemasters-prod.airware.io
+
+export CI_PROVIDER="CI Name"
+export CI_PROVIDER_TOKEN=token

@@ -256,6 +256,14 @@ func New() *App {
 				DeployUsernames: util.NewStringSet(config.GetStringSlice(config.SlackDeployUsernames)),
 			})
 		},
+		// set up the ci client
+		func() {
+			defer wg.Done()
+			err := api.InitializeCiClient(config.GetString(config.CIProvider))
+			if err != nil {
+				log.Fatal(err)
+			}
+		},
 	}
 	wg.Add(len(initFunctions))
 	for _, f := range initFunctions {

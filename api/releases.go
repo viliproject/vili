@@ -11,6 +11,7 @@ import (
 
 	"golang.org/x/net/websocket"
 
+	"github.com/airware/vili/config"
 	"github.com/airware/vili/environments"
 	"github.com/airware/vili/errors"
 	"github.com/airware/vili/firebase"
@@ -288,6 +289,23 @@ func releaseDeployHandler(c echo.Context) error {
 		err = deployRelease(release, releaseRollout)
 		if err != nil {
 			log.WithError(err).Error("failed release rollout")
+		}
+		if config.GetString(config.CIProvider) != "" {
+			rolloutFailed := false
+			for ix := range release.Waves {
+				releaseRolloutWave := releaseRollout.Waves[ix]
+				if releaseRolloutWave.Status == types.RolloutStatusFailed {
+					rolloutFailed = true
+					log.Errorf("Rollout status: %+v ", releaseRolloutWave.Status)
+					break
+				}
+			}
+			if !rolloutFailed {
+				err = PostRolloutWebhook(config.GetString(config.CIProvider), env)
+				if err != nil {
+					log.WithError(err).Error("failed to initialize post rollout webhook")
+				}
+			}
 		}
 	}()
 	return c.JSON(http.StatusOK, releaseRollout)

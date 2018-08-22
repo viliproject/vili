@@ -367,6 +367,14 @@
 			"notests": true
 		},
 		{
+			"importpath": "github.com/jszwedko/go-circleci",
+			"repository": "https://github.com/jszwedko/go-circleci",
+			"vcs": "git",
+			"revision": "2ec72e1aa0f800e30e556612f967cb97789acaea",
+			"branch": "master",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/jtolds/gls",
 			"repository": "https://github.com/jtolds/gls",
 			"vcs": "git",
