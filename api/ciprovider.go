@@ -35,9 +35,13 @@ func PostRolloutWebhook(ciProvider string, env string) error {
 	switch ciProvider {
 	case "circleci":
 		environment, err := environments.Get(env)
+		if err != nil {
+			log.WithError(err).Warnf("Failed getting environment %s", env)
+			return err
+		}
 		namespace, err := kube.GetClient(environment.DeployedToEnv).Core().Namespaces().Get(environment.Name, metav1.GetOptions{})
 		if err != nil {
-			log.Warnf("Namespace with name %s doesn't exist", environment.Name)
+			log.WithError(err).Warnf("Failed getting namespace %s", environment.Name)
 			return err
 		}
 		slack.PostLogMessage(fmt.Sprintf("Webhook invoked for *%s*", environment.Name), log.InfoLevel)
@@ -49,7 +53,7 @@ func PostRolloutWebhook(ciProvider string, env string) error {
 			return err
 		}
 	default:
-		log.Info("Define the post rollout webhook for you CI here")
+		return nil
 	}
 	return nil
 }
