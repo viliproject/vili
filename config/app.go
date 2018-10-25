@@ -25,6 +25,7 @@ const (
 	RedisDB                 = "redis-db"
 	AuthService             = "auth-service"
 	SAMLMetadataURL         = "saml-metadata-url"
+	BasicAuthUsers          = "basic-auth-users"
 	HardcodedTokenUsers     = "hardcoded-token-users"
 	GithubToken             = "github-token"
 	GithubOwner             = "github-owner"

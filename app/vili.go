@@ -226,6 +226,13 @@ func New() *App {
 		func() {
 			defer wg.Done()
 			switch config.GetString(config.AuthService) {
+			case "basic":
+				err := auth.InitBasicAuthService(&auth.BasicConfig{
+					Users: config.GetStringSlice(config.BasicAuthUsers),
+				})
+				if err != nil {
+					log.Fatal(err)
+				}
 			case "saml":
 				err := auth.InitSAMLAuthService(&auth.SAMLConfig{
 					URL:            config.GetString(config.URI),
