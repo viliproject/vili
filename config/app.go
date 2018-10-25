@@ -94,7 +94,5 @@ func InitApp() error {
 		GithubOwner,
 		GithubRepo,
 		GithubContentsPath,
-		SlackToken,
-		SlackChannel,
 	)
 }

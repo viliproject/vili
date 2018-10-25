@@ -4,6 +4,7 @@ import (
 	"net/url"
 	"sync"
 
+	"github.com/labstack/echo"
 	"github.com/viliproject/vili/api"
 	"github.com/viliproject/vili/auth"
 	"github.com/viliproject/vili/config"
@@ -23,7 +24,6 @@ import (
 	"github.com/viliproject/vili/stats"
 	"github.com/viliproject/vili/templates"
 	"github.com/viliproject/vili/util"
-	"github.com/labstack/echo"
 )
 
 const appName = "vili"
@@ -248,13 +248,15 @@ func New() *App {
 		// set up the slack service
 		func() {
 			defer wg.Done()
-			slack.Init(&slack.Config{
-				Token:           config.GetString(config.SlackToken),
-				Channel:         config.GetString(config.SlackChannel),
-				Username:        config.GetString(config.SlackUsername),
-				Emoji:           config.GetString(config.SlackEmoji),
-				DeployUsernames: util.NewStringSet(config.GetStringSlice(config.SlackDeployUsernames)),
-			})
+			if config.IsSet(config.SlackToken) {
+				slack.Init(&slack.Config{
+					Token:           config.GetString(config.SlackToken),
+					Channel:         config.GetString(config.SlackChannel),
+					Username:        config.GetString(config.SlackUsername),
+					Emoji:           config.GetString(config.SlackEmoji),
+					DeployUsernames: util.NewStringSet(config.GetStringSlice(config.SlackDeployUsernames)),
+				})
+			}
 		},
 		// set up the ci client
 		func() {
