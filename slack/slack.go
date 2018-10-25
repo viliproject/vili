@@ -6,9 +6,9 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/nlopes/slack"
 	"github.com/viliproject/vili/log"
 	"github.com/viliproject/vili/util"
-	"github.com/nlopes/slack"
 )
 
 // WaitGroup is the wait group to synchronize slack rtm shutdowns
@@ -36,6 +36,11 @@ func Init(c *Config) error {
 	config = c
 	client = slack.New(c.Token)
 	return nil
+}
+
+// IsAvailable returns whether slack is available
+func IsAvailable() bool {
+	return client != nil
 }
 
 // PostLogMessage posts a formatted log message to slack

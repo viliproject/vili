@@ -22,6 +22,9 @@ var publishedRegexp = regexp.MustCompile(
 
 // runDeployBot runs the deploy bot that listens to messages in the slack channel
 func runDeployBot() {
+	if !slack.IsAvailable() {
+		return
+	}
 	mentionsRegexp, err := slack.MentionsRegexp()
 	if err != nil {
 		log.Error(err)
