@@ -8,8 +8,7 @@
     "build": "./node_modules/.bin/webpack --config ./public/webpack.config.js",
     "watch": "npm run build -- --progress --colors --watch",
     "lint": "node_modules/.bin/eslint \"./public/src/**/*.js\"",
-    "lint:fix":
-      "node_modules/.bin/eslint \"./public/src/**/*.js\" --fix | snazzy"
+    "lint:fix": "node_modules/.bin/eslint \"./public/src/**/*.js\" --fix | snazzy"
   },
   "repository": {
     "type": "git",
