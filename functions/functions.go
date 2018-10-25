@@ -9,6 +9,9 @@ var service Service
 
 // List returns a list of functions for the given env
 func List(ctx context.Context, env string) ([]Function, error) {
+	if service == nil {
+		return nil, nil
+	}
 	return service.List(ctx, env)
 }
 
