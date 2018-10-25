@@ -8,9 +8,9 @@ import (
 	"net/http/httptest"
 	"time"
 
-	"github.com/airware/vili/errors"
-	"github.com/airware/vili/log"
-	"github.com/airware/vili/middleware"
+	"github.com/viliproject/vili/errors"
+	"github.com/viliproject/vili/log"
+	"github.com/viliproject/vili/middleware"
 	"github.com/labstack/echo"
 	mw "github.com/labstack/echo/middleware"
 	"github.com/tylerb/graceful"

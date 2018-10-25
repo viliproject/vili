@@ -1,7 +1,7 @@
 package server
 
 import (
-	"github.com/airware/vili/errors"
+	"github.com/viliproject/vili/errors"
 	"github.com/labstack/echo"
 )
 

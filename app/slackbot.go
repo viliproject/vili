@@ -7,13 +7,13 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/airware/vili/api"
-	"github.com/airware/vili/environments"
-	"github.com/airware/vili/log"
-	"github.com/airware/vili/redis"
-	"github.com/airware/vili/repository"
-	"github.com/airware/vili/slack"
-	"github.com/airware/vili/util"
+	"github.com/viliproject/vili/api"
+	"github.com/viliproject/vili/environments"
+	"github.com/viliproject/vili/log"
+	"github.com/viliproject/vili/redis"
+	"github.com/viliproject/vili/repository"
+	"github.com/viliproject/vili/slack"
+	"github.com/viliproject/vili/util"
 )
 
 var publishedRegexp = regexp.MustCompile(

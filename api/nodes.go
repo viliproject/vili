@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/airware/vili/errors"
-	"github.com/airware/vili/kube"
-	"github.com/airware/vili/server"
+	"github.com/viliproject/vili/errors"
+	"github.com/viliproject/vili/kube"
+	"github.com/viliproject/vili/server"
 	"github.com/labstack/echo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"

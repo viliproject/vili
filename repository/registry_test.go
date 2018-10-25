@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/airware/vili/log"
+	"github.com/viliproject/vili/log"
 	"github.com/stretchr/testify/assert"
 )
 

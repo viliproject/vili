@@ -5,7 +5,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/airware/vili/session"
+	"github.com/viliproject/vili/session"
 	"github.com/labstack/echo"
 )
 

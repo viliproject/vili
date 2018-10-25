@@ -1,6 +1,6 @@
 export LISTEN_ADDR=":4001"
 export VILI_URI=http://localhost:4001
-export BUILD_DIR=$HOME/go/src/github.com/airware/vili/public/build
+export BUILD_DIR=$HOME/go/src/github.com/viliproject/vili/public/build
 
 export APP_CERT="TODO"
 export APP_PRIVATE_KEY="TODO"

@@ -3,10 +3,10 @@ package api
 import (
 	"sync"
 
-	"github.com/airware/vili/environments"
-	"github.com/airware/vili/errors"
-	"github.com/airware/vili/middleware"
-	"github.com/airware/vili/server"
+	"github.com/viliproject/vili/environments"
+	"github.com/viliproject/vili/errors"
+	"github.com/viliproject/vili/middleware"
+	"github.com/viliproject/vili/server"
 	"github.com/labstack/echo"
 )
 

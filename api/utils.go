@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/airware/vili/log"
+	"github.com/viliproject/vili/log"
 	"github.com/labstack/echo"
 	"golang.org/x/net/websocket"
 	extv1beta1 "k8s.io/api/extensions/v1beta1"

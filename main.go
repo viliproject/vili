@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/airware/vili/app"
+	"github.com/viliproject/vili/app"
 )
 
 func main() {

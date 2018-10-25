@@ -6,8 +6,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/airware/vili/log"
-	"github.com/airware/vili/util"
+	"github.com/viliproject/vili/log"
+	"github.com/viliproject/vili/util"
 	"github.com/nlopes/slack"
 )
 

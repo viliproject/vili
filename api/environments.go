@@ -5,12 +5,12 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/airware/vili/environments"
-	"github.com/airware/vili/errors"
-	"github.com/airware/vili/session"
-	"github.com/airware/vili/templates"
-	"github.com/airware/vili/types"
-	"github.com/airware/vili/util"
+	"github.com/viliproject/vili/environments"
+	"github.com/viliproject/vili/errors"
+	"github.com/viliproject/vili/session"
+	"github.com/viliproject/vili/templates"
+	"github.com/viliproject/vili/types"
+	"github.com/viliproject/vili/util"
 	"github.com/labstack/echo"
 )
 

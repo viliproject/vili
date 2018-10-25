@@ -3,10 +3,10 @@ package api
 import (
 	"net/http"
 
-	"github.com/airware/vili/environments"
-	"github.com/airware/vili/kube"
-	"github.com/airware/vili/repository"
-	"github.com/airware/vili/templates"
+	"github.com/viliproject/vili/environments"
+	"github.com/viliproject/vili/kube"
+	"github.com/viliproject/vili/repository"
+	"github.com/viliproject/vili/templates"
 	"github.com/labstack/echo"
 )
 

@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/CloudCom/firego"
-	"github.com/airware/vili/log"
+	"github.com/viliproject/vili/log"
 )
 
 var (

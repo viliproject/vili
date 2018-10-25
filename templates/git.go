@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/airware/vili/config"
-	"github.com/airware/vili/git"
+	"github.com/viliproject/vili/config"
+	"github.com/viliproject/vili/git"
 )
 
 // GitConfig is the configuration for the git tempaltes service
