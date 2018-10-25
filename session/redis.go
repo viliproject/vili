@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/airware/vili/redis"
+	"github.com/viliproject/vili/redis"
 )
 
 // RedisConfig is the redis session configuration

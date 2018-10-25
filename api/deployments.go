@@ -8,13 +8,13 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/airware/vili/environments"
-	"github.com/airware/vili/errors"
-	"github.com/airware/vili/kube"
-	"github.com/airware/vili/log"
-	"github.com/airware/vili/repository"
-	"github.com/airware/vili/server"
-	"github.com/airware/vili/templates"
+	"github.com/viliproject/vili/environments"
+	"github.com/viliproject/vili/errors"
+	"github.com/viliproject/vili/kube"
+	"github.com/viliproject/vili/log"
+	"github.com/viliproject/vili/repository"
+	"github.com/viliproject/vili/server"
+	"github.com/viliproject/vili/templates"
 	"github.com/labstack/echo"
 	corev1 "k8s.io/api/core/v1"
 	extv1beta1 "k8s.io/api/extensions/v1beta1"
@@ -138,6 +138,10 @@ func deploymentServiceCreateHandler(c echo.Context) error {
 	}
 
 	waitGroup.Wait()
+
+	if failed {
+		return server.ErrorResponse(c, errors.InternalServerError())
+	}
 
 	deployment := &extv1beta1.Deployment{}
 	err = deploymentTemplate.Parse(deployment)

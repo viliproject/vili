@@ -1,8 +1,8 @@
 package api
 
 import (
-	"github.com/airware/vili/log"
-	"github.com/airware/vili/slack"
+	"github.com/viliproject/vili/log"
+	"github.com/viliproject/vili/slack"
 )
 
 func logMessage(message, slackMessage string, level log.Level) {
@@ -17,7 +17,7 @@ func logMessage(message, slackMessage string, level log.Level) {
 	case log.ErrorLevel:
 		logf = log.Error
 	default:
-		log.Errorf("Invalid level for logging message %s", level)
+		log.Errorf("Invalid level for logging message %v", level)
 		return
 	}
 	logf(message)

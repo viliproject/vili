@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/airware/vili/templates"
+	"github.com/viliproject/vili/templates"
 )
 
 const (

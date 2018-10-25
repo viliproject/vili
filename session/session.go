@@ -3,7 +3,7 @@ package session
 import (
 	"net/http"
 
-	"github.com/airware/vili/util"
+	"github.com/viliproject/vili/util"
 )
 
 const (

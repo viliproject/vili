@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/airware/vili/kube"
-	"github.com/airware/vili/log"
+	"github.com/viliproject/vili/kube"
+	"github.com/viliproject/vili/log"
 	"github.com/labstack/echo"
 	"golang.org/x/net/websocket"
 	corev1 "k8s.io/api/core/v1"

@@ -12,14 +12,14 @@ RUN go get \
     github.com/golang/lint/golint \
     golang.org/x/tools/cmd/cover
 
-WORKDIR /go/src/github.com/airware/vili/
+WORKDIR /go/src/github.com/viliproject/vili/
 
 # run npm install first for dependencies
-COPY package.json /go/src/github.com/airware/vili/
+COPY package.json /go/src/github.com/viliproject/vili/
 RUN npm install
 
 # then copy the rest of the app and install
-COPY . /go/src/github.com/airware/vili/
+COPY . /go/src/github.com/viliproject/vili/
 
 RUN CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags '-s' -o main
 
@@ -36,8 +36,8 @@ RUN curl -L https://storage.googleapis.com/kubernetes-release/release/v1.8.1/bin
 
 WORKDIR /app/
 
-COPY --from=0 /go/src/github.com/airware/vili/main .
-COPY --from=0 /go/src/github.com/airware/vili/public/build build
+COPY --from=0 /go/src/github.com/viliproject/vili/main .
+COPY --from=0 /go/src/github.com/viliproject/vili/public/build build
 
 ENV HOME /app
 ENV NODE_ENV production

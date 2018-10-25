@@ -3,7 +3,7 @@ package api
 import (
 	"net/http"
 
-	"github.com/airware/vili/git"
+	"github.com/viliproject/vili/git"
 	"github.com/labstack/echo"
 )
 

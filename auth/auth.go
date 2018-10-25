@@ -3,8 +3,8 @@ package auth
 import (
 	"net/http"
 
-	"github.com/airware/vili/server"
-	"github.com/airware/vili/session"
+	"github.com/viliproject/vili/server"
+	"github.com/viliproject/vili/session"
 	"github.com/labstack/echo"
 )
 

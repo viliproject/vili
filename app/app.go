@@ -7,10 +7,10 @@ import (
 
 	"github.com/labstack/echo"
 
-	"github.com/airware/vili/config"
-	"github.com/airware/vili/environments"
-	"github.com/airware/vili/public"
-	"github.com/airware/vili/session"
+	"github.com/viliproject/vili/config"
+	"github.com/viliproject/vili/environments"
+	"github.com/viliproject/vili/public"
+	"github.com/viliproject/vili/session"
 )
 
 const homeTemplate = `

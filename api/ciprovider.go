@@ -3,12 +3,12 @@ package api
 import (
 	"fmt"
 
-	"github.com/airware/vili/circleci"
-	"github.com/airware/vili/config"
-	"github.com/airware/vili/environments"
-	"github.com/airware/vili/kube"
-	"github.com/airware/vili/log"
-	"github.com/airware/vili/slack"
+	"github.com/viliproject/vili/circleci"
+	"github.com/viliproject/vili/config"
+	"github.com/viliproject/vili/environments"
+	"github.com/viliproject/vili/kube"
+	"github.com/viliproject/vili/log"
+	"github.com/viliproject/vili/slack"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

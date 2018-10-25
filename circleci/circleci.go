@@ -1,9 +1,9 @@
 package circleci
 
 import (
-	"github.com/airware/vili/errors"
+	"github.com/viliproject/vili/errors"
 
-	"github.com/airware/vili/log"
+	"github.com/viliproject/vili/log"
 	"github.com/jszwedko/go-circleci"
 )
 
