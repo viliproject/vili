@@ -9,7 +9,7 @@ RUN apk add -U --no-cache \
     nodejs-npm
 
 RUN go get \
-    github.com/golang/lint/golint \
+    golang.org/x/lint/golint \
     golang.org/x/tools/cmd/cover
 
 WORKDIR /go/src/github.com/viliproject/vili/
