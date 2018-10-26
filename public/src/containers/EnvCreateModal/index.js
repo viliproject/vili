@@ -25,6 +25,7 @@ function mapStateToProps(state) {
   const envs = state.envs
   return {
     envs,
+    showCreateModal: envs.get("showCreateModal"),
   }
 }
 
@@ -46,7 +47,18 @@ export class EnvCreateModal extends React.Component {
   }
 
   componentWillMount() {
-    this.loadData()
+    const { showCreateModal } = this.props
+    if (showCreateModal) {
+      this.loadData()
+    }
+  }
+
+  componentWillReceiveProps(nextProps) {
+    const { showCreateModal } = this.props
+    const { showCreateModal: nextShowCreateModal } = nextProps
+    if (nextShowCreateModal && !showCreateModal) {
+      this.loadData()
+    }
   }
 
   loadData = () => {
@@ -214,6 +226,7 @@ export class EnvCreateModal extends React.Component {
 
 EnvCreateModal.propTypes = {
   envs: PropTypes.object,
+  showCreateModal: PropTypes.bool,
   hideCreateEnvModal: PropTypes.func.isRequired,
   getBranches: PropTypes.func.isRequired,
   createEnvironment: PropTypes.func.isRequired,
