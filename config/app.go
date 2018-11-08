@@ -46,6 +46,7 @@ const (
 	RegistryPassword        = "registry-password"
 	BundleNamespace         = "bundle-namespace"
 	ECRAccountID            = "ecr-account-id"
+	ECRRegion               = "ecr-region"
 	FirebaseURL             = "firebase-url"
 	FirebaseSecret          = "firebase-secret"
 	SlackToken              = "slack-token"

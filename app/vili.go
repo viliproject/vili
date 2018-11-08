@@ -153,13 +153,20 @@ func New() *App {
 					log.Fatal(err)
 				}
 			case "ecr":
+				// Set the ECR Region
+				ecrRegion := config.GetString(config.ECRRegion)
+				if ecrRegion == "" {
+					ecrRegion = config.GetString(config.AWSRegion)
+				}
+
+				// Set the ECR Account ID
 				ecrAccountID := config.GetString(config.ECRAccountID)
 				var registryID *string
 				if ecrAccountID != "" {
 					registryID = &ecrAccountID
 				}
 				err := repository.InitECR(&repository.ECRConfig{
-					Region:          config.GetString(config.AWSRegion),
+					Region:          ecrRegion,
 					AccessKeyID:     config.GetString(config.AWSAccessKeyID),
 					SecretAccessKey: config.GetString(config.AWSSecretAccessKey),
 					Namespace:       config.GetString(config.RegistryNamespace),
