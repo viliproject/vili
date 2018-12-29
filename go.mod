@@ -94,7 +94,7 @@ require (
 	github.com/spf13/afero v0.0.0-20170217164146-9be650865eab
 	github.com/spf13/cast v1.1.0
 	github.com/spf13/jwalterweatherman v0.0.0-20151106170057-c2aa07df5938
-	github.com/spf13/pflag v0.0.0-20151013200643-08b1a584251b
+	github.com/spf13/pflag v1.0.4-0.20181223182923-24fa6976df40
 	github.com/spf13/viper v0.0.0-20151110042204-e37b56e207dd
 	github.com/stretchr/testify v0.0.0-20160615092844-d77da356e56a
 	github.com/thoas/stats v0.0.0-20150511071935-54ed61c2b47e
@@ -106,10 +106,10 @@ require (
 	github.com/volkangurel/viper v0.0.0-20170417183942-2106167bed5d
 	github.com/xordataexchange/crypt v0.0.0-20150523230031-749e360c8f23
 	github.com/zenazn/goji v0.0.0-20180313033536-4a0a089f56df
-	golang.org/x/crypto v0.0.0-20180426115354-719079de17cd
+	golang.org/x/crypto v0.0.0-20181203042331-505ab145d0a9
 	golang.org/x/net v0.0.0-20151121034339-4f2fc6c1e69d
 	golang.org/x/oauth2 v0.0.0-20151117210313-442624c9ec92
-	golang.org/x/sys v0.0.0-20170529185110-b90f89a1e7a9
+	golang.org/x/sys v0.0.0-20181228144115-9a3f9b0469bb
 	golang.org/x/text v0.0.0-20171013141220-c01e4764d870
 	google.golang.org/appengine v0.0.0-20171011215012-a2e0dc829727
 	google.golang.org/cloud v0.0.0-20151119220103-975617b05ea8
