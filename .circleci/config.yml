@@ -3,14 +3,24 @@ version: 2
 jobs:
   go:
     docker:
-      - image: circleci/golang:1.10
-    working_directory: /go/src/github.com/viliproject/vili
+      - image: circleci/golang:1.11
     steps:
       - checkout
+      - restore_cache:
+          keys:
+            # Find a cache corresponding to this specific package.json checksum
+            # when this file is changed, this key will fail
+            - go-mod-v1-{{ checksum "go.sum" }}
+            # Find the most recent cache used from any branch
+            - go-mod-v1-
       - run:
           name: Build
           command: |
             go build -a
+      - save_cache:
+          key: go-mod-v1-{{ checksum "go.sum" }}
+          paths:
+            - /go/pkg/mod
   js:
     docker:
       - image: circleci/node:8
